@@ -4,3 +4,4 @@ Tivena es un proyecto academico para la materia Ingeniería de Software, cursada
 ## Integrantes:
 - Letelle Mauro
 - Perissé Lautaro
+- Argel Ramiro
