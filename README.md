@@ -2,6 +2,9 @@
 
 ## Tivena
 Tivena es un proyecto academico para la materia Ingeniería de Software, cursada 2026, de la UNRN.
+<div align="center">
+  <img src="assets/tivena.png" alt="Tivena Logo" width="200">
+</div>
 
 ## Integrantes de Tivena:
 - Letelle Mauro
