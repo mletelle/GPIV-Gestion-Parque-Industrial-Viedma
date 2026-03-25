@@ -1,7 +1,9 @@
-# Tivena
+# GPIV - Gestión del Parque Industrial de Viedma
+
+## Tivena
 Tivena es un proyecto academico para la materia Ingeniería de Software, cursada 2026, de la UNRN.
 
-## Integrantes:
+## Integrantes de Tivena:
 - Letelle Mauro
 - Perissé Lautaro
 - Argel Ramiro
