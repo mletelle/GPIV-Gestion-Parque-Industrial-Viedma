@@ -1,0 +1,343 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Parque Industrial Viedma — GPIV{% endblock %}
+{% block meta_description %}Parque Industrial de Viedma — infraestructura, beneficios impositivos y proceso de radicación. Río Negro, Argentina.{% endblock %}
+
+{% block extra_css %}
+<style>
+    .hero {
+        background: linear-gradient(135deg, var(--verde) 0%, var(--azul) 100%);
+        color: #fff;
+        padding: 5rem 0 4rem;
+    }
+
+    .hero h1 {
+        font-size: clamp(2rem, 4.5vw, 3rem);
+        font-weight: 800;
+        margin-bottom: 1rem;
+    }
+
+    .hero .hero-lead {
+        font-size: 1.05rem;
+        opacity: 0.88;
+        line-height: 1.65;
+        max-width: 480px;
+    }
+
+    .hero-divider {
+        width: 48px;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.45);
+        border-radius: 2px;
+        margin: 1.2rem 0;
+    }
+
+    .contact-form-wrap {
+        background: var(--gris-fondo);
+        border-radius: var(--radio);
+        border: 1px solid var(--borde);
+        padding: 2rem;
+        max-width: 640px;
+        margin: 0 auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<section class="hero">
+    <div class="container">
+        <div class="row align-items-center g-4">
+            <div class="col-md-6">
+                <h1>Parque Industrial<br>de Viedma</h1>
+                <div class="hero-divider"></div>
+                <p class="hero-lead">
+                    Uno de los parques industriales más antiguos del país,
+                    ubicado en el corazón de la Patagonia Argentina.
+                    Infraestructura completa, beneficios impositivos provinciales
+                    y un entorno productivo consolidado sobre Ruta Provincial N.° 1.
+                </p>
+            </div>
+            <div class="col-md-6 d-flex align-items-center justify-content-center">
+                <img src="{% static 'vistaaerea.png' %}" alt="Vista aérea del Parque Industrial de Viedma"
+                    style="width:100%; max-height:360px; object-fit:cover; border-radius:12px; box-shadow:0 8px 32px rgba(0,0,0,0.35);">
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="servicios">
+    <div class="container">
+        <h2 class="sec-title">Infraestructura</h2>
+        <div class="sec-line"></div>
+        <p class="sec-subtitle">El predio cuenta con servicios industriales completos para el desarrollo productivo.</p>
+        <div class="row g-4">
+            <div class="col-sm-6 col-lg-3">
+                <div class="gpiv-card">
+                    <div class="card-icon"><i class="bi bi-lightning-charge"></i></div>
+                    <h5>Energía Eléctrica</h5>
+                    <p>Red de media tensión con capacidad industrial y transformadores de distribución.</p>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="gpiv-card">
+                    <div class="card-icon"><i class="bi bi-thermometer-high"></i></div>
+                    <h5>Gas Natural</h5>
+                    <p>Distribución por red con presión regulada según la necesidad de cada empresa.</p>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="gpiv-card">
+                    <div class="card-icon"><i class="bi bi-wifi"></i></div>
+                    <h5>Fibra Óptica</h5>
+                    <p>Conectividad de alta velocidad para comunicaciones empresariales y sistemas de gestión.</p>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="gpiv-card">
+                    <div class="card-icon"><i class="bi bi-droplet"></i></div>
+                    <h5>Agua Cruda</h5>
+                    <p>Suministro desde el río Negro para procesos industriales con infraestructura propia.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="sec-alt" id="beneficios">
+    <div class="container">
+        <h2 class="sec-title">Beneficios Impositivos</h2>
+        <div class="sec-line"></div>
+        <p class="sec-subtitle">Marco promocional vigente para las empresas radicadas, conforme a la legislación de Río
+            Negro.</p>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="gpiv-card gpiv-card-accent">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <i class="bi bi-building-check" style="color:var(--verde); font-size:1.2rem;"></i>
+                        <h5 class="mb-0">Exención de Ingresos Brutos</h5>
+                    </div>
+                    <p>Las empresas radicadas están exentas del Impuesto sobre Ingresos Brutos sobre su actividad
+                        industrial dentro del predio.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="gpiv-card gpiv-card-accent">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <i class="bi bi-file-earmark-check" style="color:var(--verde); font-size:1.2rem;"></i>
+                        <h5 class="mb-0">Exención de Impuesto de Sellos</h5>
+                    </div>
+                    <p>Los contratos y actos jurídicos vinculados a la actividad industrial están exentos del Impuesto
+                        de Sellos provincial.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="gpiv-card gpiv-card-accent">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <i class="bi bi-graph-up-arrow" style="color:var(--verde); font-size:1.2rem;"></i>
+                        <h5 class="mb-0">Promoción Industrial</h5>
+                    </div>
+                    <p>Beneficios adicionales para proyectos que generen empleo genuino en la región, conforme a la ley
+                        provincial de parques industriales.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="radicacion">
+    <div class="container">
+        <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+            <h2 class="sec-title mb-0">Proceso de Radicación</h2>
+            <span class="dev-badge"><i class="bi bi-cone"></i> En desarrollo</span>
+        </div>
+        <div class="sec-line"></div>
+        <p class="sec-subtitle">El proceso digital estará disponible próximamente. A continuación, la información
+            orientativa.</p>
+
+        <div class="row g-5">
+            <div class="col-lg-5">
+                <div class="stepper">
+                    <div class="step-item">
+                        <div class="step-left">
+                            <div class="step-num">1</div>
+                            <div class="step-line"></div>
+                        </div>
+                        <div class="step-content">
+                            <h6>Manifestación de Voluntad</h6>
+                            <p>La empresa presenta su interés indicando el proyecto productivo y la superficie
+                                requerida.</p>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-left">
+                            <div class="step-num">2</div>
+                            <div class="step-line"></div>
+                        </div>
+                        <div class="step-content">
+                            <h6>Evaluación Técnica</h6>
+                            <p>ENREPABI analiza el proyecto y la disponibilidad de lotes.</p>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-left">
+                            <div class="step-num">3</div>
+                            <div class="step-line"></div>
+                        </div>
+                        <div class="step-content">
+                            <h6>Aprobación del Directorio</h6>
+                            <p>El Directorio aprueba o rechaza la adjudicación del lote.</p>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-left">
+                            <div class="step-num">4</div>
+                            <div class="step-line"></div>
+                        </div>
+                        <div class="step-content">
+                            <h6>Firma de Contrato</h6>
+                            <p>Suscripción del contrato de concesión o compraventa del lote.</p>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-left">
+                            <div class="step-num">5</div>
+                        </div>
+                        <div class="step-content">
+                            <h6>Inicio y Certificación de Obra</h6>
+                            <p>Presentación del proyecto constructivo y seguimiento de avance.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <p class="fw-semibold mb-2" style="font-size:0.95rem;">Documentación orientativa requerida</p>
+                <ul class="list-unstyled mb-0">
+                    <li class="doc-item">
+                        <i class="bi bi-file-earmark-text"></i>
+                        <span>Nota de Solicitud Formal<small>Dirigida a la Presidencia de ENREPABI describiendo la
+                                actividad.</small></span>
+                    </li>
+                    <li class="doc-item">
+                        <i class="bi bi-bar-chart-line"></i>
+                        <span>Plan de Negocios y Factibilidad<small>Memoria descriptiva y análisis técnico-económico del
+                                proyecto.</small></span>
+                    </li>
+                    <li class="doc-item">
+                        <i class="bi bi-people"></i>
+                        <span>Proyección de Empleo<small>Puestos directos e indirectos previstos en la primera
+                                etapa.</small></span>
+                    </li>
+                    <li class="doc-item">
+                        <i class="bi bi-tree"></i>
+                        <span>Estudio de Impacto Ambiental<small>Según tipo de actividad, sujeto a reglamentación
+                                vigente.</small></span>
+                    </li>
+                    <li class="doc-item">
+                        <i class="bi bi-building"></i>
+                        <span>Personería Jurídica<small>Estatuto social, acta de constitución y designación de
+                                autoridades.</small></span>
+                    </li>
+                    <li class="doc-item">
+                        <i class="bi bi-rulers"></i>
+                        <span>Proyecto Constructivo<small>Planos firmados por profesional habilitado, cronograma y
+                                presupuesto.</small></span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="sec-alt" id="ubicacion">
+    <div class="container">
+        <h2 class="sec-title">Ubicación</h2>
+        <div class="sec-line"></div>
+        <div class="map-wrap ratio ratio-21x9 mb-2">
+            <iframe src="https://maps.google.com/maps?q=-40.836688307527425,-62.96228966570138&z=15&output=embed"
+                allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+                title="Ubicación del Parque Industrial de Viedma">
+            </iframe>
+        </div>
+        <p class="text-muted" style="font-size:0.88rem;">
+            <i class="bi bi-geo-alt-fill me-1" style="color:var(--verde);"></i>
+            El predio se extiende desde el <strong>Puente Ferrocarretero</strong> hasta las instalaciones de
+            <strong>Fridevi</strong>,
+            con acceso por Ruta Provincial N.° 1 (Circunvalación Sur), Viedma, Río Negro.
+        </p>
+    </div>
+</section>
+
+<section id="contacto">
+    <div class="container">
+        <h2 class="sec-title">Contacto</h2>
+        <div class="sec-line"></div>
+
+        <div class="row g-4 justify-content-center">
+
+            <!-- Informacion de enrepabi -->
+            <div class="col-md-5 col-lg-4">
+                <p class="fw-semibold mb-2" style="font-size:0.95rem;">
+                    Administración ENREPABI
+                    <span class="ficticio">Datos ficticios</span>
+                </p>
+                <ul class="contact-list list-unstyled mb-0">
+                    <li><i class="bi bi-geo-alt"></i><span>Ruta Provincial N.° 1 Km 2.5, Viedma, Río Negro</span></li>
+                    <li><i class="bi bi-telephone"></i><span>+54 9 2920 123-4567</span></li>
+                    <li><i class="bi bi-envelope"></i><span>administracion@enrepabi.gob.ar</span></li>
+                    <li><i class="bi bi-clock"></i><span>Lunes a Viernes — 08:00 a 14:00 hs.</span></li>
+                </ul>
+            </div>
+
+            <div class="col-md-7 col-lg-6">
+                <div class="contact-form-wrap">
+                    <p class="fw-semibold mb-3" style="font-size:0.95rem;">Enviar una consulta</p>
+                    <form class="form-gpiv" id="form-contacto" novalidate onsubmit="enviarConsulta(event)">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <input type="text" class="form-control" id="contacto-nombre" placeholder="Nombre o empresa"
+                                required>
+                        </div>
+                        <div class="mb-3">
+                            <input type="email" class="form-control" id="contacto-email"
+                                placeholder="Correo electrónico" required>
+                        </div>
+                        <div class="mb-3">
+                            <input type="text" class="form-control" id="contacto-telefono" placeholder="Telefono"
+                                required>
+                        </div>
+                        <div class="mb-3">
+                            <textarea class="form-control" rows="4" id="contacto-mensaje"
+                                placeholder="¿En qué podemos ayudarte?" required></textarea>
+                        </div>
+                        <div id="contacto-alert" class="alert d-none py-2 mb-3" role="alert"></div>
+                        <button type="submit" class="btn-verde w-100" id="btn-enviar-consulta">
+                            <i class="bi bi-send"></i> Enviar consulta
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function enviarConsulta(e) {
+        e.preventDefault();
+        const form = document.getElementById('form-contacto');
+        const alertBox = document.getElementById('contacto-alert');
+        if (!form.checkValidity()) { form.classList.add('was-validated'); return; }
+        alertBox.className = 'alert alert-success py-2 mb-3';
+        alertBox.innerHTML = '<i class="bi bi-check-circle me-1"></i>Consulta recibida. Nos comunicaremos a la brevedad.';
+        alertBox.classList.remove('d-none');
+        form.reset();
+        form.classList.remove('was-validated');
+    }
+</script>
+{% endblock %}

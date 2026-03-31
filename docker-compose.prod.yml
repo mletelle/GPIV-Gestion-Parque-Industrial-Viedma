@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: gpiv_db
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - gpiv_network
+
+  web:
+    build: .
+    container_name: gpiv_web
+    restart: unless-stopped
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             gunicorn --bind 0.0.0.0:8000 --workers 3 gpiv.wsgi:application"
+    volumes:
+      - static_volume:/app/staticfiles
+    env_file:
+      - .env
+    depends_on:
+      - db
+    networks:
+      - gpiv_network
+
+  nginx:
+    image: nginx:alpine
+    container_name: gpiv_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_volume:/app/staticfiles
+    depends_on:
+      - web
+    networks:
+      - gpiv_network
+
+networks:
+  gpiv_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  static_volume:
