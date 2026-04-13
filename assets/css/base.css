@@ -1,28 +1,30 @@
 /* estilos de gpiv
    se importan en base.html */
 
+@import url('https://fonts.googleapis.com/css2?family=Encode+Sans:wght@400;600;700&display=swap');
+
 /* paleta de rio negro */
 :root {
-    --verde: #006B3E;
-    --verde-hover: #005733;
+    --verde: #009A3B;
+    --verde-hover: #007a2f;
     --verde-medio: #00844D;
     --verde-claro: #EAF3EE;
-    --azul: #003876;
+    --azul: #0063BE;
     --azul-claro: #EAF0F7;
     --gris-fondo: #F7F9F8;
-    --gris-texto: #1E2D3D;
+    --gris-texto: #000000;
     --gris-suave: #64748B;
     --borde: #D9E4DC;
-    --sombra-card: 0 2px 16px rgba(0, 107, 62, 0.09);
+    --sombra-card: none; /* Sombras prohibidas en manual de marca */
     --radio: 10px;
 }
 
 /* tipografia y body */
 body {
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-family: 'Encode Sans', system-ui, -apple-system, sans-serif;
     font-size: 1rem;
     color: var(--gris-texto);
-    background: #fff;
+    background: #FFFFFF;
     line-height: 1.6;
 }
 
@@ -110,15 +112,15 @@ section {
     background: #fff;
     border: 1px solid var(--borde);
     border-radius: var(--radio);
-    box-shadow: var(--sombra-card);
+    box-shadow: none;
     padding: 1.75rem 1.5rem;
     height: 100%;
-    transition: box-shadow 0.2s, transform 0.2s;
+    transition: border-color 0.2s;
 }
 
 .gpiv-card:hover {
-    box-shadow: 0 6px 28px rgba(0, 107, 62, 0.14);
-    transform: translateY(-2px);
+    box-shadow: none;
+    border-color: var(--verde);
 }
 
 .gpiv-card h5 {
@@ -194,7 +196,8 @@ section {
 .form-gpiv .form-select:focus,
 .form-gpiv textarea:focus {
     border-color: var(--verde);
-    box-shadow: 0 0 0 3px rgba(0, 107, 62, 0.11);
+    outline: none;
+    box-shadow: none;
 }
 
 /* stepper radicación */
@@ -304,7 +307,7 @@ section {
     border-radius: var(--radio);
     overflow: hidden;
     border: 1px solid var(--borde);
-    box-shadow: var(--sombra-card);
+    box-shadow: none;
 }
 
 /* en desarrollo etc */
