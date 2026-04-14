@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+
+{% block title %}Adjudicar Lote — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .adjudicar-wrap {
+        padding: 2rem 0;
+    }
+
+    .empresa-resumen {
+        background: linear-gradient(135deg, var(--verde) 0%, var(--azul) 100%);
+        color: #fff;
+        border-radius: var(--radio);
+        padding: 1.5rem 2rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .empresa-resumen h3 {
+        font-size: 1.2rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .empresa-resumen .meta {
+        font-size: 0.88rem;
+        opacity: 0.85;
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .tabla-lotes-adj {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+
+    .tabla-lotes-adj th {
+        background: var(--verde);
+        color: #fff;
+        padding: 0.6rem 0.8rem;
+        font-weight: 600;
+        font-size: 0.83rem;
+    }
+
+    .tabla-lotes-adj th:first-child {
+        border-radius: var(--radio) 0 0 0;
+    }
+
+    .tabla-lotes-adj th:last-child {
+        border-radius: 0 var(--radio) 0 0;
+    }
+
+    .tabla-lotes-adj td {
+        padding: 0.55rem 0.8rem;
+        border-bottom: 1px solid var(--borde);
+    }
+
+    .tabla-lotes-adj tr:hover td {
+        background: var(--verde-claro);
+    }
+
+    .btn-adjudicar-lote {
+        font-size: 0.82rem;
+        padding: 0.3rem 0.8rem;
+        border-radius: 5px;
+        border: none;
+        background: var(--verde);
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .btn-adjudicar-lote:hover {
+        background: var(--verde-hover);
+    }
+
+    .alerta-compat {
+        background: #FEF3C7;
+        border: 1px solid #F59E0B;
+        border-radius: var(--radio);
+        padding: 1rem;
+        font-size: 0.88rem;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="adjudicar-wrap">
+    <div class="container">
+        <a href="{% url 'core:solicitud_detail' empresa.pk %}"
+            style="font-size:0.88rem;color:var(--gris-suave);text-decoration:none;">
+            <i class="bi bi-arrow-left"></i> Volver al detalle
+        </a>
+
+        <div class="empresa-resumen mt-3">
+            <h3>{{ empresa.razon_social }}</h3>
+            <div class="meta">
+                <span><i class="bi bi-rulers"></i> Necesita {{ empresa.necesidad_m2|floatformat:0 }} m²</span>
+                <span><i class="bi bi-building"></i> {{ empresa.get_categoria_industrial_display }}</span>
+                {% if empresa.maneja_inflamables %}<span><i class="bi bi-exclamation-triangle"></i> Maneja
+                    inflamables</span>{% endif %}
+                <span><i class="bi bi-calendar"></i> {{ empresa.get_tiempo_radicacion_meses_display }}</span>
+            </div>
+        </div>
+
+        {% if messages %}
+        {% for msg in messages %}
+        <div class="alert alert-{{ msg.tags }}" style="font-size:0.88rem;">{{ msg }}</div>
+        {% endfor %}
+        {% endif %}
+
+        {% if lotes %}
+        <h4 style="font-size:1rem;font-weight:700;margin-bottom:1rem;">Lotes disponibles (≥ {{
+            empresa.necesidad_m2|floatformat:0 }} m²)</h4>
+        <div style="overflow-x:auto;">
+            <table class="tabla-lotes-adj">
+                <thead>
+                    <tr>
+                        <th>Parcela</th>
+                        <th>Superficie (m²)</th>
+                        <th>Agua Potable</th>
+                        <th>Agua Cruda</th>
+                        <th>Internet</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lote in lotes %}
+                    <tr>
+                        <td><strong>{{ lote.nro_parcela|stringformat:"03d" }}</strong></td>
+                        <td>{{ lote.superficie_m2|floatformat:2 }}</td>
+                        <td>{% if lote.conexion_agua_potable %}<i class="bi bi-check-circle text-success"></i>{% else
+                            %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
+                        <td>{% if lote.conexion_agua_cruda %}<i class="bi bi-check-circle text-success"></i>{% else %}<i
+                                class="bi bi-x-circle text-muted"></i>{% endif %}</td>
+                        <td>{% if lote.internet_disponible %}<i class="bi bi-check-circle text-success"></i>{% else %}<i
+                                class="bi bi-x-circle text-muted"></i>{% endif %}</td>
+                        <td>
+                            <form method="post" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="lote_id" value="{{ lote.pk }}">
+                                <button type="submit" class="btn-adjudicar-lote"
+                                    onclick="return confirm('¿Adjudicar Parcela {{ lote.nro_parcela }} a {{ empresa.razon_social }}?')">
+                                    <i class="bi bi-geo-alt-fill"></i> Adjudicar
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alerta-compat">
+            <i class="bi bi-info-circle"></i>
+            No hay lotes disponibles con superficie suficiente (≥ {{ empresa.necesidad_m2|floatformat:0 }} m²).
+            La empresa queda en lista de espera como Pre-Aprobada.
+        </div>
+        <a href="{% url 'core:solicitud_list' %}" class="btn-verde">
+            <i class="bi bi-arrow-left"></i> Volver a solicitudes
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

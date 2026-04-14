@@ -15,17 +15,30 @@
     --gris-texto: #000000;
     --gris-suave: #64748B;
     --borde: #D9E4DC;
-    --sombra-card: none; /* Sombras prohibidas en manual de marca */
+    --sombra-card: none;
     --radio: 10px;
+    --sidebar-w: 240px;
 }
 
 /* tipografia y body */
+html,
+body {
+    height: 100%;
+}
+
 body {
     font-family: 'Encode Sans', system-ui, -apple-system, sans-serif;
     font-size: 1rem;
     color: var(--gris-texto);
     background: #FFFFFF;
     line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+main {
+    flex: 1;
 }
 
 h1,
@@ -42,6 +55,7 @@ h6 {
     background: var(--verde);
     border-bottom: 3px solid var(--azul);
     padding: 0.6rem 0;
+    z-index: 1030;
 }
 
 .navbar-brand-gpiv {
@@ -54,9 +68,25 @@ h6 {
     gap: 0.65rem;
 }
 
+/* logo blanco para que se vea sobre fondo verde */
 .navbar-brand-gpiv img {
     height: 44px;
     width: auto;
+    filter: brightness(0) invert(1);
+}
+
+.navbar-user {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.85rem;
+}
+
+.sidebar-toggle {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.4rem;
+    padding: 0.2rem;
+    cursor: pointer;
 }
 
 .btn-acceder {
@@ -74,6 +104,100 @@ h6 {
     background: rgba(255, 255, 255, 0.15);
     border-color: #fff;
     color: #fff;
+}
+
+/* sidebar */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--sidebar-w);
+    height: 100vh;
+    background: #fff;
+    border-right: 1px solid var(--borde);
+    padding-top: 70px;
+    z-index: 1020;
+    transition: transform 0.25s ease;
+    overflow-y: auto;
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem 0;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.7rem 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--gris-texto);
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s;
+}
+
+.sidebar-link:hover {
+    background: var(--verde-claro);
+    color: var(--verde);
+}
+
+.sidebar-link.active {
+    background: var(--verde-claro);
+    color: var(--verde);
+    font-weight: 700;
+    border-right: 3px solid var(--verde);
+}
+
+.sidebar-link i {
+    font-size: 1.1rem;
+    width: 20px;
+    text-align: center;
+}
+
+.sidebar-divider {
+    margin: 0.5rem 1.5rem;
+    border-color: var(--borde);
+}
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 1015;
+}
+
+/* sidebar en desktop (lg+) */
+@media (min-width: 992px) {
+    body.has-sidebar .sidebar {
+        transform: translateX(0);
+    }
+
+    body.has-sidebar .main-with-sidebar {
+        margin-left: var(--sidebar-w);
+    }
+
+    body.has-sidebar .gpiv-footer {
+        margin-left: var(--sidebar-w);
+    }
+}
+
+/* sidebar en mobile */
+@media (max-width: 991.98px) {
+    .sidebar {
+        transform: translateX(-100%);
+    }
+
+    body.sidebar-open .sidebar {
+        transform: translateX(0);
+    }
+
+    body.sidebar-open .sidebar-overlay {
+        display: block;
+    }
 }
 
 /* secciones */
@@ -181,7 +305,7 @@ section {
     color: #fff;
 }
 
-/* fomularios */
+/* formularios */
 .form-gpiv .form-control,
 .form-gpiv .form-select,
 .form-gpiv textarea {
@@ -200,7 +324,7 @@ section {
     box-shadow: none;
 }
 
-/* stepper radicación */
+/* stepper radicacion */
 .stepper {
     display: flex;
     flex-direction: column;
@@ -338,12 +462,13 @@ section {
     margin-left: 0.3rem;
 }
 
-/* pie de pagina */
+/* pie de pagina pegado al fondo */
 footer.gpiv-footer {
     background: var(--verde);
     color: rgba(255, 255, 255, 0.75);
     padding: 1.5rem 0;
     font-size: 0.85rem;
+    margin-top: auto;
 }
 
 footer.gpiv-footer strong {
@@ -362,6 +487,5 @@ footer.gpiv-footer strong {
     height: 26px;
     width: auto;
     object-fit: contain;
-    /*filter: brightness(0) invert(1);*/
     opacity: 0.85;
 }

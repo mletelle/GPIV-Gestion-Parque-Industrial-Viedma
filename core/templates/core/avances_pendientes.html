@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+
+{% block title %}Avances Pendientes — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .avances-wrap {
+        padding: 2rem 0;
+        min-height: calc(100vh - 200px);
+    }
+
+    .tabla-avances {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+    }
+
+    .tabla-avances th {
+        background: var(--verde);
+        color: #fff;
+        padding: 0.7rem 1rem;
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-align: left;
+    }
+
+    .tabla-avances th:first-child {
+        border-radius: var(--radio) 0 0 0;
+    }
+
+    .tabla-avances th:last-child {
+        border-radius: 0 var(--radio) 0 0;
+    }
+
+    .tabla-avances td {
+        padding: 0.65rem 1rem;
+        border-bottom: 1px solid var(--borde);
+        vertical-align: middle;
+    }
+
+    .tabla-avances tr:hover td {
+        background: var(--verde-claro);
+    }
+
+    .btn-validar {
+        font-size: 0.82rem;
+        padding: 0.3rem 0.8rem;
+        border-radius: 5px;
+        border: none;
+        background: var(--verde);
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .btn-validar:hover {
+        background: var(--verde-hover);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="avances-wrap">
+    <div class="container">
+        <h2 class="sec-title mb-1">Avances Pendientes de Validación</h2>
+        <div class="sec-line"></div>
+
+        <div style="overflow-x:auto;">
+            <table class="tabla-avances">
+                <thead>
+                    <tr>
+                        <th>Empresa</th>
+                        <th>Avance (%)</th>
+                        <th>Fecha</th>
+                        <th>Certificado</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for avance in avances %}
+                    <tr>
+                        <td><strong>{{ avance.empresa.razon_social }}</strong></td>
+                        <td>{{ avance.porcentaje_declarado }}%</td>
+                        <td>{{ avance.fecha_presentacion|date:"d/m/Y" }}</td>
+                        <td>
+                            <a href="{{ avance.certificado_pdf.url }}" target="_blank"
+                                style="color:var(--azul);font-size:0.85rem;">
+                                <i class="bi bi-file-earmark-pdf"></i> Ver PDF
+                            </a>
+                        </td>
+                        <td>
+                            <form method="post" action="{% url 'core:avance_validar' avance.pk %}"
+                                style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn-validar"
+                                    onclick="return confirm('¿Validar este avance de {{ avance.porcentaje_declarado }}%?')">
+                                    <i class="bi bi-check-lg"></i> Validar
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-3">
+                            No hay avances pendientes de validación.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <nav class="mt-4" aria-label="Paginación">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a>
+                </li>
+                {% endif %}
+                {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                </li>
+                {% endfor %}
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

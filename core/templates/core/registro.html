@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Registro — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .registro-wrap {
+        min-height: calc(100vh - 200px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 0;
+    }
+
+    .registro-card {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 2.5rem;
+        width: 100%;
+        max-width: 480px;
+    }
+
+    .registro-card h2 {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: var(--verde);
+        margin-bottom: 0.3rem;
+    }
+
+    .registro-card p {
+        color: var(--gris-suave);
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .registro-card .form-control {
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="registro-wrap">
+    <div class="registro-card">
+        <h2>Crear cuenta</h2>
+        <p>Registrate para enviar tu solicitud de radicación en el Parque Industrial.</p>
+
+        {% if form.errors %}
+        <div class="alert alert-danger" style="font-size:0.88rem;">
+            {% for field, errors in form.errors.items %}
+            {% for error in errors %}<p class="mb-0">{{ error }}</p>{% endfor %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post" class="form-gpiv" novalidate>
+            {% csrf_token %}
+            <label class="form-label" for="id_username">Usuario</label>
+            {{ form.username }}
+            <label class="form-label" for="id_email">Email</label>
+            {{ form.email }}
+            <label class="form-label" for="id_password1">Contraseña</label>
+            {{ form.password1 }}
+            <label class="form-label" for="id_password2">Confirmar contraseña</label>
+            {{ form.password2 }}
+            <button type="submit" class="btn-verde w-100 justify-content-center mt-2">Crear cuenta</button>
+        </form>
+        <p class="text-center mt-3 mb-0" style="font-size:0.88rem;">
+            ¿Ya tenés cuenta? <a href="{% url 'core:login' %}" style="color:var(--verde);font-weight:600;">Iniciar
+                sesión</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

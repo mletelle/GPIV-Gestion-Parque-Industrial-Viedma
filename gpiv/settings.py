@@ -46,6 +46,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'core.context_processors.user_groups',
             ],
         },
     },
@@ -94,3 +95,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Usuario customizado para roles
 AUTH_USER_MODEL = 'core.CustomUser'
+LOGIN_URL = 'core:login'
+LOGIN_REDIRECT_URL = 'core:dashboard'
+LOGOUT_REDIRECT_URL = 'core:landing'
+
+# Archivos subidos por usuarios (escrituras, certificados)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

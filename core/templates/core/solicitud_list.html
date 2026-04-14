@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+
+{% block title %}Solicitudes — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .solicitudes-wrap {
+        padding: 2rem 0;
+        min-height: calc(100vh - 200px);
+    }
+
+    .tabla-solicitudes {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+    }
+
+    .tabla-solicitudes th {
+        background: var(--verde);
+        color: #fff;
+        padding: 0.7rem 1rem;
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-align: left;
+    }
+
+    .tabla-solicitudes th:first-child {
+        border-radius: var(--radio) 0 0 0;
+    }
+
+    .tabla-solicitudes th:last-child {
+        border-radius: 0 var(--radio) 0 0;
+    }
+
+    .tabla-solicitudes td {
+        padding: 0.65rem 1rem;
+        border-bottom: 1px solid var(--borde);
+        vertical-align: middle;
+    }
+
+    .tabla-solicitudes tr:hover td {
+        background: var(--verde-claro);
+    }
+
+    .badge-estado {
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 0.2rem 0.55rem;
+        border-radius: 4px;
+    }
+
+    .badge-estado.enevaluacion {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .badge-estado.preaprobado {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .badge-estado.radicada {
+        background: #DCFCE7;
+        color: #166534;
+    }
+
+    .badge-estado.enconstruccion {
+        background: #E0E7FF;
+        color: #3730A3;
+    }
+
+    .badge-estado.finalizado {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .badge-estado.escriturado {
+        background: #CFFAFE;
+        color: #155E75;
+    }
+
+    .badge-estado.caducado,
+    .badge-estado.rechazado {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .badge-estado.historico_baja {
+        background: #F1F5F9;
+        color: #475569;
+    }
+
+    .filtro-bar {
+        background: var(--gris-fondo);
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 0.8rem 1.2rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .btn-sm-gpiv {
+        font-size: 0.82rem;
+        padding: 0.3rem 0.7rem;
+        border-radius: 5px;
+        text-decoration: none;
+        border: 1px solid var(--borde);
+        color: var(--gris-texto);
+        background: #fff;
+        transition: border-color 0.2s;
+    }
+
+    .btn-sm-gpiv:hover {
+        border-color: var(--verde);
+        color: var(--verde);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="solicitudes-wrap">
+    <div class="container">
+        <h2 class="sec-title mb-1">Empresas y Solicitudes</h2>
+        <div class="sec-line"></div>
+
+        <div class="filtro-bar">
+            <form method="get" class="d-flex align-items-center gap-3">
+                <label for="filtro-estado" style="font-size:0.85rem;font-weight:600;white-space:nowrap;">Filtrar por estado:</label>
+                <select name="estado" id="filtro-estado" class="form-select form-select-sm" style="max-width:220px;">
+                    <option value="">Todos</option>
+                    {% for valor, label in estados_choices %}
+                    <option value="{{ valor }}" {% if filtro_estado == valor %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn-verde" style="padding:0.3rem 0.8rem;font-size:0.82rem;">
+                    <i class="bi bi-funnel"></i> Filtrar
+                </button>
+                {% if filtro_estado %}
+                <a href="{% url 'core:solicitud_list' %}" style="font-size:0.82rem;color:var(--gris-suave);">Limpiar</a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table class="tabla-solicitudes">
+                <thead>
+                    <tr>
+                        <th>Razón Social</th>
+                        <th>CUIT</th>
+                        <th>Rubro</th>
+                        <th>m² Solicitados</th>
+                        <th>Estado</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for emp in solicitudes %}
+                    <tr>
+                        <td><strong>{{ emp.razon_social }}</strong></td>
+                        <td>{{ emp.cuit }}</td>
+                        <td>{{ emp.get_rubro_display }}</td>
+                        <td>{{ emp.necesidad_m2|floatformat:0 }}</td>
+                        <td><span class="badge-estado {{ emp.estado|lower }}">{{ emp.get_estado_display }}</span></td>
+                        <td>
+                            <a href="{% url 'core:solicitud_detail' emp.pk %}" class="btn-sm-gpiv">
+                                <i class="bi bi-eye"></i> Ver
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-3">No hay solicitudes pendientes.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <nav class="mt-4" aria-label="Paginación">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a>
+                </li>
+                {% endif %}
+                {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                </li>
+                {% endfor %}
+                {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

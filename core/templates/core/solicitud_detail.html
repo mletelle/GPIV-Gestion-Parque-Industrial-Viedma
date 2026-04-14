@@ -1,0 +1,403 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ empresa.razon_social }} — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .detail-wrap {
+        padding: 2rem 0;
+    }
+
+    .detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .estado-badge {
+        font-size: 0.85rem;
+        font-weight: 700;
+        padding: 0.3rem 0.8rem;
+        border-radius: 6px;
+    }
+
+    .estado-badge.enevaluacion {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .estado-badge.preaprobado {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .estado-badge.rechazado {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .estado-badge.radicada {
+        background: #DCFCE7;
+        color: #166534;
+    }
+
+    .estado-badge.enconstruccion {
+        background: #E0E7FF;
+        color: #3730A3;
+    }
+
+    .estado-badge.finalizado {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .estado-badge.escriturado {
+        background: #CFFAFE;
+        color: #155E75;
+    }
+
+    .estado-badge.caducado {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .estado-badge.historico_baja {
+        background: #F1F5F9;
+        color: #475569;
+    }
+
+    .seccion-card {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .seccion-card h5 {
+        color: var(--verde);
+        font-weight: 700;
+        font-size: 0.95rem;
+        margin-bottom: 1rem;
+    }
+
+    .dato-row {
+        display: flex;
+        padding: 0.4rem 0;
+        border-bottom: 1px solid var(--borde);
+        font-size: 0.9rem;
+    }
+
+    .dato-row:last-child {
+        border-bottom: none;
+    }
+
+    .dato-label {
+        font-weight: 600;
+        min-width: 250px;
+        color: var(--gris-suave);
+        flex-shrink: 0;
+    }
+
+    .acciones-bar {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-accion {
+        font-size: 0.88rem;
+        padding: 0.5rem 1.2rem;
+        border-radius: 7px;
+        text-decoration: none;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: opacity 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .btn-accion:hover {
+        opacity: 0.85;
+    }
+
+    .btn-preaprobar {
+        background: #2563EB;
+        color: #fff;
+    }
+
+    .btn-rechazar {
+        background: #DC2626;
+        color: #fff;
+    }
+
+    .btn-adjudicar {
+        background: var(--verde);
+        color: #fff;
+    }
+
+    .btn-finalizar {
+        background: #059669;
+        color: #fff;
+    }
+
+    .btn-escriturar {
+        background: #0891B2;
+        color: #fff;
+    }
+
+    .btn-baja {
+        background: #DC2626;
+        color: #fff;
+    }
+
+    .avance-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--borde);
+        font-size: 0.88rem;
+    }
+
+    .avance-row:last-child {
+        border-bottom: none;
+    }
+
+    .badge-validado {
+        font-size: 0.72rem;
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        font-weight: 700;
+    }
+
+    .badge-validado.si {
+        background: #DCFCE7;
+        color: #166534;
+    }
+
+    .badge-validado.no {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .prorroga-badge {
+        font-size: 0.72rem;
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        font-weight: 700;
+    }
+
+    .prorroga-badge.pendiente {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .prorroga-badge.aprobada {
+        background: #DCFCE7;
+        color: #166534;
+    }
+
+    .prorroga-badge.rechazada {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .historial-item {
+        padding: 0.6rem 0;
+        border-bottom: 1px solid var(--borde);
+        font-size: 0.88rem;
+    }
+
+    .historial-item:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="detail-wrap">
+    <div class="container" style="max-width:850px;">
+        <a href="{% url 'core:solicitud_list' %}"
+            style="font-size:0.88rem;color:var(--gris-suave);text-decoration:none;">
+            <i class="bi bi-arrow-left"></i> Volver a solicitudes
+        </a>
+
+        <div class="detail-header mt-3">
+            <div>
+                <h2 class="sec-title mb-0">{{ empresa.razon_social }}</h2>
+                {% if empresa.nombre_fantasia %}<p style="color:var(--gris-suave);margin:0;">{{ empresa.nombre_fantasia
+                    }}</p>{% endif %}
+            </div>
+            <span class="estado-badge {{ empresa.estado|lower }}">{{ empresa.get_estado_display }}</span>
+        </div>
+
+        {% if messages %}
+        {% for msg in messages %}
+        <div class="alert alert-{{ msg.tags }}" style="font-size:0.88rem;">{{ msg }}</div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- acciones segun estado -->
+        <div class="acciones-bar mb-3">
+            {% if empresa.estado == 'EnEvaluacion' %}
+            <form method="post" action="{% url 'core:solicitud_preaprobar' empresa.pk %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn-accion btn-preaprobar"
+                    onclick="return confirm('¿Pre-aprobar esta solicitud?')">
+                    <i class="bi bi-check2-circle"></i> Pre-aprobar
+                </button>
+            </form>
+            <a href="{% url 'core:solicitud_rechazar' empresa.pk %}" class="btn-accion btn-rechazar">
+                <i class="bi bi-x-circle"></i> Rechazar
+            </a>
+            {% elif empresa.estado == 'PreAprobado' %}
+            <a href="{% url 'core:adjudicacion' empresa.pk %}" class="btn-accion btn-adjudicar">
+                <i class="bi bi-geo-alt"></i> Adjudicar Lote
+            </a>
+            <a href="{% url 'core:solicitud_rechazar' empresa.pk %}" class="btn-accion btn-rechazar">
+                <i class="bi bi-x-circle"></i> Rechazar
+            </a>
+            {% elif empresa.estado == 'EnConstruccion' %}
+            {% if tiene_avance_100_validado %}
+            <form method="post" action="{% url 'core:finalizar_obra' empresa.pk %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn-accion btn-finalizar"
+                    onclick="return confirm('¿Marcar obra como finalizada?')">
+                    <i class="bi bi-check-all"></i> Finalizar Obra
+                </button>
+            </form>
+            {% endif %}
+            <a href="{% url 'core:baja_empresa' empresa.pk %}" class="btn-accion btn-baja">
+                <i class="bi bi-x-circle"></i> Dar de Baja
+            </a>
+            {% elif empresa.estado == 'Finalizado' %}
+            <a href="{% url 'core:escrituracion' empresa.pk %}" class="btn-accion btn-escriturar">
+                <i class="bi bi-file-earmark-check"></i> Escriturar
+            </a>
+            {% elif empresa.estado == 'Radicada' %}
+            <a href="{% url 'core:baja_empresa' empresa.pk %}" class="btn-accion btn-baja">
+                <i class="bi bi-x-circle"></i> Dar de Baja
+            </a>
+            {% elif empresa.estado == 'Caducado' %}
+            <a href="{% url 'core:baja_empresa' empresa.pk %}" class="btn-accion btn-baja">
+                <i class="bi bi-x-circle"></i> Dar de Baja (Desadjudicar)
+            </a>
+            {% endif %}
+        </div>
+
+        <!-- lote asignado -->
+        {% if lote %}
+        <div class="seccion-card">
+            <h5>Lote Asignado</h5>
+            <div class="dato-row">
+                <span class="dato-label">Parcela</span>
+                <span>{{ lote.nro_parcela|stringformat:"03d" }}</span>
+            </div>
+            <div class="dato-row">
+                <span class="dato-label">Superficie</span>
+                <span>{{ lote.superficie_m2|floatformat:2 }} m²</span>
+            </div>
+            {% if empresa.fecha_limite_obra %}
+            <div class="dato-row">
+                <span class="dato-label">Fecha límite de obra</span>
+                <span>{{ empresa.fecha_limite_obra|date:"d/m/Y" }}</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- avances constructivos -->
+        {% if avances %}
+        <div class="seccion-card">
+            <h5>Avances Constructivos</h5>
+            {% for avance in avances %}
+            <div class="avance-row">
+                <div>
+                    <strong>{{ avance.porcentaje_declarado }}%</strong>
+                    <span style="color:var(--gris-suave);font-size:0.82rem;">
+                        — {{ avance.fecha_presentacion|date:"d/m/Y" }}
+                    </span>
+                </div>
+                <div>
+                    {% if avance.validado_admin %}
+                    <span class="badge-validado si">Validado</span>
+                    {% else %}
+                    <span class="badge-validado no">Pendiente</span>
+                    {% endif %}
+                    <a href="{{ avance.certificado_pdf.url }}" target="_blank"
+                        style="color:var(--azul);font-size:0.82rem;margin-left:0.5rem;">
+                        <i class="bi bi-file-pdf"></i> PDF
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- prorrogas -->
+        {% if prorrogas %}
+        <div class="seccion-card">
+            <h5>Solicitudes de Prórroga</h5>
+            {% for p in prorrogas %}
+            <div class="avance-row">
+                <div>
+                    <strong>+{{ p.meses_solicitados }} meses</strong>
+                    <span style="color:var(--gris-suave);font-size:0.82rem;">
+                        — {{ p.fecha_solicitud|date:"d/m/Y" }}
+                    </span>
+                </div>
+                <span class="prorroga-badge {{ p.estado|lower }}">{{ p.get_estado_display }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- datos por seccion -->
+        {% for titulo, campos in secciones %}
+        <div class="seccion-card">
+            <h5>{{ titulo }}</h5>
+            {% for field in campos %}
+            <div class="dato-row">
+                <span class="dato-label">{{ field.label }}</span>
+                <span>
+                    {% if field.field.widget.input_type == 'checkbox' %}
+                    {% if field.value %}Sí{% else %}No{% endif %}
+                    {% else %}
+                    {{ field.value|default:"—" }}
+                    {% endif %}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+
+        <!-- historial -->
+        {% if historial %}
+        <div class="seccion-card">
+            <h5>Historial de Estado</h5>
+            {% for t in historial %}
+            <div class="historial-item">
+                <strong>{{ t.get_estado_nuevo_display }}</strong>
+                {% if t.estado_anterior %}<span style="color:var(--gris-suave);"> (desde {{
+                    t.get_estado_anterior_display }})</span>{% endif %}
+                <span style="color:var(--gris-suave);font-size:0.82rem;">
+                    — {{ t.fecha_cambio|date:"d/m/Y H:i" }}
+                    {% if t.usuario %} por {{ t.usuario.get_full_name|default:t.usuario.username }}{% endif %}
+                </span>
+                {% if t.justificacion_resolucion %}
+                <p style="margin:0.3rem 0 0;font-size:0.85rem;color:var(--gris-suave);">{{ t.justificacion_resolucion }}
+                </p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

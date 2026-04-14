@@ -14,10 +14,12 @@ class Empresa(models.Model):
     # Enums de estado y clasificaciones
     class Estado(models.TextChoices):
         EN_EVALUACION = 'EnEvaluacion', _('En Evaluación')
+        PRE_APROBADO = 'PreAprobado', _('Pre-Aprobado')
         RECHAZADO = 'Rechazado', _('Rechazado')
         RADICADA = 'Radicada', _('Radicada')
         EN_CONSTRUCCION = 'EnConstruccion', _('En Construcción')
         FINALIZADO = 'Finalizado', _('Finalizado')
+        ESCRITURADO = 'Escriturado', _('Escriturado')
         CADUCADO = 'Caducado', _('Caducado')
         HISTORICO_BAJA = 'Historico_Baja', _('Clausurado / Baja')
 
@@ -67,6 +69,7 @@ class Empresa(models.Model):
 
     # Información Fiscal
     razon_social = models.CharField(max_length=150)
+    nombre_fantasia = models.CharField(max_length=150, blank=True, null=True)
     cuit = models.CharField(max_length=13, unique=True)
     ingresos_brutos = models.CharField(max_length=50, blank=True, null=True)
     actividad_principal = models.CharField(max_length=200)
@@ -120,6 +123,7 @@ class Empresa(models.Model):
     # Estado y Control
     estado = models.CharField(max_length=30, choices=Estado.choices, default=Estado.EN_EVALUACION)
     fecha_limite_obra = models.DateField(blank=True, null=True)
+    escritura_pdf = models.FileField(upload_to='escrituras/', blank=True, null=True)
 
     class Meta:
         verbose_name = _("Empresa")
@@ -188,6 +192,31 @@ class AvanceConstructivo(models.Model):
         return f"Avance {self.porcentaje_declarado}% - Empresa #{self.empresa_id}"
 
 
+class SolicitudProrroga(models.Model):
+    """Solicitud de extensión de plazo de obra (HU-07, CU-05)."""
+    class EstadoProrroga(models.TextChoices):
+        PENDIENTE = 'Pendiente', _('Pendiente')
+        APROBADA = 'Aprobada', _('Aprobada')
+        RECHAZADA = 'Rechazada', _('Rechazada')
+
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='prorrogas')
+    meses_solicitados = models.IntegerField(choices=Empresa.TiempoRadicacion.choices)
+    justificacion = models.TextField()
+    fecha_solicitud = models.DateTimeField(auto_now_add=True)
+    estado = models.CharField(max_length=20, choices=EstadoProrroga.choices, default=EstadoProrroga.PENDIENTE)
+    respuesta_admin = models.TextField(blank=True, null=True)
+    fecha_respuesta = models.DateTimeField(blank=True, null=True)
+    resuelta_por = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='prorrogas_resueltas')
+
+    class Meta:
+        verbose_name = _("Solicitud de Prórroga")
+        verbose_name_plural = _("Solicitudes de Prórroga")
+        ordering = ['-fecha_solicitud']
+
+    def __str__(self):
+        return f"Prórroga {self.meses_solicitados}m - Empresa #{self.empresa_id} ({self.estado})"
+
+
 class ConsumoServicio(models.Model):
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='consumos')
     periodo_mes = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(12)])
@@ -195,6 +224,7 @@ class ConsumoServicio(models.Model):
     consumo_agua_potable_m3 = models.DecimalField(max_digits=14, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(0)])
     consumo_agua_cruda_m3 = models.DecimalField(max_digits=14, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(0)])
     consumo_luz_kwh = models.DecimalField(max_digits=14, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(0)])
+    consumo_gas_m3 = models.DecimalField(max_digits=14, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(0)])
     fecha_carga = models.DateTimeField(auto_now_add=True)
     cargado_por = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='consumos_cargados')
 

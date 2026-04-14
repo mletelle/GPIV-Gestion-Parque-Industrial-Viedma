@@ -4,3 +4,4 @@ gunicorn>=21.2.0
 python-dotenv>=1.0.1
 dj-database-url>=2.1.0
 whitenoise>=6.6.0
+python-dateutil>=2.9.0

@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+
+{% block title %}Prórroga Pendientes — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .prorrogas-wrap {
+        padding: 2rem 0;
+        min-height: calc(100vh - 200px);
+    }
+
+    .prorroga-item {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .prorroga-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .prorroga-header h5 {
+        font-size: 1rem;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .prorroga-meta {
+        font-size: 0.85rem;
+        color: var(--gris-suave);
+        margin-bottom: 0.8rem;
+    }
+
+    .prorroga-meta span {
+        margin-right: 1.2rem;
+    }
+
+    .prorroga-just {
+        background: var(--gris-fondo);
+        border-radius: 6px;
+        padding: 0.8rem 1rem;
+        font-size: 0.88rem;
+        margin-bottom: 1rem;
+    }
+
+    .btn-aprobar-pr {
+        font-size: 0.85rem;
+        padding: 0.4rem 1rem;
+        border-radius: 6px;
+        border: none;
+        background: var(--verde);
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .btn-rechazar-pr {
+        font-size: 0.85rem;
+        padding: 0.4rem 1rem;
+        border-radius: 6px;
+        border: none;
+        background: #DC2626;
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="prorrogas-wrap">
+    <div class="container" style="max-width:850px;">
+        <h2 class="sec-title mb-1">Prórroga Pendientes de Resolución</h2>
+        <div class="sec-line"></div>
+
+        {% for prorroga in prorrogas %}
+        <div class="prorroga-item">
+            <div class="prorroga-header">
+                <h5>{{ prorroga.empresa.razon_social }}</h5>
+                <span style="font-size:0.85rem;font-weight:700;color:var(--azul);">
+                    +{{ prorroga.meses_solicitados }} meses
+                </span>
+            </div>
+            <div class="prorroga-meta">
+                <span><i class="bi bi-calendar"></i> Solicitada: {{ prorroga.fecha_solicitud|date:"d/m/Y H:i" }}</span>
+                <span><i class="bi bi-clock"></i> Fecha límite actual: {{ prorroga.empresa.fecha_limite_obra|date:"d/m/Y" }}</span>
+            </div>
+            <div class="prorroga-just">
+                <strong style="font-size:0.82rem;color:var(--gris-suave);">Justificación:</strong><br>
+                {{ prorroga.justificacion }}
+            </div>
+            <div class="d-flex gap-2">
+                <form method="post" action="{% url 'core:prorroga_aprobar' prorroga.pk %}" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="respuesta" value="">
+                    <button type="submit" class="btn-aprobar-pr"
+                        onclick="return confirm('¿Aprobar prórroga de {{ prorroga.meses_solicitados }} meses?')">
+                        <i class="bi bi-check-lg"></i> Aprobar
+                    </button>
+                </form>
+                <form method="post" action="{% url 'core:prorroga_rechazar' prorroga.pk %}" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="respuesta" value="">
+                    <button type="submit" class="btn-rechazar-pr"
+                        onclick="return confirm('¿Rechazar esta solicitud de prórroga?')">
+                        <i class="bi bi-x-lg"></i> Rechazar
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-center text-muted py-4">
+            <i class="bi bi-calendar-check" style="font-size:2rem;"></i>
+            <p class="mt-2">No hay solicitudes de prórroga pendientes.</p>
+        </div>
+        {% endfor %}
+
+        {% if page_obj.has_other_pages %}
+        <nav class="mt-4" aria-label="Paginación">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a>
+                </li>
+                {% endif %}
+                {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                </li>
+                {% endfor %}
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

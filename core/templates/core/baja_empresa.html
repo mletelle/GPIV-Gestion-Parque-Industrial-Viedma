@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block title %}Baja de Empresa — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .baja-wrap {
+        padding: 2rem 0;
+    }
+
+    .baja-card {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 2rem;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .baja-card h3 {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #DC2626;
+        margin-bottom: 0.3rem;
+    }
+
+    .baja-warning {
+        background: #FEF2F2;
+        border: 1px solid #FECACA;
+        border-radius: var(--radio);
+        padding: 1rem;
+        font-size: 0.88rem;
+        color: #991B1B;
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="baja-wrap">
+    <div class="container">
+        <div class="baja-card">
+            <h3><i class="bi bi-exclamation-triangle"></i> Dar de Baja</h3>
+            <p style="color:var(--gris-suave);font-size:0.92rem;margin-bottom:1rem;">
+                Empresa: <strong>{{ empresa.razon_social }}</strong> ({{ empresa.cuit }})
+            </p>
+
+            <div class="baja-warning">
+                <i class="bi bi-info-circle"></i>
+                Esta acción desvinculará a la empresa de su lote asignado, liberándolo para futuras adjudicaciones.
+                La empresa pasará a estado <strong>Histórico / Baja</strong>. El historial se conserva.
+            </div>
+
+            <form method="post" class="form-gpiv" novalidate>
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="id_justificacion" class="form-label" style="font-weight:600;">
+                        {{ form.justificacion.label }}
+                    </label>
+                    {{ form.justificacion }}
+                    {% if form.justificacion.errors %}
+                    <div style="color:#DC2626;font-size:0.82rem;margin-top:0.2rem;">
+                        {{ form.justificacion.errors.0 }}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="{% url 'core:solicitud_detail' empresa.pk %}" class="btn-sm-gpiv"
+                        style="padding:0.5rem 1.2rem;">Cancelar</a>
+                    <button type="submit" class="btn-verde" style="background:#DC2626;"
+                        onclick="return confirm('¿Confirmar baja de {{ empresa.razon_social }}? Esta acción liberará el lote asignado.')">
+                        <i class="bi bi-x-circle"></i> Confirmar Baja
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+
+{% block title %}Solicitud de Radicación — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .solicitud-wrap {
+        padding: 2rem 0;
+    }
+
+    .seccion-titulo {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--verde);
+        border-bottom: 2px solid var(--verde);
+        padding-bottom: 0.4rem;
+        margin: 2rem 0 1rem;
+    }
+
+    .seccion-titulo:first-of-type {
+        margin-top: 0;
+    }
+
+    .campo-grupo {
+        margin-bottom: 1rem;
+    }
+
+    .campo-grupo label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        display: block;
+    }
+
+    .campo-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .campo-check label {
+        margin-bottom: 0;
+        font-weight: 400;
+    }
+
+    .campo-error {
+        color: #DC2626;
+        font-size: 0.8rem;
+        margin-top: 0.2rem;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // mascara de cuit: XX-XXXXXXXX-X
+    document.addEventListener('DOMContentLoaded', function () {
+        const cuitInput = document.getElementById('id_cuit');
+        if (!cuitInput) return;
+
+        cuitInput.addEventListener('input', function (e) {
+            let v = this.value.replace(/\D/g, '');
+            if (v.length > 11) v = v.slice(0, 11);
+            let formatted = '';
+            for (let i = 0; i < v.length; i++) {
+                if (i === 2 || i === 10) formatted += '-';
+                formatted += v[i];
+            }
+            this.value = formatted;
+        });
+
+        cuitInput.setAttribute('placeholder', 'XX-XXXXXXXX-X');
+        cuitInput.setAttribute('maxlength', '13');
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="solicitud-wrap">
+    <div class="container" style="max-width:800px;">
+        <h2 class="sec-title">Solicitud de Radicación</h2>
+        <div class="sec-line"></div>
+        <p style="color:var(--gris-suave);font-size:0.92rem;margin-bottom:1.5rem;">
+            Completá todos los campos obligatorios para enviar tu solicitud de radicación en el Parque Industrial de
+            Viedma.
+        </p>
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger" style="font-size:0.88rem;">
+            {% for error in form.non_field_errors %}
+            <p class="mb-0">{{ error }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post" class="form-gpiv" novalidate>
+            {% csrf_token %}
+
+            {% for titulo, campos in secciones %}
+            <h3 class="seccion-titulo">{{ titulo }}</h3>
+            <div class="row">
+                {% for field in campos %}
+                <div
+                    class="{% if field.field.widget.input_type == 'checkbox' %}col-md-6 campo-check{% else %}col-md-6 campo-grupo{% endif %}">
+                    {% if field.field.widget.input_type == 'checkbox' %}
+                    {{ field }}
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {% else %}
+                    <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+                    {{ field }}
+                    {% endif %}
+                    {% if field.errors %}
+                    <div class="campo-error">{{ field.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+
+            <div class="d-flex justify-content-end gap-2 mt-3 mb-4">
+                <a href="{% url 'core:dashboard' %}" class="btn-sm-gpiv" style="padding:0.6rem 1.5rem;">Cancelar</a>
+                <button type="submit" class="btn-verde">
+                    <i class="bi bi-send"></i> Enviar Solicitud
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

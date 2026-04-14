@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+
+{% block title %}Lotes Disponibles — GPIV{% endblock %}
+{% block meta_description %}Catálogo de lotes disponibles en el Parque Industrial de Viedma, Río Negro.{% endblock %}
+
+{% block extra_css %}
+<style>
+    .catalogo-header {
+        background: linear-gradient(135deg, var(--verde) 0%, var(--azul) 100%);
+        color: #fff;
+        padding: 3rem 0 2.5rem;
+    }
+
+    .catalogo-header h1 {
+        font-size: 1.6rem;
+        font-weight: 700;
+        margin-bottom: 0.3rem;
+    }
+
+    .catalogo-header p {
+        opacity: 0.85;
+        font-size: 0.95rem;
+        margin: 0;
+    }
+
+    .catalogo-body {
+        padding: 2.5rem 0;
+    }
+
+    .lote-card {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 1.5rem;
+        height: 100%;
+        transition: border-color 0.2s;
+    }
+
+    .lote-card:hover {
+        border-color: var(--verde);
+    }
+
+    .lote-card .lote-num {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--verde);
+        margin-bottom: 0.6rem;
+    }
+
+    .lote-card .lote-sup {
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 0.8rem;
+    }
+
+    .lote-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.78rem;
+        background: var(--verde-claro);
+        color: var(--verde);
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        margin-right: 0.3rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .lote-chip.off {
+        background: #F1F5F9;
+        color: #94A3B8;
+    }
+
+    .badge-disponible {
+        background: var(--verde-claro);
+        color: var(--verde);
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 0.2rem 0.55rem;
+        border-radius: 4px;
+    }
+
+    .badge-enuso {
+        background: var(--azul-claro);
+        color: var(--azul);
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 0.2rem 0.55rem;
+        border-radius: 4px;
+    }
+
+    .catalogo-count {
+        font-size: 0.88rem;
+        color: var(--gris-suave);
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="catalogo-header">
+    <div class="container">
+        <h1>Lotes Disponibles</h1>
+        <p>Parcelas del Parque Industrial de Viedma disponibles para radicación empresaria.</p>
+    </div>
+</div>
+
+<div class="catalogo-body">
+    <div class="container">
+        <p class="catalogo-count">
+            {{ page_obj.paginator.count }} lotes disponibles
+        </p>
+
+        <div class="row g-4">
+            {% for lote in lotes %}
+            <div class="col-sm-6 col-lg-4">
+                <div class="lote-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="lote-num">Parcela {{ lote.nro_parcela|stringformat:"03d" }}</div>
+                        {% if lote.estado == 'Disponible' %}
+                        <span class="badge-disponible">Disponible</span>
+                        {% else %}
+                        <span class="badge-enuso">En Uso</span>
+                        {% endif %}
+                    </div>
+                    <div class="lote-sup">{{ lote.superficie_m2|floatformat:2 }} m²</div>
+                    <div>
+                        <span class="lote-chip {% if not lote.conexion_agua_potable %}off{% endif %}">
+                            <i class="bi bi-droplet-fill"></i> Agua Potable
+                        </span>
+                        <span class="lote-chip {% if not lote.conexion_agua_cruda %}off{% endif %}">
+                            <i class="bi bi-droplet-half"></i> Agua Cruda
+                        </span>
+                        <span class="lote-chip {% if not lote.internet_disponible %}off{% endif %}">
+                            <i class="bi bi-wifi"></i> Internet
+                        </span>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <p class="text-muted text-center py-4">No hay lotes disponibles en este momento.</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <nav class="mt-4" aria-label="Paginación">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo; Anterior</a>
+                </li>
+                {% endif %}
+                {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                </li>
+                {% endfor %}
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente &raquo;</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

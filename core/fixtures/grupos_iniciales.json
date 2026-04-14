@@ -1,0 +1,22 @@
+[
+  {
+    "model": "auth.group",
+    "pk": 1,
+    "fields": {"name": "ADMIN_ENREPAVI"}
+  },
+  {
+    "model": "auth.group",
+    "pk": 2,
+    "fields": {"name": "EMPRESA"}
+  },
+  {
+    "model": "auth.group",
+    "pk": 3,
+    "fields": {"name": "ORGANISMO_PUBLICO"}
+  },
+  {
+    "model": "auth.group",
+    "pk": 4,
+    "fields": {"name": "PROVEEDOR_SERVICIOS"}
+  }
+]
