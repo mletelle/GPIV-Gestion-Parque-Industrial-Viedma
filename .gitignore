@@ -144,7 +144,6 @@ ENV/
 env.bak/
 venv.bak/
 *.txt
-*.md
 
 # Spyder project settings
 .spyderproject
@@ -207,4 +206,13 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
-.context/*.txt
+
+# Agentes
+.context/*
+.agents/*
+.docs/*
+CLAUDE.md
+progreso.md
+core/migrations/*.py
+__init__.py
+.claudignore
