@@ -112,36 +112,26 @@
 
         <div class="gpiv-card mb-3">
             <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Información Fiscal</h5>
-            <div class="dato-row"><span class="dato-label">Razón Social</span><span>{{ empresa.razon_social }}</span>
-            </div>
-            <div class="dato-row"><span class="dato-label">Nombre de Fantasía</span><span>{{
-                    empresa.nombre_fantasia|default:"—" }}</span></div>
+            <div class="dato-row"><span class="dato-label">Razón Social</span><span>{{ empresa.razon_social }}</span></div>
+            <div class="dato-row"><span class="dato-label">Nombre de Fantasía</span><span>{{ empresa.nombre_fantasia|default:"-" }}</span></div>
             <div class="dato-row"><span class="dato-label">CUIT</span><span>{{ empresa.cuit }}</span></div>
-            <div class="dato-row"><span class="dato-label">Tipo de Empresa</span><span>{{
-                    empresa.get_tipo_empresa_display }}</span></div>
-            <div class="dato-row"><span class="dato-label">Rubro</span><span>{{ empresa.get_rubro_display }}</span>
-            </div>
-            <div class="dato-row"><span class="dato-label">Actividad Principal</span><span>{{
-                    empresa.actividad_principal }}</span></div>
+            <div class="dato-row"><span class="dato-label">Tipo de Empresa</span><span>{{ empresa.get_tipo_empresa_display }}</span></div>
+            <div class="dato-row"><span class="dato-label">Rubro</span><span>{{ empresa.get_rubro_display }}</span></div>
+            <div class="dato-row"><span class="dato-label">Actividad Principal</span><span>{{ empresa.actividad_principal }}</span></div>
         </div>
 
         <div class="gpiv-card mb-3">
             <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Contacto</h5>
-            <div class="dato-row"><span class="dato-label">Referente</span><span>{{ empresa.persona_referente }}</span>
-            </div>
+            <div class="dato-row"><span class="dato-label">Referente</span><span>{{ empresa.persona_referente }}</span></div>
             <div class="dato-row"><span class="dato-label">Teléfono</span><span>{{ empresa.telefono }}</span></div>
-            <div class="dato-row"><span class="dato-label">Email</span><span>{{ empresa.correo_electronico }}</span>
-            </div>
+            <div class="dato-row"><span class="dato-label">Email</span><span>{{ empresa.correo_electronico }}</span></div>
         </div>
 
         <div class="gpiv-card mb-3">
             <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Requerimientos</h5>
-            <div class="dato-row"><span class="dato-label">Superficie requerida</span><span>{{ empresa.necesidad_m2 }}
-                    m²</span></div>
-            <div class="dato-row"><span class="dato-label">Tiempo de radicación</span><span>{{
-                    empresa.get_tiempo_radicacion_meses_display }}</span></div>
-            <div class="dato-row"><span class="dato-label">Categoría Industrial</span><span>{{
-                    empresa.get_categoria_industrial_display }}</span></div>
+            <div class="dato-row"><span class="dato-label">Superficie requerida</span><span>{{ empresa.necesidad_m2 }} m²</span></div>
+            <div class="dato-row"><span class="dato-label">Tiempo de radicación</span><span>{{ empresa.get_tiempo_radicacion_meses_display }}</span></div>
+            <div class="dato-row"><span class="dato-label">Categoría Industrial</span><span>{{ empresa.get_categoria_industrial_display }}</span></div>
         </div>
 
         {% if lote %}
@@ -216,6 +206,38 @@
             {% endfor %}
         </div>
         {% endif %}
+
+        <div class="gpiv-card mb-3">
+            <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Consumos de servicios</h5>
+            {% if consumos %}
+            <div style="overflow-x:auto;">
+                <table style="width:100%;font-size:0.88rem;border-collapse:collapse;">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--borde);text-align:left;color:var(--gris-suave);">
+                            <th style="padding:0.4rem 0.6rem;">Período</th>
+                            <th style="padding:0.4rem 0.6rem;text-align:right;">Agua potable (m³)</th>
+                            <th style="padding:0.4rem 0.6rem;text-align:right;">Agua cruda (m³)</th>
+                            <th style="padding:0.4rem 0.6rem;text-align:right;">Electricidad (kWh)</th>
+                            <th style="padding:0.4rem 0.6rem;text-align:right;">Gas (m³)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in consumos %}
+                        <tr style="border-bottom:1px solid var(--borde);">
+                            <td style="padding:0.4rem 0.6rem;">{{ c.periodo_mes|stringformat:"02d" }}/{{ c.periodo_anio }}</td>
+                            <td style="padding:0.4rem 0.6rem;text-align:right;">{{ c.consumo_agua_potable_m3|default:"—" }}</td>
+                            <td style="padding:0.4rem 0.6rem;text-align:right;">{{ c.consumo_agua_cruda_m3|default:"—" }}</td>
+                            <td style="padding:0.4rem 0.6rem;text-align:right;">{{ c.consumo_luz_kwh|default:"—" }}</td>
+                            <td style="padding:0.4rem 0.6rem;text-align:right;">{{ c.consumo_gas_m3|default:"—" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="margin:0;color:var(--gris-suave);font-size:0.9rem;">Sin consumos registrados.</p>
+            {% endif %}
+        </div>
 
         {% if historial %}
         <div class="gpiv-card">

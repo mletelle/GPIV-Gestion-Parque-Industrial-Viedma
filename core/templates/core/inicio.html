@@ -1,0 +1,314 @@
+{% extends 'base.html' %}
+
+{% block title %}Inicio — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dash-wrap {
+        padding: 2.5rem 0;
+    }
+
+    .dash-welcome {
+        background: linear-gradient(135deg, var(--verde) 0%, var(--azul) 100%);
+        color: #fff;
+        border-radius: var(--radio);
+        padding: 2rem 2.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .dash-welcome h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.3rem;
+    }
+
+    .dash-welcome p {
+        opacity: 0.85;
+        font-size: 0.95rem;
+        margin: 0;
+    }
+
+    .dash-card {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 1.5rem;
+        text-decoration: none;
+        color: var(--gris-texto);
+        transition: border-color 0.2s;
+        display: block;
+        height: 100%;
+    }
+
+    .dash-card:hover {
+        border-color: var(--verde);
+        color: var(--gris-texto);
+    }
+
+    .dash-card h5 {
+        font-size: 0.95rem;
+        font-weight: 700;
+        margin-bottom: 0.3rem;
+    }
+
+    .dash-card p {
+        font-size: 0.88rem;
+        color: var(--gris-suave);
+        margin: 0;
+    }
+
+    .dash-card .card-icon {
+        margin-bottom: 0.8rem;
+    }
+
+    .kpi-card {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 1.3rem 1.5rem;
+        height: 100%;
+    }
+
+    .kpi-card h6 {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--gris-suave);
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        margin-bottom: 0.6rem;
+    }
+
+    .kpi-valor {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--verde);
+    }
+
+    .kpi-detalle {
+        font-size: 0.82rem;
+        color: var(--gris-suave);
+        margin: 0.2rem 0 0;
+    }
+
+    .kpi-card .mini-table {
+        width: 100%;
+        font-size: 0.86rem;
+    }
+
+    .kpi-card .mini-table td {
+        padding: 0.3rem 0;
+        border-bottom: 1px dashed var(--borde);
+    }
+
+    .kpi-card .mini-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .kpi-card .mini-table td:last-child {
+        text-align: right;
+        font-weight: 700;
+    }
+
+    .seccion-titulo {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--verde);
+        margin: 1.5rem 0 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-wrap">
+    <div class="container">
+        <div class="dash-welcome">
+            <h1>Bienvenido, {{ user.get_full_name|default:user.username }}</h1>
+            <p>Sistema de Gestión del Parque Industrial de Viedma</p>
+        </div>
+
+        {% if 'ADMIN_ENREPAVI' in user_groups or user.is_superuser %}
+        <h3 class="seccion-titulo">Indicadores del parque</h3>
+        <div class="row g-3 mb-3">
+            <div class="col-sm-6 col-lg-3">
+                <div class="kpi-card">
+                    <h6>Ocupación del parque</h6>
+                    <div class="kpi-valor">{{ pct_ocupacion }}%</div>
+                    <p class="kpi-detalle">{{ lotes_en_uso }} de {{ total_lotes }} lotes ocupados</p>
+                    <div style="height:8px;background:#E5E7EB;border-radius:4px;overflow:hidden;margin-top:0.5rem;">
+                        <div style="height:100%;width:{{ pct_ocupacion }}%;background-color:#009A3B;transition:width .3s;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="kpi-card">
+                    <h6>Lotes disponibles</h6>
+                    <div class="kpi-valor">{{ lotes_disponibles }}</div>
+                    <p class="kpi-detalle">para asignar a nuevas empresas</p>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="kpi-card">
+                    <h6>Consumo último período</h6>
+                    {% if periodo_consumo %}
+                    <div class="kpi-valor" style="font-size:1.1rem;">{{ periodo_consumo }}</div>
+                    <p class="kpi-detalle">
+                        {{ consumo_energia.total_kwh|default:"0" }} kWh ·
+                        {{ consumo_energia.total_gas|default:"0" }} m³ gas
+                    </p>
+                    {% else %}
+                    <div class="kpi-valor" style="font-size:1.1rem;">Sin datos</div>
+                    <p class="kpi-detalle">No hay consumos cargados todavía</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="kpi-card">
+                    <h6>Empresas activas</h6>
+                    <div class="kpi-valor">{{ total_empresas_activas }}</div>
+                    <p class="kpi-detalle">
+                        radicadas, en obra, finalizadas o escrituradas
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-lg-6">
+                <div class="kpi-card">
+                    <h6>Empresas por estado</h6>
+                    {% if empresas_por_estado %}
+                    <table class="mini-table">
+                        {% for label, cant in empresas_por_estado %}
+                        <tr>
+                            <td>{{ label }}</td>
+                            <td>{{ cant }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                    {% else %}
+                    <p class="kpi-detalle">Aún no hay empresas registradas.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="kpi-card">
+                    <h6>Tareas pendientes de administración</h6>
+                    <table class="mini-table">
+                        <tr>
+                            <td>
+                                <a href="{% url 'core:avances_pendientes' %}" style="color:var(--gris-texto);text-decoration:none;">
+                                    Avances constructivos por validar
+                                </a>
+                            </td>
+                            <td>{{ avances_pendientes }}</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <a href="{% url 'core:prorrogas_pendientes' %}" style="color:var(--gris-texto);text-decoration:none;">
+                                    Prórrogas por resolver
+                                </a>
+                            </td>
+                            <td>{{ prorrogas_pendientes }}</td>
+                        </tr>
+                        <tr>
+                            <td>Obras con vencimiento en 30 días</td>
+                            <td>{{ proximos_vencer|length }}</td>
+                        </tr>
+                    </table>
+                    {% if not avances_pendientes and not prorrogas_pendientes %}
+                    <p class="kpi-detalle" style="margin-top:0.6rem;">Sin tareas pendientes.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <h3 class="seccion-titulo">Reportes</h3>
+        <div class="row g-3 mb-3">
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:reporte_ocupacion' %}" class="dash-card" target="_blank">
+                    <div class="card-icon"><i class="bi bi-file-earmark-pdf"></i></div>
+                    <h5>Ocupación del parque</h5>
+                    <p>PDF con detalle de lotes por estado y totales.</p>
+                </a>
+            </div>
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:reporte_empresas' %}" class="dash-card" target="_blank">
+                    <div class="card-icon"><i class="bi bi-file-earmark-pdf"></i></div>
+                    <h5>Empresas activas</h5>
+                    <p>Nómina de empresas con radicación vigente.</p>
+                </a>
+            </div>
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:reporte_consumos' %}" class="dash-card" target="_blank">
+                    <div class="card-icon"><i class="bi bi-file-earmark-pdf"></i></div>
+                    <h5>Consumos del último período</h5>
+                    <p>PDF con consumos declarados por empresa.</p>
+                </a>
+            </div>
+        </div>
+
+        <h3 class="seccion-titulo">Accesos rápidos</h3>
+        {% endif %}
+
+        <div class="row g-4">
+            {% if 'ADMIN_ENREPAVI' in user_groups or user.is_superuser %}
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:solicitud_list' %}" class="dash-card">
+                    <div class="card-icon"><i class="bi bi-file-earmark-text"></i></div>
+                    <h5>Solicitudes</h5>
+                    <p>Evaluar y gestionar solicitudes de radicación.</p>
+                </a>
+            </div>
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:lote_list' %}" class="dash-card">
+                    <div class="card-icon"><i class="bi bi-grid-3x3-gap"></i></div>
+                    <h5>Gestión de Lotes</h5>
+                    <p>Administrar las parcelas del parque industrial.</p>
+                </a>
+            </div>
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:avances_pendientes' %}" class="dash-card">
+                    <div class="card-icon"><i class="bi bi-bar-chart-steps"></i></div>
+                    <h5>Avances Pendientes</h5>
+                    <p>Validar avances constructivos de empresas radicadas.</p>
+                </a>
+            </div>
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:prorrogas_pendientes' %}" class="dash-card">
+                    <div class="card-icon"><i class="bi bi-calendar-plus"></i></div>
+                    <h5>Prórrogas Pendientes</h5>
+                    <p>Resolver solicitudes de extensión de plazo.</p>
+                </a>
+            </div>
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:consulta_parque' %}" class="dash-card">
+                    <div class="card-icon"><i class="bi bi-building"></i></div>
+                    <h5>Consulta del Parque</h5>
+                    <p>Ver nómina de empresas activas.</p>
+                </a>
+            </div>
+            {% endif %}
+
+            {% if 'EMPRESA' in user_groups %}
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:mi_solicitud' %}" class="dash-card">
+                    <div class="card-icon"><i class="bi bi-file-earmark-text"></i></div>
+                    <h5>Mi Solicitud</h5>
+                    <p>Ver el estado de tu solicitud de radicación.</p>
+                </a>
+            </div>
+            {% endif %}
+
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:catalogo' %}" class="dash-card">
+                    <div class="card-icon"><i class="bi bi-map"></i></div>
+                    <h5>Catálogo de Lotes</h5>
+                    <p>Ver los lotes disponibles para radicación.</p>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

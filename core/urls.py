@@ -27,6 +27,13 @@ from .views import (
     FinalizarObraView,
     EscrituracionView,
     BajaEmpresaView,
+    # etapa 3
+    ConsumoCreateView,
+    ConsumoListView,
+    ConsultaParqueView,
+    ReporteOcupacionView,
+    ReporteEmpresasView,
+    ReporteConsumoView,
 )
 
 app_name = 'core'
@@ -42,7 +49,7 @@ urlpatterns = [
     path('registro/', RegistroView.as_view(), name='registro'),
 
     # inicio (protegido)
-    path('dashboard/', DashboardView.as_view(), name='dashboard'),
+    path('inicio/', DashboardView.as_view(), name='inicio'),
 
     # empresa: solicitud
     path('solicitud/nueva/', SolicitudCreateView.as_view(), name='solicitud_create'),
@@ -77,4 +84,16 @@ urlpatterns = [
     path('prorrogas/pendientes/', ProrrogasPendientesView.as_view(), name='prorrogas_pendientes'),
     path('prorrogas/<int:pk>/aprobar/', ProrrogaAprobarView.as_view(), name='prorroga_aprobar'),
     path('prorrogas/<int:pk>/rechazar/', ProrrogaRechazarView.as_view(), name='prorroga_rechazar'),
+
+    # proveedor: consumos de servicios
+    path('consumos/', ConsumoListView.as_view(), name='consumo_list'),
+    path('consumos/nuevo/', ConsumoCreateView.as_view(), name='consumo_create'),
+
+    # organismo publico: consulta del parque
+    path('parque/consulta/', ConsultaParqueView.as_view(), name='consulta_parque'),
+
+    # admin: reportes pdf
+    path('reportes/ocupacion/', ReporteOcupacionView.as_view(), name='reporte_ocupacion'),
+    path('reportes/empresas/', ReporteEmpresasView.as_view(), name='reporte_empresas'),
+    path('reportes/consumos/', ReporteConsumoView.as_view(), name='reporte_consumos'),
 ]

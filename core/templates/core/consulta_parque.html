@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+
+{% block title %}Consulta del Parque — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .consulta-wrap {
+        padding: 2rem 0;
+        min-height: calc(100vh - 200px);
+    }
+
+    .stat-card {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 1.2rem 1.5rem;
+    }
+
+    .stat-card h6 {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--gris-suave);
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        margin-bottom: 0.3rem;
+    }
+
+    .stat-card .valor {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--verde);
+    }
+
+    .stat-card .detalle {
+        font-size: 0.82rem;
+        color: var(--gris-suave);
+        margin: 0;
+    }
+
+    .tabla-empresas {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+
+    .tabla-empresas th {
+        background: var(--verde);
+        color: #fff;
+        padding: 0.7rem 1rem;
+        font-weight: 600;
+        font-size: 0.82rem;
+        text-align: left;
+    }
+
+    .tabla-empresas th:first-child {
+        border-radius: var(--radio) 0 0 0;
+    }
+
+    .tabla-empresas th:last-child {
+        border-radius: 0 var(--radio) 0 0;
+    }
+
+    .tabla-empresas td {
+        padding: 0.6rem 1rem;
+        border-bottom: 1px solid var(--borde);
+        vertical-align: middle;
+    }
+
+    .tabla-empresas tr:hover td {
+        background: var(--verde-claro);
+    }
+
+    .badge-estado {
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 0.2rem 0.55rem;
+        border-radius: 4px;
+    }
+
+    .badge-estado.radicada {
+        background: #DCFCE7;
+        color: #166534;
+    }
+
+    .badge-estado.enconstruccion {
+        background: #E0E7FF;
+        color: #3730A3;
+    }
+
+    .badge-estado.finalizado {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .badge-estado.escriturado {
+        background: #CFFAFE;
+        color: #155E75;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="consulta-wrap">
+    <div class="container">
+        <h2 class="sec-title mb-1">Consulta del Parque Industrial</h2>
+        <p style="color:var(--gris-suave);font-size:0.88rem;">
+            Nómina de empresas con radicación vigente en el parque.
+        </p>
+        <div class="sec-line"></div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-sm-6 col-lg-4">
+                <div class="stat-card">
+                    <h6>Empresas activas</h6>
+                    <div class="valor">{{ total_empresas }}</div>
+                    <p class="detalle">Radicadas, en construcción, finalizadas o escrituradas</p>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-4">
+                <div class="stat-card">
+                    <h6>Lotes ocupados</h6>
+                    <div class="valor">{{ lotes_en_uso }} / {{ total_lotes }}</div>
+                    <p class="detalle">{{ pct_ocupacion }}% de ocupación del parque</p>
+                </div>
+            </div>
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table class="tabla-empresas">
+                <thead>
+                    <tr>
+                        <th>Razón Social</th>
+                        <th>Rubro</th>
+                        <th>Categoría Industrial</th>
+                        <th>Estado</th>
+                        <th>Parcela</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in empresas %}
+                    <tr>
+                        <td><strong>{{ e.razon_social }}</strong></td>
+                        <td>{{ e.get_rubro_display }}</td>
+                        <td>{{ e.get_categoria_industrial_display }}</td>
+                        <td>
+                            <span class="badge-estado {{ e.estado|lower }}">
+                                {{ e.get_estado_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% with lote=e.lotes.first %}
+                            {% if lote %}{{ lote.nro_parcela|stringformat:"03d" }}{% else %}—{% endif %}
+                            {% endwith %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-3">
+                            No hay empresas activas registradas en el parque.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

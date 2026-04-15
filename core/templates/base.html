@@ -30,7 +30,7 @@
                 </button>
                 {% endif %}
                 <a class="navbar-brand-gpiv"
-                    href="{% if user.is_authenticated %}{% url 'core:dashboard' %}{% else %}{% url 'core:landing' %}{% endif %}">
+                    href="{% if user.is_authenticated %}{% url 'core:inicio' %}{% else %}{% url 'core:landing' %}{% endif %}">
                     <img src="{% static 'pivlogo.svg' %}" alt="Logo Parque Industrial Viedma"
                         onerror="this.src='{% static 'pivlogo.png' %}'">
                 </a>
@@ -54,8 +54,8 @@
     {% if user.is_authenticated %}
     <aside class="sidebar" id="sidebar">
         <nav class="sidebar-nav">
-            <a href="{% url 'core:dashboard' %}"
-                class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+            <a href="{% url 'core:inicio' %}"
+                class="sidebar-link {% if request.resolver_match.url_name == 'inicio' %}active{% endif %}">
                 <i class="bi bi-house"></i> Inicio
             </a>
 
@@ -76,12 +76,30 @@
                 class="sidebar-link {% if 'prorroga' in request.resolver_match.url_name %}active{% endif %}">
                 <i class="bi bi-calendar-plus"></i> Prórrogas Pendientes
             </a>
+            <a href="{% url 'core:consulta_parque' %}"
+                class="sidebar-link {% if request.resolver_match.url_name == 'consulta_parque' %}active{% endif %}">
+                <i class="bi bi-building"></i> Consulta del Parque
+            </a>
             {% endif %}
 
             {% if 'EMPRESA' in user_groups %}
             <a href="{% url 'core:mi_solicitud' %}"
                 class="sidebar-link {% if request.resolver_match.url_name == 'mi_solicitud' or request.resolver_match.url_name == 'solicitud_create' %}active{% endif %}">
                 <i class="bi bi-file-earmark-text"></i> Mi Solicitud
+            </a>
+            {% endif %}
+
+            {% if 'PROVEEDOR_SERVICIOS' in user_groups %}
+            <a href="{% url 'core:consumo_list' %}"
+                class="sidebar-link {% if 'consumo' in request.resolver_match.url_name %}active{% endif %}">
+                <i class="bi bi-droplet"></i> Consumos
+            </a>
+            {% endif %}
+
+            {% if 'ORGANISMO_PUBLICO' in user_groups and not user.is_superuser %}
+            <a href="{% url 'core:consulta_parque' %}"
+                class="sidebar-link {% if request.resolver_match.url_name == 'consulta_parque' %}active{% endif %}">
+                <i class="bi bi-building"></i> Consulta del Parque
             </a>
             {% endif %}
 

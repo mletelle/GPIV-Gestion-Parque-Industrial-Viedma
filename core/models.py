@@ -117,6 +117,7 @@ class Empresa(models.Model):
     # Impacto Ambiental y Clasificación
     categoria_industrial = models.CharField(max_length=30, choices=CategoriaIndustrial.choices)
     maneja_inflamables = models.BooleanField(default=False)
+    genera_residuos = models.BooleanField(default=False)
     residuos_efluentes = models.TextField(blank=True, null=True)
     tratamiento_en_planta = models.BooleanField(default=False)
 

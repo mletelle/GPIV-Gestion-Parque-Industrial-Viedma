@@ -1,7 +1,9 @@
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django import forms
 from django.core.validators import FileExtensionValidator
-from .models import Lote, Empresa, CustomUser, AvanceConstructivo, SolicitudProrroga
+from django.utils import timezone
+from .models import Lote, Empresa, CustomUser, AvanceConstructivo, SolicitudProrroga, ConsumoServicio
+from .services import SERVICIO_CAMPOS
 
 
 class LoginForm(AuthenticationForm):
@@ -76,6 +78,14 @@ class RegistroUsuarioForm(UserCreationForm):
 class SolicitudRadicacionForm(forms.ModelForm):
     """Formulario de solicitud de radicacion, dividido en secciones."""
 
+    NUMERICOS_NO_NEGATIVOS = [
+        'personal_jerarquico', 'personal_produccion', 'personal_administrativo',
+        'personal_a_ocupar', 'necesidad_m2', 'superficie_cubierta_trabajo_m2',
+        'superficie_cubierta_deposito_m2', 'superficie_futura_expansion_m2',
+        'superficie_estacionamiento_m2', 'energia_potencia_kw',
+        'consumo_estimado_agua_potable_m3', 'consumo_estimado_agua_cruda_m3',
+    ]
+
     class Meta:
         model = Empresa
         fields = [
@@ -85,9 +95,10 @@ class SolicitudRadicacionForm(forms.ModelForm):
             'actividad_principal', 'actividad_secundaria', 'descripcion_actividad',
             # contacto
             'direccion', 'persona_referente', 'telefono', 'correo_electronico',
-            # detalle del proyecto
-            'emplazamiento_actual', 'personal_jerarquico', 'personal_produccion',
-            'personal_administrativo', 'personal_a_ocupar',
+            # detalle del proyecto (orden: emplazamiento, plantilla, materiales)
+            'emplazamiento_actual',
+            'personal_jerarquico', 'personal_administrativo',
+            'personal_produccion', 'personal_a_ocupar',
             'materias_primas', 'destino_produccion',
             # infraestructura
             'necesidad_m2', 'superficie_cubierta_trabajo_m2',
@@ -100,10 +111,9 @@ class SolicitudRadicacionForm(forms.ModelForm):
             'necesidad_balanza_publica', 'necesidad_comedor', 'necesidad_salon_multiuso',
             # impacto ambiental
             'categoria_industrial', 'maneja_inflamables',
-            'residuos_efluentes', 'tratamiento_en_planta',
+            'genera_residuos', 'tratamiento_en_planta',
         ]
 
-    # campos agrupados por seccion para renderizar en el template
     SECCIONES = [
         ('Información Fiscal', [
             'razon_social', 'nombre_fantasia', 'cuit', 'ingresos_brutos',
@@ -114,14 +124,16 @@ class SolicitudRadicacionForm(forms.ModelForm):
             'direccion', 'persona_referente', 'telefono', 'correo_electronico',
         ]),
         ('Detalle del Proyecto', [
-            'emplazamiento_actual', 'personal_jerarquico', 'personal_produccion',
-            'personal_administrativo', 'personal_a_ocupar',
+            'emplazamiento_actual',
+            'personal_jerarquico', 'personal_administrativo',
+            'personal_produccion', 'personal_a_ocupar',
             'materias_primas', 'destino_produccion',
         ]),
         ('Requerimientos de Infraestructura', [
-            'necesidad_m2', 'superficie_cubierta_trabajo_m2',
-            'superficie_cubierta_deposito_m2', 'superficie_futura_expansion_m2',
-            'superficie_estacionamiento_m2', 'tiene_planos', 'tiempo_radicacion_meses',
+            'necesidad_m2', 'tiempo_radicacion_meses',
+            'superficie_cubierta_trabajo_m2', 'superficie_cubierta_deposito_m2',
+            'superficie_futura_expansion_m2', 'superficie_estacionamiento_m2',
+            'tiene_planos',
         ]),
         ('Requerimientos de Servicios', [
             'energia_tension', 'energia_potencia_kw',
@@ -131,13 +143,12 @@ class SolicitudRadicacionForm(forms.ModelForm):
         ]),
         ('Impacto Ambiental', [
             'categoria_industrial', 'maneja_inflamables',
-            'residuos_efluentes', 'tratamiento_en_planta',
+            'genera_residuos', 'tratamiento_en_planta',
         ]),
     ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # aplicar clases css a todos los campos
         for name, field in self.fields.items():
             widget = field.widget
             if isinstance(widget, forms.CheckboxInput):
@@ -149,9 +160,11 @@ class SolicitudRadicacionForm(forms.ModelForm):
                 widget.attrs.setdefault('rows', 3)
             else:
                 widget.attrs.setdefault('class', 'form-control')
+            # impedir negativos en los inputs numericos del lado cliente
+            if name in self.NUMERICOS_NO_NEGATIVOS:
+                widget.attrs['min'] = '0'
 
     def get_secciones(self):
-        """devuelve las secciones con los campos bound para iterar en template"""
         for titulo, campos in self.SECCIONES:
             yield titulo, [self[c] for c in campos]
 
@@ -246,6 +259,109 @@ class BajaEmpresaForm(forms.Form):
         min_length=10,
         label='Causal de resolución',
     )
+
+
+class ConsumoServicioForm(forms.ModelForm):
+    """Formulario para que el Proveedor de Servicios cargue un consumo mensual."""
+
+    MESES_CHOICES = [
+        (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
+        (5, 'Mayo'), (6, 'Junio'), (7, 'Julio'), (8, 'Agosto'),
+        (9, 'Septiembre'), (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre'),
+    ]
+
+    periodo_mes = forms.TypedChoiceField(
+        choices=MESES_CHOICES,
+        coerce=int,
+        label='Mes del período',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+
+    class Meta:
+        model = ConsumoServicio
+        fields = [
+            'empresa', 'periodo_mes', 'periodo_anio',
+            'consumo_agua_potable_m3', 'consumo_agua_cruda_m3',
+            'consumo_luz_kwh', 'consumo_gas_m3',
+        ]
+        widgets = {
+            'empresa': forms.Select(attrs={'class': 'form-select'}),
+            'periodo_anio': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '2024',
+                'placeholder': 'Ej: 2026',
+            }),
+            'consumo_agua_potable_m3': forms.NumberInput(attrs={
+                'class': 'form-control', 'step': '0.01', 'min': '0',
+            }),
+            'consumo_agua_cruda_m3': forms.NumberInput(attrs={
+                'class': 'form-control', 'step': '0.01', 'min': '0',
+            }),
+            'consumo_luz_kwh': forms.NumberInput(attrs={
+                'class': 'form-control', 'step': '0.01', 'min': '0',
+            }),
+            'consumo_gas_m3': forms.NumberInput(attrs={
+                'class': 'form-control', 'step': '0.01', 'min': '0',
+            }),
+        }
+        labels = {
+            'empresa': 'Empresa',
+            'periodo_anio': 'Año del período',
+            'consumo_agua_potable_m3': 'Agua potable (m³)',
+            'consumo_agua_cruda_m3': 'Agua cruda (m³)',
+            'consumo_luz_kwh': 'Electricidad (kWh)',
+            'consumo_gas_m3': 'Gas (m³)',
+        }
+
+    def __init__(self, *args, servicio=None, **kwargs):
+        # servicio: 'AGUA', 'LUZ' o 'GAS'. si viene seteado, el formulario
+        # solo expone los campos que le competen al proveedor; el resto se
+        # quita para que no pueda pisar consumos de otros servicios.
+        super().__init__(*args, **kwargs)
+        self.servicio = servicio
+        # solo empresas con radicacion vigente pueden declarar consumos
+        self.fields['empresa'].queryset = Empresa.objects.filter(
+            estado__in=[
+                Empresa.Estado.RADICADA,
+                Empresa.Estado.EN_CONSTRUCCION,
+                Empresa.Estado.FINALIZADO,
+            ]
+        ).order_by('razon_social')
+
+        # defaults: mes y anio actual
+        hoy = timezone.now().date()
+        self.fields['periodo_mes'].initial = hoy.month
+        self.fields['periodo_anio'].initial = hoy.year
+
+        # segregacion por servicio: borra los campos que no le corresponden
+        if servicio in SERVICIO_CAMPOS:
+            permitidos = set(SERVICIO_CAMPOS[servicio])
+            todos = {'consumo_agua_potable_m3', 'consumo_agua_cruda_m3',
+                     'consumo_luz_kwh', 'consumo_gas_m3'}
+            for campo in todos - permitidos:
+                self.fields.pop(campo, None)
+
+    def clean(self):
+        cleaned = super().clean()
+        empresa = cleaned.get('empresa')
+        mes = cleaned.get('periodo_mes')
+        anio = cleaned.get('periodo_anio')
+
+        if empresa and mes and anio and self.servicio in SERVICIO_CAMPOS:
+            existente = ConsumoServicio.objects.filter(
+                empresa=empresa, periodo_mes=mes, periodo_anio=anio,
+            ).first()
+            if existente:
+                ya_cargado = any(
+                    getattr(existente, c) is not None
+                    for c in SERVICIO_CAMPOS[self.servicio]
+                )
+                if ya_cargado:
+                    raise forms.ValidationError(
+                        f'Ya hay un consumo de {self.servicio.lower()} cargado '
+                        f'para {empresa.razon_social} en {mes:02d}/{anio}.'
+                    )
+        return cleaned
 
 
 class RespuestaProrrogaForm(forms.Form):

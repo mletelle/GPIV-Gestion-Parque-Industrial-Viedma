@@ -96,9 +96,23 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Usuario customizado para roles
 AUTH_USER_MODEL = 'core.CustomUser'
 LOGIN_URL = 'core:login'
-LOGIN_REDIRECT_URL = 'core:dashboard'
+LOGIN_REDIRECT_URL = 'core:inicio'
 LOGOUT_REDIRECT_URL = 'core:landing'
 
 # Archivos subidos por usuarios (escrituras, certificados)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+
+# correo saliente. por defecto queda en console porque el proyecto no
+# tiene cuenta smtp paga y el despliegue es local/academico. si en algun
+# momento hay credenciales reales se setean las vars EMAIL_* en el .env.
+EMAIL_BACKEND = os.environ.get(
+    'EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend',
+)
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'localhost')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '25'))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'False').lower() == 'true'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@tivena.com.ar')

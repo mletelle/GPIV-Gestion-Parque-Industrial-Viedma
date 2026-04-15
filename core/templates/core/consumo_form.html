@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block title %}Declarar Consumo — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .consumo-wrap {
+        padding: 2rem 0;
+    }
+
+    .consumo-card {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 2rem;
+        max-width: 720px;
+        margin: 0 auto;
+    }
+
+    .consumo-card h3 {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--verde);
+        margin-bottom: 0.3rem;
+    }
+
+    .form-label {
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .error-text {
+        color: #DC2626;
+        font-size: 0.82rem;
+        margin-top: 0.2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="consumo-wrap">
+    <div class="container">
+        <div class="consumo-card">
+            <h3><i class="bi bi-droplet"></i> Declarar Consumo de Servicios</h3>
+            <p style="color:var(--gris-suave);font-size:0.92rem;margin-bottom:1.5rem;">
+                Registre el consumo mensual de una empresa radicada.
+            </p>
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-warning" style="font-size:0.88rem;">
+                {{ form.non_field_errors.0 }}
+            </div>
+            {% endif %}
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label for="{{ form.empresa.id_for_label }}" class="form-label">
+                        {{ form.empresa.label }}
+                    </label>
+                    {{ form.empresa }}
+                    {% if form.empresa.errors %}
+                    <div class="error-text">{{ form.empresa.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.periodo_mes.id_for_label }}" class="form-label">
+                            {{ form.periodo_mes.label }}
+                        </label>
+                        {{ form.periodo_mes }}
+                        {% if form.periodo_mes.errors %}
+                        <div class="error-text">{{ form.periodo_mes.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.periodo_anio.id_for_label }}" class="form-label">
+                            {{ form.periodo_anio.label }}
+                        </label>
+                        {{ form.periodo_anio }}
+                        {% if form.periodo_anio.errors %}
+                        <div class="error-text">{{ form.periodo_anio.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <h6 style="color:var(--verde);font-weight:700;margin-top:1rem;">Consumos del período</h6>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.consumo_agua_potable_m3.id_for_label }}" class="form-label">
+                            {{ form.consumo_agua_potable_m3.label }}
+                        </label>
+                        {{ form.consumo_agua_potable_m3 }}
+                        {% if form.consumo_agua_potable_m3.errors %}
+                        <div class="error-text">{{ form.consumo_agua_potable_m3.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.consumo_agua_cruda_m3.id_for_label }}" class="form-label">
+                            {{ form.consumo_agua_cruda_m3.label }}
+                        </label>
+                        {{ form.consumo_agua_cruda_m3 }}
+                        {% if form.consumo_agua_cruda_m3.errors %}
+                        <div class="error-text">{{ form.consumo_agua_cruda_m3.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.consumo_luz_kwh.id_for_label }}" class="form-label">
+                            {{ form.consumo_luz_kwh.label }}
+                        </label>
+                        {{ form.consumo_luz_kwh }}
+                        {% if form.consumo_luz_kwh.errors %}
+                        <div class="error-text">{{ form.consumo_luz_kwh.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.consumo_gas_m3.id_for_label }}" class="form-label">
+                            {{ form.consumo_gas_m3.label }}
+                        </label>
+                        {{ form.consumo_gas_m3 }}
+                        {% if form.consumo_gas_m3.errors %}
+                        <div class="error-text">{{ form.consumo_gas_m3.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <p class="form-text">Dejá en blanco los servicios que no aplican.</p>
+
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <a href="{% url 'core:consumo_list' %}" class="btn btn-outline-secondary">Cancelar</a>
+                    <button type="submit" class="btn-verde">
+                        <i class="bi bi-save"></i> Registrar Consumo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
