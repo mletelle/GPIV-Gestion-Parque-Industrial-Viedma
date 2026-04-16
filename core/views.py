@@ -50,16 +50,6 @@ class CatalogoPublicoView(ListView):
     def get_queryset(self):
         return Lote.objects.all().order_by('nro_parcela')
 
-class CatalogoPublicoView(ListView):
-    """Catálogo público de parcelas del parque industrial"""
-    model = Lote
-    template_name = 'core/catalogo_publico.html'
-    context_object_name = 'lotes'
-    paginate_by = 12
-
-    def get_queryset(self):
-        return Lote.objects.all().order_by('nro_parcela')
-
 
  # autenticacion
 class CustomLoginView(LoginView):
