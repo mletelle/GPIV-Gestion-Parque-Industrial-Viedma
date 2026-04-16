@@ -214,5 +214,6 @@ __marimo__/
 CLAUDE.md
 progreso.md
 core/migrations/*.py
+!core/migrations/__init__.py
 __init__.py
 .claudignore
