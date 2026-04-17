@@ -41,9 +41,9 @@
 <div class="consumo-wrap">
     <div class="container">
         <div class="consumo-card">
-            <h3><i class="bi bi-droplet"></i> Declarar Consumo de Servicios</h3>
+            <h3><i class="bi bi-droplet"></i> Declarar Consumo de {{ servicio_label }}</h3>
             <p style="color:var(--gris-suave);font-size:0.92rem;margin-bottom:1.5rem;">
-                Registre el consumo mensual de una empresa radicada.
+                Registre el consumo mensual de {{ servicio_label|lower }} para una empresa radicada.
             </p>
 
             {% if form.non_field_errors %}
@@ -88,6 +88,7 @@
 
                 <h6 style="color:var(--verde);font-weight:700;margin-top:1rem;">Consumos del período</h6>
                 <div class="row g-3 mb-3">
+                    {% if form.consumo_agua_potable_m3 %}
                     <div class="col-md-6">
                         <label for="{{ form.consumo_agua_potable_m3.id_for_label }}" class="form-label">
                             {{ form.consumo_agua_potable_m3.label }}
@@ -97,6 +98,8 @@
                         <div class="error-text">{{ form.consumo_agua_potable_m3.errors.0 }}</div>
                         {% endif %}
                     </div>
+                    {% endif %}
+                    {% if form.consumo_agua_cruda_m3 %}
                     <div class="col-md-6">
                         <label for="{{ form.consumo_agua_cruda_m3.id_for_label }}" class="form-label">
                             {{ form.consumo_agua_cruda_m3.label }}
@@ -106,6 +109,8 @@
                         <div class="error-text">{{ form.consumo_agua_cruda_m3.errors.0 }}</div>
                         {% endif %}
                     </div>
+                    {% endif %}
+                    {% if form.consumo_luz_kwh %}
                     <div class="col-md-6">
                         <label for="{{ form.consumo_luz_kwh.id_for_label }}" class="form-label">
                             {{ form.consumo_luz_kwh.label }}
@@ -115,6 +120,8 @@
                         <div class="error-text">{{ form.consumo_luz_kwh.errors.0 }}</div>
                         {% endif %}
                     </div>
+                    {% endif %}
+                    {% if form.consumo_gas_m3 %}
                     <div class="col-md-6">
                         <label for="{{ form.consumo_gas_m3.id_for_label }}" class="form-label">
                             {{ form.consumo_gas_m3.label }}
@@ -124,9 +131,8 @@
                         <div class="error-text">{{ form.consumo_gas_m3.errors.0 }}</div>
                         {% endif %}
                     </div>
+                    {% endif %}
                 </div>
-
-                <p class="form-text">Dejá en blanco los servicios que no aplican.</p>
 
                 <div class="d-flex justify-content-end gap-2 mt-4">
                     <a href="{% url 'core:consumo_list' %}" class="btn btn-outline-secondary">Cancelar</a>

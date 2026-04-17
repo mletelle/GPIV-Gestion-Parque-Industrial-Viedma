@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Consumos de Servicios — GPIV{% endblock %}
+{% block title %}Consumos de {{ servicio_label }} — GPIV{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -54,7 +54,7 @@
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
-                <h2 class="sec-title mb-0">Consumos de Servicios</h2>
+                <h2 class="sec-title mb-0">Consumos de {{ servicio_label }}</h2>
                 <p style="color:var(--gris-suave);font-size:0.88rem;margin:0;">
                     Declaraciones mensuales por empresa radicada.
                 </p>
@@ -71,10 +71,18 @@
                     <tr>
                         <th>Empresa</th>
                         <th>Período</th>
+                        {% if 'consumo_agua_potable_m3' in campos_servicio %}
                         <th class="valor-num">Agua Potable (m³)</th>
+                        {% endif %}
+                        {% if 'consumo_agua_cruda_m3' in campos_servicio %}
                         <th class="valor-num">Agua Cruda (m³)</th>
+                        {% endif %}
+                        {% if 'consumo_luz_kwh' in campos_servicio %}
                         <th class="valor-num">Electricidad (kWh)</th>
+                        {% endif %}
+                        {% if 'consumo_gas_m3' in campos_servicio %}
                         <th class="valor-num">Gas (m³)</th>
+                        {% endif %}
                         <th>Fecha de carga</th>
                     </tr>
                 </thead>
@@ -83,10 +91,18 @@
                     <tr>
                         <td><strong>{{ c.empresa.razon_social }}</strong></td>
                         <td>{{ c.periodo_mes|stringformat:"02d" }}/{{ c.periodo_anio }}</td>
+                        {% if 'consumo_agua_potable_m3' in campos_servicio %}
                         <td class="valor-num">{{ c.consumo_agua_potable_m3|default:"—" }}</td>
+                        {% endif %}
+                        {% if 'consumo_agua_cruda_m3' in campos_servicio %}
                         <td class="valor-num">{{ c.consumo_agua_cruda_m3|default:"—" }}</td>
+                        {% endif %}
+                        {% if 'consumo_luz_kwh' in campos_servicio %}
                         <td class="valor-num">{{ c.consumo_luz_kwh|default:"—" }}</td>
+                        {% endif %}
+                        {% if 'consumo_gas_m3' in campos_servicio %}
                         <td class="valor-num">{{ c.consumo_gas_m3|default:"—" }}</td>
+                        {% endif %}
                         <td>{{ c.fecha_carga|date:"d/m/Y H:i" }}</td>
                     </tr>
                     {% empty %}

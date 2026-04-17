@@ -28,6 +28,7 @@ from .forms import (
     EscrituraForm, BajaEmpresaForm, RespuestaProrrogaForm,
     ConsumoServicioForm,
 )
+from django import forms as django_forms
 
 
  # landing publica
@@ -39,17 +40,6 @@ class LandingPageView(TemplateView):
         if request.user.is_authenticated:
             return redirect('core:inicio')
         return super().get(request, *args, **kwargs)
-    
-class CatalogoPublicoView(ListView):
-    """Catálogo público de parcelas del parque industrial"""
-    model = Lote
-    template_name = 'core/catalogo_publico.html'
-    context_object_name = 'lotes'
-    paginate_by = 12
-
-    def get_queryset(self):
-        return Lote.objects.all().order_by('nro_parcela')
-
 
  # autenticacion
 class CustomLoginView(LoginView):
@@ -123,6 +113,25 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         if user.groups.filter(name='ORGANISMO_PUBLICO').exists():
             return redirect('core:consulta_parque')
         return super().get(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        # tareas pendientes para el admin
+        ctx['avances_pendientes'] = AvanceConstructivo.objects.filter(
+            validado_admin=False,
+        ).count()
+        ctx['prorrogas_pendientes'] = SolicitudProrroga.objects.filter(
+            estado=SolicitudProrroga.EstadoProrroga.PENDIENTE,
+        ).count()
+        # obras proximas a vencer (30 dias)
+        hoy = timezone.now().date()
+        limite = hoy + timedelta(days=30)
+        ctx['proximos_vencer'] = Empresa.objects.filter(
+            estado=Empresa.Estado.EN_CONSTRUCCION,
+            fecha_limite_obra__lte=limite,
+            fecha_limite_obra__gte=hoy,
+        ).select_related('usuario')
+        return ctx
 
 
  # crud lotes solo admin
@@ -288,9 +297,25 @@ class SolicitudDetailView(AdminEnrepaviMixin, DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['historial'] = self.object.historial_estados.select_related('usuario').all()
-        # armar secciones para mostrar los datos
+        # armar secciones con valores legibles (no el raw del field.value)
         form = SolicitudRadicacionForm(instance=self.object)
-        ctx['secciones'] = list(form.get_secciones())
+        secciones = []
+        for titulo, campos in form.get_secciones():
+            filas = []
+            for bf in campos:
+                field = bf.field
+                valor = bf.value()
+                if isinstance(field.widget, django_forms.CheckboxInput):
+                    display = 'Sí' if valor else 'No'
+                elif isinstance(field.widget, (django_forms.Select, django_forms.RadioSelect)):
+                    # buscar el label del choice seleccionado
+                    choices_dict = dict(field.choices)
+                    display = choices_dict.get(valor, valor) or '—'
+                else:
+                    display = valor if valor not in (None, '') else '—'
+                filas.append((bf.label, display))
+            secciones.append((titulo, filas))
+        ctx['secciones'] = secciones
         ctx['lote'] = self.object.lotes.first()
         ctx['avances'] = self.object.avances_constructivos.all()
         ctx['prorrogas'] = self.object.prorrogas.select_related('resuelta_por').all()
@@ -692,8 +717,9 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
         lotes_disponibles = Lote.objects.filter(
             estado=Lote.Estado.DISPONIBLE,
         ).count()
-        # string con punto decimal para que el width de css no se rompa
-        # con locale es-ar (10.8 -> 10,8 rompe el width)
+        lotes_reserva = Lote.objects.filter(
+            estado=Lote.Estado.RESERVA_FISCAL,
+        ).count()
         pct_num = (lotes_en_uso / total_lotes * 100) if total_lotes else 0
         pct_ocupacion = f'{pct_num:.1f}'
 
@@ -710,6 +736,13 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
             cant = empresas.filter(categoria_industrial=valor).count()
             if cant:
                 categorias.append((label, cant))
+
+        # distribucion por rubro (solo activas)
+        rubros = []
+        for valor, label in Empresa.Rubro.choices:
+            cant = empresas.filter(rubro=valor).count()
+            if cant:
+                rubros.append((label, cant))
 
         # consumos del ultimo periodo cargado
         ultimo = ConsumoServicio.objects.order_by(
@@ -729,17 +762,43 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
             )
             periodo_consumo = f'{ultimo.periodo_mes:02d}/{ultimo.periodo_anio}'
 
+        # tareas pendientes
+        avances_pendientes = AvanceConstructivo.objects.filter(
+            validado_admin=False,
+        ).count()
+        prorrogas_pendientes = SolicitudProrroga.objects.filter(
+            estado=SolicitudProrroga.EstadoProrroga.PENDIENTE,
+        ).count()
+        solicitudes_evaluacion = Empresa.objects.filter(
+            estado=Empresa.Estado.EN_EVALUACION,
+        ).count()
+
+        # obras proximas a vencer (30 dias)
+        hoy = timezone.now().date()
+        limite = hoy + timedelta(days=30)
+        proximos_vencer = Empresa.objects.filter(
+            estado=Empresa.Estado.EN_CONSTRUCCION,
+            fecha_limite_obra__lte=limite,
+            fecha_limite_obra__gte=hoy,
+        ).select_related('usuario')
+
         ctx.update({
             'empresas': empresas,
             'total_empresas': empresas.count(),
             'total_lotes': total_lotes,
             'lotes_en_uso': lotes_en_uso,
             'lotes_disponibles': lotes_disponibles,
+            'lotes_reserva': lotes_reserva,
             'pct_ocupacion': pct_ocupacion,
             'empresas_por_estado': empresas_por_estado,
             'categorias': categorias,
+            'rubros': rubros,
             'consumos_periodo': consumos_periodo,
             'periodo_consumo': periodo_consumo,
+            'avances_pendientes': avances_pendientes,
+            'prorrogas_pendientes': prorrogas_pendientes,
+            'solicitudes_evaluacion': solicitudes_evaluacion,
+            'proximos_vencer': proximos_vencer,
         })
         return ctx
 

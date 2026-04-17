@@ -31,11 +31,20 @@ class Empresa(models.Model):
         TRASLADO = 'Traslado', _('Traslado total o parcial')
         NUEVOS_PRODUCTOS = 'NuevosProductos', _('Elaborar nuevos productos')
         INCREMENTAR_PRODUCCION = 'IncrementarProduccion', _('Incrementar producción total')
+        INSTALACION_NUEVA = 'InstalacionNueva', _('Instalación nueva')
+        RECONVERSION = 'Reconversion', _('Reconversión productiva')
+        AMPLIACION = 'Ampliacion', _('Ampliación de planta')
 
     class Rubro(models.TextChoices):
         SERVICIOS = 'Servicios', _('Servicios')
         BIENES = 'Bienes', _('Bienes')
         BIENES_Y_SERVICIOS = 'BienesYServicios', _('Bienes y Servicios')
+        METALURGICA = 'Metalurgica', _('Metalúrgica')
+        MADERERA = 'Maderera', _('Maderera')
+        TEXTIL = 'Textil', _('Textil')
+        AGROINDUSTRIA = 'Agroindustria', _('Agroindustria')
+        CONSTRUCCION = 'Construccion', _('Construcción')
+        LOGISTICA = 'Logistica', _('Logística')
         OTRO = 'Otro', _('Otro')
 
     class EmplazamientoActual(models.TextChoices):
@@ -57,6 +66,19 @@ class Empresa(models.Model):
     class TensionElectrica(models.TextChoices):
         MEDIA = 'Media', _('Media Tensión')
         BAJA = 'Baja', _('Baja Tensión')
+
+    class RangoPotencia(models.TextChoices):
+        HASTA_10 = 'Hasta10', _('Hasta 10 kW')
+        DE_10_A_50 = '10a50', _('10 – 50 kW')
+        DE_50_A_100 = '50a100', _('50 – 100 kW')
+        DE_100_A_500 = '100a500', _('100 – 500 kW')
+        MAS_500 = 'Mas500', _('Más de 500 kW')
+
+    class RangoConsumoAgua(models.TextChoices):
+        HASTA_50 = 'Hasta50', _('Hasta 50 m³/mes')
+        DE_50_A_200 = '50a200', _('50 – 200 m³/mes')
+        DE_200_A_500 = '200a500', _('200 – 500 m³/mes')
+        MAS_500 = 'Mas500', _('Más de 500 m³/mes')
 
     # Relación 1:1 con Usuario — SET_NULL: borrar el usuario no elimina la empresa ni su historial
     usuario = models.OneToOneField(
@@ -105,9 +127,9 @@ class Empresa(models.Model):
 
     # Requerimientos de Servicios
     energia_tension = models.CharField(max_length=10, choices=TensionElectrica.choices, blank=True, null=True)
-    energia_potencia_kw = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(0)])
-    consumo_estimado_agua_potable_m3 = models.DecimalField(max_digits=14, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(0)])
-    consumo_estimado_agua_cruda_m3 = models.DecimalField(max_digits=14, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(0)])
+    energia_potencia_rango = models.CharField(max_length=20, choices=RangoPotencia.choices, blank=True, null=True)
+    consumo_estimado_agua_potable = models.CharField(max_length=20, choices=RangoConsumoAgua.choices, blank=True, null=True)
+    consumo_estimado_agua_cruda = models.CharField(max_length=20, choices=RangoConsumoAgua.choices, blank=True, null=True)
     gas = models.BooleanField(default=False)
     requiere_internet = models.BooleanField(default=False)
     necesidad_balanza_publica = models.BooleanField(default=False)

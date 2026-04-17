@@ -4,7 +4,6 @@ from .views import (
     CustomLoginView,
     CustomLogoutView,
     DashboardView,
-    CatalogoPublicoView,
     LoteListView,
     LoteCreateView,
     LoteUpdateView,
@@ -41,7 +40,6 @@ app_name = 'core'
 urlpatterns = [
     # publico
     path('', LandingPageView.as_view(), name='landing'),
-    path('catalogo/', CatalogoPublicoView.as_view(), name='catalogo'),
 
     # autenticacion
     path('login/', CustomLoginView.as_view(), name='login'),

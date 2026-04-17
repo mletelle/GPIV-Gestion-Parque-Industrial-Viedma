@@ -41,7 +41,9 @@ GRUPOS = [
     'ADMIN_ENREPAVI',
     'EMPRESA',
     'ORGANISMO_PUBLICO',
-    'PROVEEDOR_SERVICIOS',
+    'PROVEEDOR_AGUA',
+    'PROVEEDOR_LUZ',
+    'PROVEEDOR_GAS',
 ]
 
 # parcelas del parque, la 5 es reserva fiscal
@@ -237,9 +239,9 @@ ADMINS = [
 ]
 
 PROVEEDORES = [
-    ('proveedor_agua', 'agua@proveedores.gpiv.local', 'Proveedor Agua'),
-    ('proveedor_luz', 'luz@proveedores.gpiv.local', 'Proveedor Electricidad'),
-    ('proveedor_gas', 'gas@proveedores.gpiv.local', 'Proveedor Gas'),
+    ('proveedor_agua', 'agua@proveedores.gpiv.local', 'Proveedor Agua', 'PROVEEDOR_AGUA'),
+    ('proveedor_luz', 'luz@proveedores.gpiv.local', 'Proveedor Electricidad', 'PROVEEDOR_LUZ'),
+    ('proveedor_gas', 'gas@proveedores.gpiv.local', 'Proveedor Gas', 'PROVEEDOR_GAS'),
 ]
 
 ORGANISMOS = [
@@ -351,10 +353,10 @@ class Command(BaseCommand):
             )
 
         self._log('-- Cargando proveedores...')
-        for username, email, nombre in PROVEEDORES:
+        for username, email, nombre, grupo in PROVEEDORES:
             _crear_user(
                 username, email, nombre, PASSWORD_DEFAULT,
-                grupos=['PROVEEDOR_SERVICIOS'],
+                grupos=[grupo],
             )
 
         self._log('-- Cargando organismos publicos...')
@@ -466,8 +468,8 @@ class Command(BaseCommand):
             self.stdout.write(f'  {u:22s} {rol:16s} {n}')
 
         self.stdout.write(self.style.MIGRATE_HEADING('\nPROVEEDORES'))
-        for u, _, n in PROVEEDORES:
-            self.stdout.write(f'  {u:22s} PROVEEDOR_SERVICIOS  {n}')
+        for u, _, n, g in PROVEEDORES:
+            self.stdout.write(f'  {u:22s} {g:20s} {n}')
 
         self.stdout.write(self.style.MIGRATE_HEADING('\nORGANISMOS PUBLICOS'))
         for u, _, n in ORGANISMOS:

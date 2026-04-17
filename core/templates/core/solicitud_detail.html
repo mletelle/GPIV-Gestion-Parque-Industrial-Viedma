@@ -359,19 +359,13 @@
         {% endif %}
 
         <!-- datos por seccion -->
-        {% for titulo, campos in secciones %}
+        {% for titulo, filas in secciones %}
         <div class="seccion-card">
             <h5>{{ titulo }}</h5>
-            {% for field in campos %}
+            {% for label, valor in filas %}
             <div class="dato-row">
-                <span class="dato-label">{{ field.label }}</span>
-                <span>
-                    {% if field.field.widget.input_type == 'checkbox' %}
-                    {% if field.value %}Sí{% else %}No{% endif %}
-                    {% else %}
-                    {{ field.value|default:"—" }}
-                    {% endif %}
-                </span>
+                <span class="dato-label">{{ label }}</span>
+                <span>{{ valor }}</span>
             </div>
             {% endfor %}
         </div>

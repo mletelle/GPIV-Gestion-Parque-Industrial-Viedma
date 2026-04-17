@@ -14,7 +14,8 @@ services:
   web:
     build: .
     command: >
-      sh -c "python manage.py migrate --noinput &&
+      sh -c "python manage.py makemigrations --noinput &&
+             python manage.py migrate --noinput &&
              python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app

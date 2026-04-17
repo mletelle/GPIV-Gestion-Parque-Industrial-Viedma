@@ -82,8 +82,7 @@ class SolicitudRadicacionForm(forms.ModelForm):
         'personal_jerarquico', 'personal_produccion', 'personal_administrativo',
         'personal_a_ocupar', 'necesidad_m2', 'superficie_cubierta_trabajo_m2',
         'superficie_cubierta_deposito_m2', 'superficie_futura_expansion_m2',
-        'superficie_estacionamiento_m2', 'energia_potencia_kw',
-        'consumo_estimado_agua_potable_m3', 'consumo_estimado_agua_cruda_m3',
+        'superficie_estacionamiento_m2',
     ]
 
     class Meta:
@@ -105,8 +104,8 @@ class SolicitudRadicacionForm(forms.ModelForm):
             'superficie_cubierta_deposito_m2', 'superficie_futura_expansion_m2',
             'superficie_estacionamiento_m2', 'tiene_planos', 'tiempo_radicacion_meses',
             # servicios
-            'energia_tension', 'energia_potencia_kw',
-            'consumo_estimado_agua_potable_m3', 'consumo_estimado_agua_cruda_m3',
+            'energia_tension', 'energia_potencia_rango',
+            'consumo_estimado_agua_potable', 'consumo_estimado_agua_cruda',
             'gas', 'requiere_internet',
             'necesidad_balanza_publica', 'necesidad_comedor', 'necesidad_salon_multiuso',
             # impacto ambiental
@@ -136,8 +135,8 @@ class SolicitudRadicacionForm(forms.ModelForm):
             'tiene_planos',
         ]),
         ('Requerimientos de Servicios', [
-            'energia_tension', 'energia_potencia_kw',
-            'consumo_estimado_agua_potable_m3', 'consumo_estimado_agua_cruda_m3',
+            'energia_tension', 'energia_potencia_rango',
+            'consumo_estimado_agua_potable', 'consumo_estimado_agua_cruda',
             'gas', 'requiere_internet',
             'necesidad_balanza_publica', 'necesidad_comedor', 'necesidad_salon_multiuso',
         ]),
