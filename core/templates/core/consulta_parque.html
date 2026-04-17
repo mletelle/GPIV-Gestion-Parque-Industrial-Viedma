@@ -1,40 +1,69 @@
 {% extends 'base.html' %}
 
-{% block title %}Consulta del Parque — GPIV{% endblock %}
+{% block title %}Dashboard — GPIV{% endblock %}
 
 {% block extra_css %}
 <style>
-    .consulta-wrap {
+    .dashboard-wrap {
         padding: 2rem 0;
         min-height: calc(100vh - 200px);
     }
 
-    .stat-card {
+    .kpi-card {
         background: #fff;
         border: 1px solid var(--borde);
         border-radius: var(--radio);
-        padding: 1.2rem 1.5rem;
+        padding: 1.3rem 1.5rem;
+        height: 100%;
     }
 
-    .stat-card h6 {
+    .kpi-card h6 {
         font-size: 0.78rem;
         font-weight: 700;
         color: var(--gris-suave);
         text-transform: uppercase;
         letter-spacing: 0.02em;
-        margin-bottom: 0.3rem;
+        margin-bottom: 0.6rem;
     }
 
-    .stat-card .valor {
-        font-size: 1.8rem;
+    .kpi-valor {
+        font-size: 1.6rem;
         font-weight: 700;
         color: var(--verde);
     }
 
-    .stat-card .detalle {
+    .kpi-detalle {
         font-size: 0.82rem;
         color: var(--gris-suave);
-        margin: 0;
+        margin: 0.2rem 0 0;
+    }
+
+    .mini-table {
+        width: 100%;
+        font-size: 0.86rem;
+    }
+
+    .mini-table td {
+        padding: 0.3rem 0;
+        border-bottom: 1px dashed var(--borde);
+    }
+
+    .mini-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .mini-table td:last-child {
+        text-align: right;
+        font-weight: 700;
+    }
+
+    .seccion-titulo {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--verde);
+        margin: 1.5rem 0 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
     }
 
     .tabla-empresas {
@@ -100,31 +129,184 @@
 {% endblock %}
 
 {% block content %}
-<div class="consulta-wrap">
+<div class="dashboard-wrap">
     <div class="container">
-        <h2 class="sec-title mb-1">Consulta del Parque Industrial</h2>
+        <h2 class="sec-title mb-1">Dashboard del Parque Industrial</h2>
         <p style="color:var(--gris-suave);font-size:0.88rem;">
-            Nómina de empresas con radicación vigente en el parque.
+            Indicadores y estado general del parque.
         </p>
         <div class="sec-line"></div>
 
-        <div class="row g-3 mb-4">
-            <div class="col-sm-6 col-lg-4">
-                <div class="stat-card">
-                    <h6>Empresas activas</h6>
-                    <div class="valor">{{ total_empresas }}</div>
-                    <p class="detalle">Radicadas, en construcción, finalizadas o escrituradas</p>
+        <!-- fila 1: kpis principales -->
+        <div class="row g-3 mb-3">
+            <div class="col-sm-6 col-lg-3">
+                <div class="kpi-card">
+                    <h6>Ocupación del parque</h6>
+                    <div class="kpi-valor">{{ pct_ocupacion }}%</div>
+                    <p class="kpi-detalle">{{ lotes_en_uso }} de {{ total_lotes }} lotes ocupados</p>
+                    <div style="height:8px;background:#E5E7EB;border-radius:4px;overflow:hidden;margin-top:0.5rem;">
+                        <div
+                            style="height:100%;width:{{ pct_ocupacion }}%;background-color:#009A3B;transition:width .3s;">
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="col-sm-6 col-lg-4">
-                <div class="stat-card">
-                    <h6>Lotes ocupados</h6>
-                    <div class="valor">{{ lotes_en_uso }} / {{ total_lotes }}</div>
-                    <p class="detalle">{{ pct_ocupacion }}% de ocupación del parque</p>
+            <div class="col-sm-6 col-lg-3">
+                <div class="kpi-card">
+                    <h6>Lotes</h6>
+                    <table class="mini-table">
+                        <tr>
+                            <td>Disponibles</td>
+                            <td>{{ lotes_disponibles }}</td>
+                        </tr>
+                        <tr>
+                            <td>En uso</td>
+                            <td>{{ lotes_en_uso }}</td>
+                        </tr>
+                        <tr>
+                            <td>Reserva fiscal</td>
+                            <td>{{ lotes_reserva }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="kpi-card">
+                    <h6>Empresas activas</h6>
+                    <div class="kpi-valor">{{ total_empresas }}</div>
+                    <p class="kpi-detalle">radicadas, en obra, finalizadas o escrituradas</p>
+                </div>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <div class="kpi-card">
+                    <h6>Consumo último período</h6>
+                    {% if periodo_consumo %}
+                    <div class="kpi-valor" style="font-size:1.1rem;">{{ periodo_consumo }}</div>
+                    <table class="mini-table" style="margin-top:0.3rem;">
+                        <tr>
+                            <td>Agua potable</td>
+                            <td>{{ consumos_periodo.total_agua_potable|default:"0" }} m³</td>
+                        </tr>
+                        <tr>
+                            <td>Agua cruda</td>
+                            <td>{{ consumos_periodo.total_agua_cruda|default:"0" }} m³</td>
+                        </tr>
+                        <tr>
+                            <td>Electricidad</td>
+                            <td>{{ consumos_periodo.total_kwh|default:"0" }} kWh</td>
+                        </tr>
+                        <tr>
+                            <td>Gas</td>
+                            <td>{{ consumos_periodo.total_gas|default:"0" }} m³</td>
+                        </tr>
+                    </table>
+                    {% else %}
+                    <div class="kpi-valor" style="font-size:1.1rem;">Sin datos</div>
+                    <p class="kpi-detalle">No hay consumos cargados todavía</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
 
+        <!-- fila 2: distribuciones y tareas -->
+        <div class="row g-3 mb-3">
+            <div class="col-lg-4">
+                <div class="kpi-card">
+                    <h6>Empresas por estado</h6>
+                    {% if empresas_por_estado %}
+                    <table class="mini-table">
+                        {% for label, cant in empresas_por_estado %}
+                        <tr>
+                            <td>{{ label }}</td>
+                            <td>{{ cant }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                    {% else %}
+                    <p class="kpi-detalle">Aún no hay empresas registradas.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="kpi-card">
+                    <h6>Distribución por categoría industrial</h6>
+                    {% if categorias %}
+                    <table class="mini-table">
+                        {% for label, cant in categorias %}
+                        <tr>
+                            <td>{{ label }}</td>
+                            <td>{{ cant }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                    {% else %}
+                    <p class="kpi-detalle">Sin datos.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="kpi-card">
+                    <h6>Distribución por rubro</h6>
+                    {% if rubros %}
+                    <table class="mini-table">
+                        {% for label, cant in rubros %}
+                        <tr>
+                            <td>{{ label }}</td>
+                            <td>{{ cant }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                    {% else %}
+                    <p class="kpi-detalle">Sin datos.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- fila 3: tareas pendientes -->
+        <div class="row g-3 mb-4">
+            <div class="col-lg-6">
+                <div class="kpi-card">
+                    <h6>Tareas pendientes</h6>
+                    <table class="mini-table">
+                        <tr>
+                            <td>Solicitudes en evaluación</td>
+                            <td>{{ solicitudes_evaluacion }}</td>
+                        </tr>
+                        <tr>
+                            <td>Avances por validar</td>
+                            <td>{{ avances_pendientes }}</td>
+                        </tr>
+                        <tr>
+                            <td>Prórrogas por resolver</td>
+                            <td>{{ prorrogas_pendientes }}</td>
+                        </tr>
+                        <tr>
+                            <td>Obras por vencer (30 días)</td>
+                            <td>{{ proximos_vencer|length }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            {% if proximos_vencer %}
+            <div class="col-lg-6">
+                <div class="kpi-card">
+                    <h6>Obras próximas a vencer</h6>
+                    <table class="mini-table">
+                        {% for e in proximos_vencer %}
+                        <tr>
+                            <td>{{ e.razon_social }}</td>
+                            <td>{{ e.fecha_limite_obra|date:"d/m/Y" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- tabla de empresas activas -->
+        <h3 class="seccion-titulo">Empresas activas</h3>
         <div style="overflow-x:auto;">
             <table class="tabla-empresas">
                 <thead>

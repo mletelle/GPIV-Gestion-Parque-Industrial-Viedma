@@ -78,18 +78,6 @@
         margin-bottom: 0.6rem;
     }
 
-    .kpi-valor {
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: var(--verde);
-    }
-
-    .kpi-detalle {
-        font-size: 0.82rem;
-        color: var(--gris-suave);
-        margin: 0.2rem 0 0;
-    }
-
     .kpi-card .mini-table {
         width: 100%;
         font-size: 0.86rem;
@@ -129,76 +117,16 @@
         </div>
 
         {% if 'ADMIN_ENREPAVI' in user_groups or user.is_superuser %}
-        <h3 class="seccion-titulo">Indicadores del parque</h3>
-        <div class="row g-3 mb-3">
-            <div class="col-sm-6 col-lg-3">
-                <div class="kpi-card">
-                    <h6>Ocupación del parque</h6>
-                    <div class="kpi-valor">{{ pct_ocupacion }}%</div>
-                    <p class="kpi-detalle">{{ lotes_en_uso }} de {{ total_lotes }} lotes ocupados</p>
-                    <div style="height:8px;background:#E5E7EB;border-radius:4px;overflow:hidden;margin-top:0.5rem;">
-                        <div style="height:100%;width:{{ pct_ocupacion }}%;background-color:#009A3B;transition:width .3s;"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="kpi-card">
-                    <h6>Lotes disponibles</h6>
-                    <div class="kpi-valor">{{ lotes_disponibles }}</div>
-                    <p class="kpi-detalle">para asignar a nuevas empresas</p>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="kpi-card">
-                    <h6>Consumo último período</h6>
-                    {% if periodo_consumo %}
-                    <div class="kpi-valor" style="font-size:1.1rem;">{{ periodo_consumo }}</div>
-                    <p class="kpi-detalle">
-                        {{ consumo_energia.total_kwh|default:"0" }} kWh ·
-                        {{ consumo_energia.total_gas|default:"0" }} m³ gas
-                    </p>
-                    {% else %}
-                    <div class="kpi-valor" style="font-size:1.1rem;">Sin datos</div>
-                    <p class="kpi-detalle">No hay consumos cargados todavía</p>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="kpi-card">
-                    <h6>Empresas activas</h6>
-                    <div class="kpi-valor">{{ total_empresas_activas }}</div>
-                    <p class="kpi-detalle">
-                        radicadas, en obra, finalizadas o escrituradas
-                    </p>
-                </div>
-            </div>
-        </div>
-
+        <h3 class="seccion-titulo">Tareas pendientes</h3>
         <div class="row g-3 mb-3">
             <div class="col-lg-6">
                 <div class="kpi-card">
-                    <h6>Empresas por estado</h6>
-                    {% if empresas_por_estado %}
-                    <table class="mini-table">
-                        {% for label, cant in empresas_por_estado %}
-                        <tr>
-                            <td>{{ label }}</td>
-                            <td>{{ cant }}</td>
-                        </tr>
-                        {% endfor %}
-                    </table>
-                    {% else %}
-                    <p class="kpi-detalle">Aún no hay empresas registradas.</p>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="col-lg-6">
-                <div class="kpi-card">
-                    <h6>Tareas pendientes de administración</h6>
+                    <h6>Pendientes de administración</h6>
                     <table class="mini-table">
                         <tr>
                             <td>
-                                <a href="{% url 'core:avances_pendientes' %}" style="color:var(--gris-texto);text-decoration:none;">
+                                <a href="{% url 'core:avances_pendientes' %}"
+                                    style="color:var(--gris-texto);text-decoration:none;">
                                     Avances constructivos por validar
                                 </a>
                             </td>
@@ -206,7 +134,8 @@
                         </tr>
                         <tr>
                             <td>
-                                <a href="{% url 'core:prorrogas_pendientes' %}" style="color:var(--gris-texto);text-decoration:none;">
+                                <a href="{% url 'core:prorrogas_pendientes' %}"
+                                    style="color:var(--gris-texto);text-decoration:none;">
                                     Prórrogas por resolver
                                 </a>
                             </td>
@@ -218,7 +147,8 @@
                         </tr>
                     </table>
                     {% if not avances_pendientes and not prorrogas_pendientes %}
-                    <p class="kpi-detalle" style="margin-top:0.6rem;">Sin tareas pendientes.</p>
+                    <p style="font-size:0.82rem;color:var(--gris-suave);margin-top:0.6rem;margin-bottom:0;">Sin tareas
+                        pendientes.</p>
                     {% endif %}
                 </div>
             </div>
@@ -284,9 +214,9 @@
             </div>
             <div class="col-sm-6 col-lg-4">
                 <a href="{% url 'core:consulta_parque' %}" class="dash-card">
-                    <div class="card-icon"><i class="bi bi-building"></i></div>
-                    <h5>Consulta del Parque</h5>
-                    <p>Ver nómina de empresas activas.</p>
+                    <div class="card-icon"><i class="bi bi-speedometer2"></i></div>
+                    <h5>Dashboard</h5>
+                    <p>Indicadores y estado general del parque.</p>
                 </a>
             </div>
             {% endif %}
@@ -300,14 +230,6 @@
                 </a>
             </div>
             {% endif %}
-
-            <div class="col-sm-6 col-lg-4">
-                <a href="{% url 'core:catalogo' %}" class="dash-card">
-                    <div class="card-icon"><i class="bi bi-map"></i></div>
-                    <h5>Catálogo de Lotes</h5>
-                    <p>Ver los lotes disponibles para radicación.</p>
-                </a>
-            </div>
         </div>
     </div>
 </div>

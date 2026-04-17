@@ -78,7 +78,7 @@
             </a>
             <a href="{% url 'core:consulta_parque' %}"
                 class="sidebar-link {% if request.resolver_match.url_name == 'consulta_parque' %}active{% endif %}">
-                <i class="bi bi-building"></i> Consulta del Parque
+                <i class="bi bi-speedometer2"></i> Dashboard
             </a>
             {% endif %}
 
@@ -89,7 +89,7 @@
             </a>
             {% endif %}
 
-            {% if 'PROVEEDOR_SERVICIOS' in user_groups %}
+            {% if 'PROVEEDOR_AGUA' in user_groups or 'PROVEEDOR_LUZ' in user_groups or 'PROVEEDOR_GAS' in user_groups %}
             <a href="{% url 'core:consumo_list' %}"
                 class="sidebar-link {% if 'consumo' in request.resolver_match.url_name %}active{% endif %}">
                 <i class="bi bi-droplet"></i> Consumos
@@ -99,14 +99,9 @@
             {% if 'ORGANISMO_PUBLICO' in user_groups and not user.is_superuser %}
             <a href="{% url 'core:consulta_parque' %}"
                 class="sidebar-link {% if request.resolver_match.url_name == 'consulta_parque' %}active{% endif %}">
-                <i class="bi bi-building"></i> Consulta del Parque
+                <i class="bi bi-speedometer2"></i> Dashboard
             </a>
             {% endif %}
-
-            <a href="{% url 'core:catalogo' %}"
-                class="sidebar-link {% if request.resolver_match.url_name == 'catalogo' %}active{% endif %}">
-                <i class="bi bi-map"></i> Catálogo Público
-            </a>
 
             {% if user.is_superuser %}
             <hr class="sidebar-divider">
