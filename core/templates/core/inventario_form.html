@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }} — Inventario GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-wrap {
+        padding: 2.5rem 0;
+        min-height: calc(100vh - 200px);
+    }
+
+    .form-card {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 2rem;
+        max-width: 760px;
+    }
+
+    .form-card h2 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--verde);
+        margin-bottom: 1.5rem;
+    }
+
+    .form-card label {
+        font-size: 0.88rem;
+        font-weight: 600;
+        margin-bottom: 0.3rem;
+    }
+
+    .seccion-titulo {
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--gris-suave);
+        border-bottom: 1px solid var(--borde);
+        padding-bottom: 0.3rem;
+        margin: 1.25rem 0 0.75rem;
+    }
+
+    .error-list {
+        background: #FEF2F2;
+        border: 1px solid #FECACA;
+        color: #991B1B;
+        border-radius: 7px;
+        padding: 0.6rem 0.9rem;
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+        list-style: none;
+    }
+
+    .field-help {
+        font-size: 0.78rem;
+        color: var(--gris-suave);
+        margin-top: 0.2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-wrap">
+    <div class="container">
+
+        <a href="{% url 'core:inventario_list' %}" class="text-decoration-none mb-3 d-inline-block"
+            style="font-size:0.88rem; color:var(--gris-suave);">
+            <i class="bi bi-arrow-left"></i> Volver al inventario
+        </a>
+
+        <div class="form-card mt-2">
+            <h2>
+                {% if es_nuevo %}
+                <i class="bi bi-plus-circle"></i> Registrar Activo
+                {% else %}
+                <i class="bi bi-pencil-square"></i> {{ titulo }}
+                {% endif %}
+            </h2>
+
+            {% if form.errors %}
+            <ul class="error-list" role="alert">
+                {% for field in form %}
+                {% for error in field.errors %}
+                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                {% endfor %}
+                {% endfor %}
+                {% for error in form.non_field_errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            <form method="post" class="form-gpiv" novalidate id="form-inventario">
+                {% csrf_token %}
+
+                <!-- Identificación -->
+                <p class="seccion-titulo">Identificación</p>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.categoria.id_for_label }}">{{ form.categoria.label }}</label>
+                        {{ form.categoria }}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.nombre.id_for_label }}">{{ form.nombre.label }} <span style="color:#DC2626;">*</span></label>
+                        {{ form.nombre }}
+                    </div>
+                    <div class="col-12">
+                        <label for="{{ form.descripcion.id_for_label }}">{{ form.descripcion.label }}</label>
+                        {{ form.descripcion }}
+                    </div>
+                </div>
+
+                <!-- Bien físico -->
+                <p class="seccion-titulo">Bien Físico</p>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label for="{{ form.marca.id_for_label }}">{{ form.marca.label }}</label>
+                        {{ form.marca }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ form.modelo.id_for_label }}">{{ form.modelo.label }}</label>
+                        {{ form.modelo }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ form.numero_serie.id_for_label }}">{{ form.numero_serie.label }}</label>
+                        {{ form.numero_serie }}
+                    </div>
+                </div>
+
+                <!-- Trazabilidad operativa -->
+                <p class="seccion-titulo">Trazabilidad Operativa</p>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label for="{{ form.fecha_alta.id_for_label }}">{{ form.fecha_alta.label }} <span style="color:#DC2626;">*</span></label>
+                        {{ form.fecha_alta }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ form.estado.id_for_label }}">{{ form.estado.label }}</label>
+                        {{ form.estado }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ form.responsable.id_for_label }}">{{ form.responsable.label }}</label>
+                        {{ form.responsable }}
+                    </div>
+                    <div class="col-12">
+                        <label for="{{ form.ubicacion.id_for_label }}">{{ form.ubicacion.label }}</label>
+                        {{ form.ubicacion }}
+                    </div>
+                    <div class="col-12">
+                        <label for="{{ form.observaciones.id_for_label }}">{{ form.observaciones.label }}</label>
+                        {{ form.observaciones }}
+                    </div>
+                </div>
+
+                {% if es_nuevo %}
+                <p class="field-help mt-2">
+                    <i class="bi bi-info-circle"></i>
+                    El código de inventario se generará automáticamente al guardar (formato: <code>INF-YYYYNNN</code> o <code>MNT-YYYYNNN</code>).
+                </p>
+                {% endif %}
+
+                <hr class="my-4">
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn-verde" id="btn-guardar-activo">
+                        <i class="bi bi-check-lg"></i>
+                        {% if es_nuevo %}Registrar{% else %}Guardar cambios{% endif %}
+                    </button>
+                    <a href="{% url 'core:inventario_list' %}"
+                        class="btn-sm-gpiv d-flex align-items-center"
+                        style="border:1px solid var(--borde); padding:0.5rem 1rem; border-radius:7px; text-decoration:none; color:var(--gris-suave);">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

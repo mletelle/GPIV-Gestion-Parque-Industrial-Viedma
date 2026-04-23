@@ -9,13 +9,13 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
 from django.http import HttpResponse
 from django.utils import timezone
-from django.db.models import Sum
+from django.db.models import Sum, Q
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 
 from .models import (
     Lote, Empresa, TransicionEstado, AvanceConstructivo,
-    SolicitudProrroga, CustomUser, ConsumoServicio,
+    SolicitudProrroga, CustomUser, ConsumoServicio, ActivoInventario,
 )
 from .services import (
     registrar_transicion, get_servicio_proveedor,
@@ -26,7 +26,7 @@ from .forms import (
     SolicitudRadicacionForm, RechazarSolicitudForm,
     AvanceConstructivoForm, SolicitudProrrogaForm,
     EscrituraForm, BajaEmpresaForm, RespuestaProrrogaForm,
-    ConsumoServicioForm,
+    ConsumoServicioForm, ActivoInventarioForm, BajaActivoForm,
 )
 from django import forms as django_forms
 
@@ -997,3 +997,158 @@ class ReporteConsumoView(AdminEnrepaviMixin, View):
         secciones = [(f'Período: {periodo}', headers, filas)]
         _build_pdf(response, 'Reporte de Consumo de Servicios', secciones)
         return response
+
+
+# inventario de activos del ENREPAVI
+class InventarioListView(AdminEnrepaviMixin, ListView):
+    """Lista paginada de activos de inventario con filtros por categoría y estado.
+
+    Por defecto muestra solo los activos vigentes (``activo=True``). El parámetro
+    ``mostrar_bajas=1`` incluye también los dados de baja para auditoría.
+    """
+    model = ActivoInventario
+    template_name = 'core/inventario_list.html'
+    context_object_name = 'activos'
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = ActivoInventario.objects.select_related('responsable')
+
+        # filtro de bajas lógicas
+        mostrar_bajas = self.request.GET.get('mostrar_bajas') == '1'
+        if not mostrar_bajas:
+            qs = qs.filter(activo=True)
+
+        categoria = self.request.GET.get('categoria')
+        if categoria and categoria in dict(ActivoInventario.Categoria.choices):
+            qs = qs.filter(categoria=categoria)
+
+        estado = self.request.GET.get('estado')
+        if estado and estado in dict(ActivoInventario.Estado.choices):
+            qs = qs.filter(estado=estado)
+
+        q = self.request.GET.get('q', '').strip()
+        if q:
+            qs = qs.filter(
+                Q(nombre__icontains=q)
+                | Q(codigo_inventario__icontains=q)
+                | Q(marca__icontains=q)
+                | Q(numero_serie__icontains=q)
+            )
+
+        return qs.order_by('categoria', 'codigo_inventario')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['categorias_choices'] = ActivoInventario.Categoria.choices
+        ctx['estados_choices'] = ActivoInventario.Estado.choices
+        ctx['filtro_categoria'] = self.request.GET.get('categoria', '')
+        ctx['filtro_estado'] = self.request.GET.get('estado', '')
+        ctx['filtro_q'] = self.request.GET.get('q', '')
+        ctx['mostrar_bajas'] = self.request.GET.get('mostrar_bajas') == '1'
+        return ctx
+
+
+class InventarioDetailView(AdminEnrepaviMixin, DetailView):
+    """Detalle completo de un activo de inventario."""
+    model = ActivoInventario
+    template_name = 'core/inventario_detail.html'
+    context_object_name = 'activo'
+
+    def get_queryset(self):
+        return ActivoInventario.objects.select_related(
+            'responsable', 'registrado_por', 'dado_de_baja_por',
+        )
+
+
+class InventarioCreateView(AdminEnrepaviMixin, CreateView):
+    """Alta de un nuevo activo de inventario."""
+    model = ActivoInventario
+    form_class = ActivoInventarioForm
+    template_name = 'core/inventario_form.html'
+    success_url = reverse_lazy('core:inventario_list')
+
+    def form_valid(self, form):
+        form.instance.registrado_por = self.request.user
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            f'Activo "{self.object.nombre}" registrado con código {self.object.codigo_inventario}.'
+        )
+        return response
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['titulo'] = 'Registrar Activo'
+        ctx['es_nuevo'] = True
+        return ctx
+
+
+class InventarioUpdateView(AdminEnrepaviMixin, UpdateView):
+    """Edición de un activo de inventario existente. Solo activos vigentes."""
+    model = ActivoInventario
+    form_class = ActivoInventarioForm
+    template_name = 'core/inventario_form.html'
+
+    def get_queryset(self):
+        return ActivoInventario.objects.filter(activo=True)
+
+    def get_success_url(self):
+        return reverse_lazy('core:inventario_detail', kwargs={'pk': self.object.pk})
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            f'Activo "{self.object.nombre}" ({self.object.codigo_inventario}) actualizado.'
+        )
+        return response
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['titulo'] = f'Editar: {self.object.nombre}'
+        ctx['es_nuevo'] = False
+        return ctx
+
+
+class InventarioBajaView(AdminEnrepaviMixin, View):
+    """Baja lógica de un activo de inventario (rf-inv-05).
+
+    No elimina el registro de la base de datos. Marca ``activo=False``,
+    guarda el motivo, la fecha y el usuario responsable de la baja.
+    La vista solo acepta activos vigentes; los ya dados de baja redirigen
+    al detalle con un mensaje informativo.
+    """
+
+    def get(self, request, pk):
+        activo = get_object_or_404(ActivoInventario, pk=pk)
+        if not activo.activo:
+            messages.info(request, f'"{activo.nombre}" ya figura como dado de baja.')
+            return redirect('core:inventario_detail', pk=pk)
+        form = BajaActivoForm()
+        return render(request, 'core/inventario_baja_confirm.html', {
+            'activo': activo,
+            'form': form,
+        })
+
+    def post(self, request, pk):
+        activo = get_object_or_404(ActivoInventario, pk=pk, activo=True)
+        form = BajaActivoForm(request.POST)
+        if form.is_valid():
+            activo.activo = False
+            activo.motivo_baja = form.cleaned_data['motivo_baja']
+            activo.fecha_baja = timezone.now().date()
+            activo.dado_de_baja_por = request.user
+            activo.estado = ActivoInventario.Estado.DE_BAJA
+            activo.save(update_fields=[
+                'activo', 'motivo_baja', 'fecha_baja', 'dado_de_baja_por', 'estado',
+            ])
+            messages.success(
+                request,
+                f'Activo "{activo.nombre}" ({activo.codigo_inventario}) dado de baja correctamente.'
+            )
+            return redirect('core:inventario_list')
+        return render(request, 'core/inventario_baja_confirm.html', {
+            'activo': activo,
+            'form': form,
+        })

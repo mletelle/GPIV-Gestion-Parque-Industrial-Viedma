@@ -24,6 +24,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from core.models import (
+    ActivoInventario,
     AvanceConstructivo,
     ConsumoServicio,
     CustomUser,
@@ -214,6 +215,193 @@ EMPRESAS_PRUEBA = [
 ]
 
 
+# activos de inventario del ENREPAVI: código_inventario se autogenera en el modelo
+INVENTARIO_PRUEBA = [
+    # informático / mobiliario de oficina
+    {
+        'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
+        'nombre': 'Computadora de Escritorio',
+        'descripcion': 'PC de escritorio para uso administrativo general.',
+        'marca': 'Dell',
+        'modelo': 'OptiPlex 3000',
+        'numero_serie': 'DL-OPT-2024-001',
+        'fecha_alta_offset_dias': -730,   # 2 años atrás
+        'estado': ActivoInventario.Estado.EN_USO,
+        'ubicacion': 'Oficina administrativa — escritorio 1',
+        'observaciones': None,
+    },
+    {
+        'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
+        'nombre': 'Computadora de Escritorio',
+        'descripcion': 'PC de escritorio para uso administrativo general.',
+        'marca': 'Dell',
+        'modelo': 'OptiPlex 3000',
+        'numero_serie': 'DL-OPT-2024-002',
+        'fecha_alta_offset_dias': -730,
+        'estado': ActivoInventario.Estado.EN_USO,
+        'ubicacion': 'Oficina administrativa — escritorio 2',
+        'observaciones': None,
+    },
+    {
+        'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
+        'nombre': 'Notebook',
+        'descripcion': 'Laptop para trabajo en campo y reuniones externas.',
+        'marca': 'Lenovo',
+        'modelo': 'ThinkPad E14',
+        'numero_serie': 'LN-TP-2023-001',
+        'fecha_alta_offset_dias': -400,
+        'estado': ActivoInventario.Estado.EN_USO,
+        'ubicacion': 'Dirección ejecutiva',
+        'observaciones': 'Asignada al director del parque.',
+    },
+    {
+        'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
+        'nombre': 'Impresora Multifunción',
+        'descripcion': 'Impresora láser para uso compartido de la oficina.',
+        'marca': 'HP',
+        'modelo': 'LaserJet MFP M428',
+        'numero_serie': 'HP-LJ-2022-001',
+        'fecha_alta_offset_dias': -900,
+        'estado': ActivoInventario.Estado.EN_USO,
+        'ubicacion': 'Sala común — sector impresión',
+        'observaciones': None,
+    },
+    {
+        'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
+        'nombre': 'Monitor 24"',
+        'descripcion': 'Monitor Full HD para estación de trabajo.',
+        'marca': 'Samsung',
+        'modelo': 'LS24C310',
+        'numero_serie': 'SM-MON-2024-001',
+        'fecha_alta_offset_dias': -365,
+        'estado': ActivoInventario.Estado.EN_USO,
+        'ubicacion': 'Oficina administrativa — escritorio 3',
+        'observaciones': None,
+    },
+    {
+        'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
+        'nombre': 'Switch de Red',
+        'descripcion': 'Switch gestionable de 24 puertos para la red interna.',
+        'marca': 'TP-Link',
+        'modelo': 'TL-SG1024DE',
+        'numero_serie': 'TP-SW-2021-001',
+        'fecha_alta_offset_dias': -1100,
+        'estado': ActivoInventario.Estado.EN_DEPOSITO,
+        'ubicacion': 'Sala de servidores',
+        'observaciones': 'Reemplazado por uno de mayor capacidad; en depósito como backup.',
+    },
+    {
+        'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
+        'nombre': 'Escritorio de Madera',
+        'descripcion': 'Escritorio de 1.40 m para uso administrativo.',
+        'marca': 'Carrefour Home',
+        'modelo': None,
+        'numero_serie': None,
+        'fecha_alta_offset_dias': -1460,
+        'estado': ActivoInventario.Estado.EN_USO,
+        'ubicacion': 'Oficina administrativa — escritorio 1',
+        'observaciones': None,
+    },
+    {
+        'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
+        'nombre': 'Silla Ergonómica',
+        'descripcion': 'Silla con soporte lumbar para uso prolongado.',
+        'marca': 'Pettex',
+        'modelo': 'Ergoline Pro',
+        'numero_serie': None,
+        'fecha_alta_offset_dias': -1460,
+        'estado': ActivoInventario.Estado.EN_USO,
+        'ubicacion': 'Oficina administrativa — escritorio 1',
+        'observaciones': None,
+    },
+    {
+        'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
+        'nombre': 'Proyector',
+        'descripcion': 'Proyector Full HD para sala de reuniones.',
+        'marca': 'Epson',
+        'modelo': 'EB-E10',
+        'numero_serie': 'EP-PRY-2022-001',
+        'fecha_alta_offset_dias': -800,
+        'estado': ActivoInventario.Estado.EN_REPARACION,
+        'ubicacion': 'Sala de reuniones',
+        'observaciones': 'Falla en el motor de la lámpara. Enviado a servicio técnico el 10/03/2026.',
+    },
+    # equipamiento de mantenimiento
+    {
+        'categoria': ActivoInventario.Categoria.EQUIPAMIENTO_MANTENIMIENTO,
+        'nombre': 'Camioneta de Servicio',
+        'descripcion': 'Vehículo para inspección de lotes y traslado de personal de mantenimiento.',
+        'marca': 'Toyota',
+        'modelo': 'Hilux 4x4 SR',
+        'numero_serie': 'VIN-TY-HIL-2023-001',
+        'fecha_alta_offset_dias': -500,
+        'estado': ActivoInventario.Estado.EN_USO,
+        'ubicacion': 'Playa de vehículos — portón norte',
+        'observaciones': 'Dominio AB 123 CD. Próximo service: 80.000 km.',
+    },
+    {
+        'categoria': ActivoInventario.Categoria.EQUIPAMIENTO_MANTENIMIENTO,
+        'nombre': 'Hidrolavadora Industrial',
+        'descripcion': 'Hidrolavadora de alta presión para limpieza de veredas y desagües.',
+        'marca': 'Karcher',
+        'modelo': 'HD 5/15 C',
+        'numero_serie': 'KA-HD-2022-001',
+        'fecha_alta_offset_dias': -750,
+        'estado': ActivoInventario.Estado.EN_USO,
+        'ubicacion': 'Depósito de mantenimiento',
+        'observaciones': None,
+    },
+    {
+        'categoria': ActivoInventario.Categoria.EQUIPAMIENTO_MANTENIMIENTO,
+        'nombre': 'Grupo Electrógeno',
+        'descripcion': 'Generador de emergencia de 10 kVA para la oficina central.',
+        'marca': 'Generac',
+        'modelo': 'GP10000E',
+        'numero_serie': 'GN-GE-2020-001',
+        'fecha_alta_offset_dias': -1500,
+        'estado': ActivoInventario.Estado.EN_DEPOSITO,
+        'ubicacion': 'Depósito lateral — galpón 2',
+        'observaciones': 'Cargado con 50 L de gasoil. Verificación mensual el primer lunes de cada mes.',
+    },
+    {
+        'categoria': ActivoInventario.Categoria.EQUIPAMIENTO_MANTENIMIENTO,
+        'nombre': 'Taladro Percutor',
+        'descripcion': 'Taladro de 13 mm para trabajos de mantenimiento en infraestructura.',
+        'marca': 'Bosch',
+        'modelo': 'GSB 13 RE',
+        'numero_serie': 'BO-GSB-2021-001',
+        'fecha_alta_offset_dias': -950,
+        'estado': ActivoInventario.Estado.EN_USO,
+        'ubicacion': 'Depósito de herramientas',
+        'observaciones': None,
+    },
+    {
+        'categoria': ActivoInventario.Categoria.EQUIPAMIENTO_MANTENIMIENTO,
+        'nombre': 'Cortadora de Pasto',
+        'descripcion': 'Cortadora de pasto autopropulsada para áreas verdes comunes.',
+        'marca': 'Honda',
+        'modelo': 'HRX476',
+        'numero_serie': 'HO-HRX-2022-001',
+        'fecha_alta_offset_dias': -800,
+        'estado': ActivoInventario.Estado.EN_USO,
+        'ubicacion': 'Depósito de herramientas',
+        'observaciones': None,
+    },
+    {
+        'categoria': ActivoInventario.Categoria.EQUIPAMIENTO_MANTENIMIENTO,
+        'nombre': 'Escalera Telescópica',
+        'descripcion': 'Escalera de aluminio de 3 cuerpos, alcance máximo 7 m.',
+        'marca': 'Escalux',
+        'modelo': '3x12',
+        'numero_serie': None,
+        'fecha_alta_offset_dias': -1200,
+        'estado': ActivoInventario.Estado.DE_BAJA,
+        'ubicacion': None,
+        'observaciones': 'Dada de baja por rotura estructural en un peldaño. Descartada el 15/01/2026.',
+    },
+]
+
+
 # defaults para completar campos obligatorios del modelo Empresa
 EMPRESA_DEFAULTS = {
     'actividad_principal': 'Actividad principal de prueba',
@@ -370,6 +558,9 @@ class Command(BaseCommand):
         for spec in EMPRESAS_PRUEBA:
             self._crear_empresa(spec)
 
+        self._log('-- Cargando inventario de activos...')
+        self._cargar_inventario()
+
         self._imprimir_resumen()
 
     def _crear_empresa(self, spec):
@@ -454,6 +645,60 @@ class Command(BaseCommand):
         marca = '+' if creada else '='
         self._log(f'   {marca} {empresa.razon_social} [{empresa.estado}]')
 
+    def _cargar_inventario(self):
+        """Carga o actualiza el catálogo de activos de inventario del ENREPAVI.
+
+        La idempotencia se garantiza por la combinación (nombre, numero_serie).
+        Activos sin número de serie se identifican por (nombre, categoria, ubicacion).
+        Los activos marcados como DE_BAJA se crean ya dados de baja con motivo
+        genérico, para poder probar el toggle de historial en el listado.
+        """
+        hoy = timezone.now().date()
+        admin = CustomUser.objects.filter(is_superuser=True).first()
+
+        for spec in INVENTARIO_PRUEBA:
+            fecha_alta = hoy + timedelta(days=spec['fecha_alta_offset_dias'])
+            es_baja = spec['estado'] == ActivoInventario.Estado.DE_BAJA
+
+            # clave de busqueda: numero de serie si existe, si no nombre+categoria+ubicacion
+            if spec['numero_serie']:
+                lookup = {'numero_serie': spec['numero_serie']}
+            else:
+                lookup = {
+                    'nombre': spec['nombre'],
+                    'categoria': spec['categoria'],
+                    'ubicacion': spec['ubicacion'],
+                }
+
+            defaults = {
+                'categoria': spec['categoria'],
+                'nombre': spec['nombre'],
+                'descripcion': spec['descripcion'],
+                'marca': spec['marca'],
+                'modelo': spec['modelo'],
+                'numero_serie': spec['numero_serie'],
+                'fecha_alta': fecha_alta,
+                'estado': spec['estado'],
+                'ubicacion': spec['ubicacion'],
+                'observaciones': spec['observaciones'],
+                'activo': not es_baja,
+                'registrado_por': admin,
+            }
+
+            if es_baja:
+                defaults.update({
+                    'motivo_baja': 'Cargado como baja por cargar_datos_prueba.',
+                    'fecha_baja': hoy + timedelta(days=spec['fecha_alta_offset_dias'] + 30),
+                    'dado_de_baja_por': admin,
+                })
+
+            activo, creado = ActivoInventario.objects.update_or_create(
+                **lookup,
+                defaults=defaults,
+            )
+            marca = '+' if creado else '='
+            self._log(f'   {marca} [{activo.codigo_inventario}] {activo.nombre}')
+
     def _imprimir_resumen(self):
         self.stdout.write('\n' + '=' * 70)
         self.stdout.write(self.style.SUCCESS('DATOS DE PRUEBA LISTOS'))
@@ -483,6 +728,15 @@ class Command(BaseCommand):
                 f'  {user:22s} {spec["estado"]:15s} '
                 f'{parcela:13s} {spec["razon_social"]}'
             )
+        self.stdout.write('=' * 70)
+
+        total_activos = ActivoInventario.objects.count()
+        activos_vigentes = ActivoInventario.objects.filter(activo=True).count()
+        self.stdout.write(self.style.MIGRATE_HEADING('\nINVENTARIO'))
+        self.stdout.write(
+            f'  {total_activos} activos totales '
+            f'({activos_vigentes} vigentes, {total_activos - activos_vigentes} de baja)'
+        )
         self.stdout.write('=' * 70)
 
     def _log(self, msg):
