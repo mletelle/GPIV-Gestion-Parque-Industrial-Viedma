@@ -33,6 +33,12 @@ from .views import (
     ReporteOcupacionView,
     ReporteEmpresasView,
     ReporteConsumoView,
+    # inventario
+    InventarioListView,
+    InventarioDetailView,
+    InventarioCreateView,
+    InventarioUpdateView,
+    InventarioBajaView,
 )
 
 app_name = 'core'
@@ -94,4 +100,11 @@ urlpatterns = [
     path('reportes/ocupacion/', ReporteOcupacionView.as_view(), name='reporte_ocupacion'),
     path('reportes/empresas/', ReporteEmpresasView.as_view(), name='reporte_empresas'),
     path('reportes/consumos/', ReporteConsumoView.as_view(), name='reporte_consumos'),
+
+    # admin: inventario de activos (rf-inv-01 al rf-inv-06)
+    path('inventario/', InventarioListView.as_view(), name='inventario_list'),
+    path('inventario/nuevo/', InventarioCreateView.as_view(), name='inventario_create'),
+    path('inventario/<int:pk>/', InventarioDetailView.as_view(), name='inventario_detail'),
+    path('inventario/<int:pk>/editar/', InventarioUpdateView.as_view(), name='inventario_update'),
+    path('inventario/<int:pk>/baja/', InventarioBajaView.as_view(), name='inventario_baja'),
 ]

@@ -2,7 +2,7 @@ from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django import forms
 from django.core.validators import FileExtensionValidator
 from django.utils import timezone
-from .models import Lote, Empresa, CustomUser, AvanceConstructivo, SolicitudProrroga, ConsumoServicio
+from .models import Lote, Empresa, CustomUser, AvanceConstructivo, SolicitudProrroga, ConsumoServicio, ActivoInventario
 from .services import SERVICIO_CAMPOS
 
 
@@ -373,4 +373,97 @@ class RespuestaProrrogaForm(forms.Form):
         }),
         required=False,
         label='Observaciones',
+    )
+
+
+class ActivoInventarioForm(forms.ModelForm):
+    """Formulario para registrar o editar un activo de inventario del ENREPAVI.
+
+    El código de inventario se omite del formulario porque se genera automáticamente
+    en el método ``save()`` del modelo. El campo ``activo`` y los de baja lógica
+    (``motivo_baja``, ``fecha_baja``) tampoco se exponen aquí; la baja se gestiona
+    a través de la vista dedicada ``InventarioBajaView``.
+    """
+
+    class Meta:
+        model = ActivoInventario
+        fields = [
+            'categoria',
+            'nombre',
+            'descripcion',
+            'marca',
+            'modelo',
+            'numero_serie',
+            'fecha_alta',
+            'estado',
+            'ubicacion',
+            'responsable',
+            'observaciones',
+        ]
+        widgets = {
+            'categoria': forms.Select(attrs={'class': 'form-select'}),
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej: Computadora de escritorio Dell OptiPlex',
+            }),
+            'descripcion': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': 'Descripción opcional del activo',
+            }),
+            'marca': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Dell'}),
+            'modelo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: OptiPlex 3000'}),
+            'numero_serie': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Número de serie del fabricante'}),
+            'fecha_alta': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'estado': forms.Select(attrs={'class': 'form-select'}),
+            'ubicacion': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej: Oficina administrativa — escritorio 3',
+            }),
+            'responsable': forms.Select(attrs={'class': 'form-select'}),
+            'observaciones': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': 'Notas adicionales (opcional)',
+            }),
+        }
+        labels = {
+            'categoria': 'Categoría',
+            'nombre': 'Nombre del activo',
+            'descripcion': 'Descripción',
+            'marca': 'Marca',
+            'modelo': 'Modelo',
+            'numero_serie': 'Número de serie',
+            'fecha_alta': 'Fecha de alta',
+            'estado': 'Estado',
+            'ubicacion': 'Ubicación',
+            'responsable': 'Responsable',
+            'observaciones': 'Observaciones',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Restringir responsable a usuarios con acceso al sistema (staff o admin)
+        self.fields['responsable'].queryset = (
+            ActivoInventario._meta.get_field('responsable').related_model.objects
+            .filter(is_active=True)
+            .order_by('last_name', 'first_name', 'username')
+        )
+        self.fields['responsable'].empty_label = '— Sin responsable asignado —'
+
+
+class BajaActivoForm(forms.Form):
+    """Formulario para registrar la baja lógica de un activo de inventario.
+
+    No elimina el registro: marca ``activo=False``, guarda el motivo y la fecha,
+    y registra el usuario que ejecutó la baja, preservando el historial patrimonial.
+    """
+    motivo_baja = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': 'Describa el motivo de la baja (rotura irreparable, reemplazo, extravío, etc.)',
+        }),
+        min_length=10,
+        label='Motivo de la baja',
     )

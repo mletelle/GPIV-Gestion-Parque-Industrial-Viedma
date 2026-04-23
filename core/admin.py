@@ -3,6 +3,7 @@ from django.contrib.auth.admin import UserAdmin
 from .models import (
     CustomUser, Empresa, Lote, TransicionEstado,
     AvanceConstructivo, SolicitudProrroga, ConsumoServicio,
+    ActivoInventario,
 )
 
 
@@ -114,3 +115,45 @@ class ConsumoServicioAdmin(admin.ModelAdmin):
     list_display = ('empresa', 'periodo_mes', 'periodo_anio', 'fecha_carga')
     list_filter = ('periodo_anio',)
     autocomplete_fields = ('empresa',)
+
+
+@admin.register(ActivoInventario)
+class ActivoInventarioAdmin(admin.ModelAdmin):
+    list_display = (
+        'codigo_inventario', 'nombre', 'categoria', 'estado', 'activo',
+        'ubicacion', 'responsable', 'fecha_alta',
+    )
+    list_filter = ('categoria', 'estado', 'activo')
+    search_fields = ('codigo_inventario', 'nombre', 'marca', 'numero_serie')
+    readonly_fields = (
+        'codigo_inventario', 'fecha_creacion', 'fecha_modificacion',
+        'registrado_por', 'dado_de_baja_por', 'fecha_baja',
+    )
+    autocomplete_fields = ('responsable',)
+    date_hierarchy = 'fecha_alta'
+
+    fieldsets = (
+        ('Identificación', {
+            'fields': (
+                'codigo_inventario', 'categoria', 'nombre', 'descripcion',
+            ),
+        }),
+        ('Bien físico', {
+            'fields': ('marca', 'modelo', 'numero_serie'),
+            'classes': ('collapse',),
+        }),
+        ('Trazabilidad operativa', {
+            'fields': ('fecha_alta', 'estado', 'ubicacion', 'responsable', 'observaciones'),
+        }),
+        ('Baja lógica', {
+            'fields': ('activo', 'motivo_baja', 'fecha_baja', 'dado_de_baja_por'),
+            'description': 'Para dar de baja un activo use la vista del sistema en lugar de editar estos campos directamente.',
+        }),
+        ('Auditoría', {
+            'fields': ('registrado_por', 'fecha_creacion', 'fecha_modificacion'),
+            'classes': ('collapse',),
+        }),
+    )
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('responsable', 'registrado_por')
