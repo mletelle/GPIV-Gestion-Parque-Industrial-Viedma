@@ -80,6 +80,10 @@
                 class="sidebar-link {% if request.resolver_match.url_name == 'consulta_parque' %}active{% endif %}">
                 <i class="bi bi-speedometer2"></i> Dashboard
             </a>
+            <a href="{% url 'core:inventario_list' %}"
+                class="sidebar-link {% if 'inventario' in request.resolver_match.url_name %}active{% endif %}">
+                <i class="bi bi-box-seam"></i> Inventario
+            </a>
             {% endif %}
 
             {% if 'EMPRESA' in user_groups %}
