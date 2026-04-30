@@ -33,6 +33,7 @@ from core.models import (
     SolicitudProrroga,
     TransicionEstado,
 )
+from core.services import asociar_titular
 
 
 PASSWORD_DEFAULT = 'gpiv1234'
@@ -581,7 +582,6 @@ class Command(BaseCommand):
 
         empresa_defaults = dict(EMPRESA_DEFAULTS)
         empresa_defaults.update({
-            'usuario': usuario,
             'razon_social': spec['razon_social'],
             'rubro': spec['rubro'],
             'categoria_industrial': spec['categoria_industrial'],
@@ -596,6 +596,13 @@ class Command(BaseCommand):
             cuit=spec['cuit'],
             defaults=empresa_defaults,
         )
+
+        if usuario:
+            # si tiene usuario, vincularlo como titular (borrando relaciones previas de ese usuario para idempotencia)
+            usuario.empresa_asociada = None
+            usuario.rol_empresa = None
+            usuario.save(update_fields=['empresa_asociada', 'rol_empresa'])
+            asociar_titular(empresa, usuario)
 
         # asignar lote si corresponde y liberar el anterior si hubiera
         if spec['parcela']:
