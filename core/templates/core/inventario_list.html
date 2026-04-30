@@ -1,0 +1,274 @@
+{% extends 'base.html' %}
+
+{% block title %}Inventario — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .inventario-wrap {
+        padding: 2.5rem 0;
+        min-height: calc(100vh - 200px);
+    }
+
+    .filtros-card {
+        background: var(--gris-fondo);
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .filtros-card label {
+        font-size: 0.82rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .tabla-inventario {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+    }
+
+    .tabla-inventario th {
+        background: var(--verde);
+        color: #fff;
+        padding: 0.7rem 1rem;
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-align: left;
+    }
+
+    .tabla-inventario th:first-child { border-radius: var(--radio) 0 0 0; }
+    .tabla-inventario th:last-child  { border-radius: 0 var(--radio) 0 0; }
+
+    .tabla-inventario td {
+        padding: 0.65rem 1rem;
+        border-bottom: 1px solid var(--borde);
+        vertical-align: middle;
+    }
+
+    .tabla-inventario tr:hover td {
+        background: var(--verde-claro);
+    }
+
+    /* filas de activos dados de baja */
+    .tabla-inventario tr.fila-baja td {
+        opacity: 0.6;
+    }
+
+    .badge-estado, .badge-cat {
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 0.2rem 0.55rem;
+        border-radius: 4px;
+        white-space: nowrap;
+    }
+
+    /* estados */
+    .badge-estado.en-uso        { background: #DCFCE7; color: #166534; }
+    .badge-estado.en-deposito   { background: #DBEAFE; color: #1E40AF; }
+    .badge-estado.en-reparacion { background: #FEF3C7; color: #92400E; }
+    .badge-estado.de-baja       { background: #FEE2E2; color: #991B1B; }
+
+    /* categorias */
+    .badge-cat.inf { background: #EDE9FE; color: #5B21B6; }
+    .badge-cat.mnt { background: #E0F2FE; color: #075985; }
+
+    .btn-sm-gpiv {
+        font-size: 0.82rem;
+        padding: 0.3rem 0.7rem;
+        border-radius: 5px;
+        text-decoration: none;
+        border: 1px solid var(--borde);
+        color: var(--gris-texto);
+        background: #fff;
+        transition: border-color 0.2s;
+    }
+
+    .btn-sm-gpiv:hover {
+        border-color: var(--verde);
+        color: var(--verde);
+    }
+
+    .toggle-bajas-link {
+        font-size: 0.82rem;
+        color: var(--gris-suave);
+        text-decoration: underline dotted;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="inventario-wrap">
+    <div class="container">
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h2 class="sec-title mb-0">Inventario de Activos</h2>
+                <p class="text-muted mb-0" style="font-size:0.85rem;">
+                    Activos físicos y recursos del ENREPAVI
+                </p>
+            </div>
+            <a href="{% url 'core:inventario_create' %}" class="btn-verde" id="btn-nuevo-activo">
+                <i class="bi bi-plus-lg"></i> Registrar Activo
+            </a>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filtros-card">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="filtro-categoria">Categoría</label>
+                    <select name="categoria" id="filtro-categoria" class="form-select form-select-sm">
+                        <option value="">Todas</option>
+                        {% for valor, label in categorias_choices %}
+                        <option value="{{ valor }}" {% if filtro_categoria == valor %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="filtro-estado">Estado</label>
+                    <select name="estado" id="filtro-estado" class="form-select form-select-sm">
+                        <option value="">Todos</option>
+                        {% for valor, label in estados_choices %}
+                        <option value="{{ valor }}" {% if filtro_estado == valor %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="filtro-q">Buscar</label>
+                    <input type="text" name="q" id="filtro-q" class="form-control form-control-sm"
+                        value="{{ filtro_q }}" placeholder="Nombre, código, marca o N° serie">
+                </div>
+                <div class="col-md-3 d-flex gap-2 align-items-end flex-wrap">
+                    <button type="submit" class="btn-verde" style="padding:0.35rem 1rem; font-size:0.85rem;">
+                        <i class="bi bi-funnel"></i> Filtrar
+                    </button>
+                    <a href="{% url 'core:inventario_list' %}" class="btn-sm-gpiv">Limpiar</a>
+                </div>
+                <!-- conservar mostrar_bajas si está activo -->
+                {% if mostrar_bajas %}<input type="hidden" name="mostrar_bajas" value="1">{% endif %}
+            </form>
+        </div>
+
+        <!-- Toggle bajas lógicas -->
+        <div class="mb-3 text-end">
+            {% if mostrar_bajas %}
+            <a href="{% url 'core:inventario_list' %}{% if filtro_categoria or filtro_estado or filtro_q %}?categoria={{ filtro_categoria }}&estado={{ filtro_estado }}&q={{ filtro_q }}{% endif %}"
+                class="toggle-bajas-link" id="link-ocultar-bajas">
+                <i class="bi bi-eye-slash"></i> Ocultar activos dados de baja
+            </a>
+            {% else %}
+            <a href="?mostrar_bajas=1{% if filtro_categoria %}&categoria={{ filtro_categoria }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_q %}&q={{ filtro_q }}{% endif %}"
+                class="toggle-bajas-link" id="link-mostrar-bajas">
+                <i class="bi bi-eye"></i> Mostrar también los dados de baja
+            </a>
+            {% endif %}
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table class="tabla-inventario">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Nombre</th>
+                        <th>Categoría</th>
+                        <th>Marca / Modelo</th>
+                        <th>Estado</th>
+                        <th>Ubicación</th>
+                        <th>Alta</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for activo in activos %}
+                    <tr class="{% if not activo.activo %}fila-baja{% endif %}">
+                        <td>
+                            <code style="font-size:0.82rem;">{{ activo.codigo_inventario }}</code>
+                        </td>
+                        <td>
+                            <a href="{% url 'core:inventario_detail' activo.pk %}"
+                                style="color:var(--verde); font-weight:600; text-decoration:none;">
+                                {{ activo.nombre }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if activo.categoria == 'InformaticoMobiliario' %}
+                            <span class="badge-cat inf">Informático / Mob.</span>
+                            {% else %}
+                            <span class="badge-cat mnt">Equipamiento Mant.</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ activo.marca|default:"—" }}{% if activo.modelo %} {{ activo.modelo }}{% endif %}</td>
+                        <td>
+                            {% if activo.estado == 'EnUso' %}
+                            <span class="badge-estado en-uso">En uso</span>
+                            {% elif activo.estado == 'EnDeposito' %}
+                            <span class="badge-estado en-deposito">En depósito</span>
+                            {% elif activo.estado == 'EnReparacion' %}
+                            <span class="badge-estado en-reparacion">En reparación</span>
+                            {% elif activo.estado == 'DeBaja' %}
+                            <span class="badge-estado de-baja">De baja</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ activo.ubicacion|default:"—" }}</td>
+                        <td>{{ activo.fecha_alta|date:"d/m/Y" }}</td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{% url 'core:inventario_detail' activo.pk %}" class="btn-sm-gpiv"
+                                    title="Ver detalle">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if activo.activo %}
+                                <a href="{% url 'core:inventario_update' activo.pk %}" class="btn-sm-gpiv"
+                                    title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'core:inventario_baja' activo.pk %}" class="btn-sm-gpiv"
+                                    style="color:#DC2626; border-color:#FECACA;" title="Dar de baja">
+                                    <i class="bi bi-archive"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            No se encontraron activos con los filtros aplicados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <nav class="mt-4" aria-label="Paginación de inventario">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link"
+                        href="?page={{ page_obj.previous_page_number }}&categoria={{ filtro_categoria }}&estado={{ filtro_estado }}&q={{ filtro_q }}{% if mostrar_bajas %}&mostrar_bajas=1{% endif %}">&laquo;</a>
+                </li>
+                {% endif %}
+                {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link"
+                        href="?page={{ num }}&categoria={{ filtro_categoria }}&estado={{ filtro_estado }}&q={{ filtro_q }}{% if mostrar_bajas %}&mostrar_bajas=1{% endif %}">{{ num }}</a>
+                </li>
+                {% endfor %}
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link"
+                        href="?page={{ page_obj.next_page_number }}&categoria={{ filtro_categoria }}&estado={{ filtro_estado }}&q={{ filtro_q }}{% if mostrar_bajas %}&mostrar_bajas=1{% endif %}">&raquo;</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

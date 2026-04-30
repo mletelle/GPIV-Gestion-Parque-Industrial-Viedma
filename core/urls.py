@@ -41,6 +41,12 @@ from .views import (
     AdminTicketDetailView,
     TicketSoftDeleteView,
     TicketExternoCreateView,
+    # inventario
+    InventarioListView,
+    InventarioDetailView,
+    InventarioCreateView,
+    InventarioUpdateView,
+    InventarioBajaView,
 )
 
 app_name = 'core'
@@ -115,4 +121,11 @@ urlpatterns = [
 
     # contacto externo
     path('contacto/externo/', TicketExternoCreateView.as_view(), name='ticket_externo'),
+
+    # admin: inventario de activos (rf-inv-01 al rf-inv-06)
+    path('inventario/', InventarioListView.as_view(), name='inventario_list'),
+    path('inventario/nuevo/', InventarioCreateView.as_view(), name='inventario_create'),
+    path('inventario/<int:pk>/', InventarioDetailView.as_view(), name='inventario_detail'),
+    path('inventario/<int:pk>/editar/', InventarioUpdateView.as_view(), name='inventario_update'),
+    path('inventario/<int:pk>/baja/', InventarioBajaView.as_view(), name='inventario_baja'),
 ]

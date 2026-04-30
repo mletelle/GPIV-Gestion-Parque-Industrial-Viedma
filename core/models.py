@@ -331,3 +331,140 @@ class MensajeTicket(models.Model):
         self.is_active = False
         self.deleted_at = timezone.now()
         self.save()
+
+
+class ActivoInventario(models.Model):
+    """
+    Activo físico o recurso perteneciente al ente administrador (ENREPAVI).
+
+    El módulo cubre dos categorías definidas en la entrevista de relevamiento:
+    - Informático / Mobiliario de oficina (computadoras, impresoras, escritorios, etc.)
+    - Equipamiento de mantenimiento (herramientas, vehículos ligeros, maquinaria menor, etc.)
+
+    La baja es lógica: el campo ``activo`` se establece en False; el registro
+    permanece en la base de datos para conservar el historial patrimonial.
+    El código de inventario sigue el patrón ``<PREFIJO>-YYYYNNN`` y se genera
+    automáticamente al crear el activo si no se provee uno manualmente.
+    """
+
+    class Categoria(models.TextChoices):
+        INFORMATICO_MOBILIARIO = 'InformaticoMobiliario', _('Informático / Mobiliario de Oficina')
+        EQUIPAMIENTO_MANTENIMIENTO = 'EquipamientoMantenimiento', _('Equipamiento de Mantenimiento')
+
+    class Estado(models.TextChoices):
+        EN_USO = 'EnUso', _('En uso')
+        EN_DEPOSITO = 'EnDeposito', _('En depósito')
+        EN_REPARACION = 'EnReparacion', _('En reparación')
+        DE_BAJA = 'DeBaja', _('De baja')
+
+    # prefijos de código por categoría: INF para informático/mobiliario, MNT para mantenimiento
+    _PREFIJOS_CATEGORIA = {
+        Categoria.INFORMATICO_MOBILIARIO: 'INF',
+        Categoria.EQUIPAMIENTO_MANTENIMIENTO: 'MNT',
+    }
+
+    categoria = models.CharField(
+        max_length=40,
+        choices=Categoria.choices,
+        verbose_name=_('Categoría'),
+    )
+    nombre = models.CharField(max_length=200, verbose_name=_('Nombre del activo'))
+    descripcion = models.TextField(blank=True, null=True, verbose_name=_('Descripción'))
+    codigo_inventario = models.CharField(
+        max_length=20,
+        unique=True,
+        verbose_name=_('Código de inventario'),
+        help_text=_('Generado automáticamente. Formato: INF-YYYYNNN / MNT-YYYYNNN.'),
+    )
+
+    marca = models.CharField(max_length=100, blank=True, null=True, verbose_name=_('Marca'))
+    modelo = models.CharField(max_length=100, blank=True, null=True, verbose_name=_('Modelo'))
+    numero_serie = models.CharField(
+        max_length=100, blank=True, null=True, verbose_name=_('Número de serie'),
+    )
+
+    fecha_alta = models.DateField(verbose_name=_('Fecha de alta'))
+    estado = models.CharField(
+        max_length=30,
+        choices=Estado.choices,
+        default=Estado.EN_USO,
+        verbose_name=_('Estado'),
+    )
+    ubicacion = models.CharField(
+        max_length=200, blank=True, null=True, verbose_name=_('Ubicación'),
+    )
+    responsable = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='activos_a_cargo',
+        verbose_name=_('Responsable'),
+    )
+    observaciones = models.TextField(blank=True, null=True, verbose_name=_('Observaciones'))
+
+    activo = models.BooleanField(
+        default=True,
+        verbose_name=_('Activo'),
+        help_text=_('Desmarcar equivale a dar de baja el activo (baja lógica). El registro se conserva.'),
+    )
+    motivo_baja = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('Motivo de baja'),
+        help_text=_('Obligatorio al dar de baja el activo.'),
+    )
+    fecha_baja = models.DateField(
+        blank=True, null=True, verbose_name=_('Fecha de baja'),
+    )
+    dado_de_baja_por = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bajas_de_inventario_registradas',
+        verbose_name=_('Dado de baja por'),
+    )
+
+    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name=_('Fecha de creación'))
+    fecha_modificacion = models.DateTimeField(auto_now=True, verbose_name=_('Última modificación'))
+    registrado_por = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='activos_registrados',
+        verbose_name=_('Registrado por'),
+    )
+
+    class Meta:
+        verbose_name = _('Activo de Inventario')
+        verbose_name_plural = _('Inventario')
+        ordering = ['categoria', 'codigo_inventario']
+        indexes = [
+            models.Index(fields=['categoria', 'activo'], name='idx_activo_cat_activo'),
+            models.Index(fields=['estado'], name='idx_activo_estado'),
+        ]
+
+    def __str__(self):
+        return f'[{self.codigo_inventario}] {self.nombre}'
+
+    @classmethod
+    def _generar_codigo(cls, categoria: str, anio: int) -> str:
+        """Genera PREFIJO-YYYYNNN. En caso de colisión concurrente, la constraint
+        UNIQUE actúa como salvaguarda definitiva."""
+        prefijo = cls._PREFIJOS_CATEGORIA.get(categoria, 'ACT')
+        cantidad = cls.objects.filter(
+            categoria=categoria,
+            fecha_alta__year=anio,
+        ).count()
+        correlativo = cantidad + 1
+        return f'{prefijo}-{anio}{correlativo:03d}'
+
+    def save(self, *args, **kwargs):
+        """Auto-genera el código de inventario si no fue provisto."""
+        if not self.codigo_inventario:
+            from django.utils import timezone as tz
+            anio = self.fecha_alta.year if self.fecha_alta else tz.now().year
+            self.codigo_inventario = self._generar_codigo(self.categoria, anio)
+        super().save(*args, **kwargs)

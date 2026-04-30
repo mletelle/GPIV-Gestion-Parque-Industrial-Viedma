@@ -84,6 +84,10 @@
                 class="sidebar-link {% if 'ticket' in request.resolver_match.url_name %}active{% endif %}">
                 <i class="bi bi-envelope"></i> Bandeja de Mensajes
             </a>
+            <a href="{% url 'core:inventario_list' %}"
+                class="sidebar-link {% if 'inventario' in request.resolver_match.url_name %}active{% endif %}">
+                <i class="bi bi-box-seam"></i> Inventario
+            </a>
             {% endif %}
 
             {% if 'EMPRESA' in user_groups %}

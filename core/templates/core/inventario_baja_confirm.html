@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+
+{% block title %}Baja de Activo — Inventario GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .baja-wrap {
+        padding: 2.5rem 0;
+        min-height: calc(100vh - 200px);
+    }
+
+    .baja-card {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 2rem;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .baja-titulo {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #DC2626;
+        margin-bottom: 0.25rem;
+    }
+
+    .baja-codigo {
+        font-family: monospace;
+        font-size: 0.85rem;
+        background: #FEF2F2;
+        border: 1px solid #FECACA;
+        border-radius: 4px;
+        padding: 0.1rem 0.45rem;
+        color: #991B1B;
+    }
+
+    .baja-warning {
+        background: #FEF2F2;
+        border: 1px solid #FECACA;
+        border-radius: var(--radio);
+        padding: 1rem 1.25rem;
+        font-size: 0.88rem;
+        color: #991B1B;
+        margin: 1rem 0 1.5rem;
+    }
+
+    .error-list {
+        background: #FEF2F2;
+        border: 1px solid #FECACA;
+        color: #991B1B;
+        border-radius: 7px;
+        padding: 0.6rem 0.9rem;
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+        list-style: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="baja-wrap">
+    <div class="container">
+
+        <a href="{% url 'core:inventario_detail' activo.pk %}" class="text-decoration-none mb-3 d-inline-block"
+            style="font-size:0.88rem; color:var(--gris-suave);">
+            <i class="bi bi-arrow-left"></i> Volver al detalle
+        </a>
+
+        <div class="baja-card">
+
+            <h2 class="baja-titulo">
+                <i class="bi bi-archive"></i> Dar de Baja
+            </h2>
+            <p style="color:var(--gris-suave); font-size:0.9rem; margin-bottom:0.5rem;">
+                <span class="baja-codigo" id="codigo-activo-baja">{{ activo.codigo_inventario }}</span>
+                &nbsp;{{ activo.nombre }}
+            </p>
+            {% if activo.categoria == 'InformaticoMobiliario' %}
+            <small style="color:var(--gris-suave);">Categoría: Informático / Mobiliario de Oficina</small>
+            {% else %}
+            <small style="color:var(--gris-suave);">Categoría: Equipamiento de Mantenimiento</small>
+            {% endif %}
+
+            <div class="baja-warning">
+                <i class="bi bi-info-circle"></i>
+                <strong>Esta acción es una baja lógica.</strong> El activo <em>no se eliminará</em>;
+                quedará registrado en el historial patrimonial del ENREPAVI con estado
+                <strong>De baja</strong>. No podrá editarse posteriormente.
+            </div>
+
+            {% if form.motivo_baja.errors %}
+            <ul class="error-list" role="alert">
+                {% for error in form.motivo_baja.errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            <form method="post" class="form-gpiv" novalidate id="form-baja-activo">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="{{ form.motivo_baja.id_for_label }}"
+                        class="form-label" style="font-weight:600;">
+                        {{ form.motivo_baja.label }} <span style="color:#DC2626;">*</span>
+                    </label>
+                    {{ form.motivo_baja }}
+                </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="{% url 'core:inventario_detail' activo.pk %}"
+                        class="btn-sm-gpiv" style="padding:0.5rem 1.2rem;" id="btn-cancelar-baja">
+                        Cancelar
+                    </a>
+                    <button type="submit" class="btn-verde" style="background:#DC2626;" id="btn-confirmar-baja"
+                        onclick="return confirm('¿Confirmar la baja de {{ activo.nombre }}? Esta acción no se puede deshacer desde la interfaz.')">
+                        <i class="bi bi-archive"></i> Confirmar Baja
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
