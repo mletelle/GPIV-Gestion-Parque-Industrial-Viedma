@@ -467,3 +467,77 @@ class BajaActivoForm(forms.Form):
         min_length=10,
         label='Motivo de la baja',
     )
+
+
+# ---------------------------------------------------------------------------
+# Formularios RBAC internos de Empresa
+# ---------------------------------------------------------------------------
+
+class InvitarMiembroForm(forms.Form):
+    """
+    Formulario para que el Titular invite a un usuario existente como miembro
+    Estándar de su empresa.
+
+    Busca al usuario por nombre de usuario (username) y valida que:
+    - El usuario exista en el sistema.
+    - El usuario esté en el grupo EMPRESA (es un representante de empresa).
+    - No pertenezca ya a ninguna empresa.
+    """
+    username = forms.CharField(
+        max_length=150,
+        label='Nombre de usuario',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Nombre de usuario del nuevo miembro',
+            'autofocus': True,
+        }),
+    )
+
+    def clean_username(self):
+        username = self.cleaned_data['username'].strip()
+        try:
+            usuario = CustomUser.objects.get(username=username, is_active=True)
+        except CustomUser.DoesNotExist:
+            raise forms.ValidationError(
+                f'No existe ningún usuario activo con el nombre "{username}".'
+            )
+
+        if not usuario.groups.filter(name='EMPRESA').exists():
+            raise forms.ValidationError(
+                'El usuario no tiene el perfil de empresa requerido para ser miembro.'
+            )
+
+        if usuario.tiene_empresa_asociada():
+            raise forms.ValidationError(
+                f'El usuario "{username}" ya está asociado a una empresa.'
+            )
+
+        self.cleaned_data['usuario_obj'] = usuario
+        return username
+
+    def get_usuario(self):
+        """Devuelve el objeto CustomUser validado."""
+        return self.cleaned_data.get('usuario_obj')
+
+
+class TransferirTitularidadForm(forms.Form):
+    """
+    Formulario para que el Titular transfiera su rol a otro miembro de la empresa.
+
+    El queryset del campo ``nuevo_titular`` se limita a los miembros activos
+    de la empresa, excluyendo al titular actual. Se inyecta vía ``__init__``.
+    """
+    nuevo_titular = forms.ModelChoiceField(
+        queryset=CustomUser.objects.none(),
+        label='Nuevo Titular',
+        empty_label='— Seleccione un miembro —',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+
+    def __init__(self, *args, empresa=None, titular_actual=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if empresa and titular_actual:
+            self.fields['nuevo_titular'].queryset = (
+                empresa.get_miembros()
+                .exclude(pk=titular_actual.pk)
+            )

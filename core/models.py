@@ -3,12 +3,78 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator, MaxValueValidator
 
+
 class CustomUser(AbstractUser):
     """
     Usuario del SGPIV extendido de AbstractUser.
-    Los roles (ADMIN_ENREPAVI, EMPRESA) se manejan por instancias de Group.
+
+    Roles externos (ADMIN_ENREPAVI, EMPRESA, etc.): se gestionan mediante
+    ``django.contrib.auth.models.Group``, sin cambios.
+
+    Rol interno de empresa: campo ``rol_empresa`` (TITULAR / ESTANDAR).
+    La FK ``empresa_asociada`` implementa la relación 1:N con Empresa; una
+    empresa puede tener varios usuarios, cada uno con su propio rol.
+    El campo es nullable para usuarios que aún no pertenecen a ninguna empresa
+    (estado inicial tras el registro).
     """
-    pass
+
+    class RolEmpresa(models.TextChoices):
+        TITULAR = 'Titular', _('Titular')
+        ESTANDAR = 'Estandar', _('Estándar')
+
+    # FK hacia Empresa. SET_NULL: si la empresa se elimina, el usuario
+    # queda sin empresa pero no se borra. Se declara como string para evitar
+    # forward-reference (Empresa se define más abajo en el mismo módulo).
+    empresa_asociada = models.ForeignKey(
+        'Empresa',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='miembros',
+        verbose_name=_('Empresa asociada'),
+    )
+
+    rol_empresa = models.CharField(
+        max_length=20,
+        choices=RolEmpresa.choices,
+        null=True,
+        blank=True,
+        verbose_name=_('Rol en la empresa'),
+    )
+
+    # ------------------------------------------------------------------
+    # Métodos de dominio — Tell, Don't Ask
+    # ------------------------------------------------------------------
+
+    def tiene_empresa_asociada(self) -> bool:
+        """Indica si el usuario pertenece a alguna empresa."""
+        return self.empresa_asociada_id is not None
+
+    def es_titular(self) -> bool:
+        """True si el usuario es Titular de su empresa."""
+        return (
+            self.tiene_empresa_asociada()
+            and self.rol_empresa == self.RolEmpresa.TITULAR
+        )
+
+    def es_estandar(self) -> bool:
+        """True si el usuario es miembro Estándar de su empresa."""
+        return (
+            self.tiene_empresa_asociada()
+            and self.rol_empresa == self.RolEmpresa.ESTANDAR
+        )
+
+    def es_titular_de(self, empresa: 'Empresa') -> bool:
+        """True si el usuario es Titular de la empresa dada."""
+        return (
+            self.empresa_asociada_id == empresa.pk
+            and self.rol_empresa == self.RolEmpresa.TITULAR
+        )
+
+    def es_miembro_de(self, empresa: 'Empresa') -> bool:
+        """True si el usuario pertenece a la empresa dada (cualquier rol)."""
+        return self.empresa_asociada_id == empresa.pk
+
 
 class Empresa(models.Model):
     # Enums de estado y clasificaciones
@@ -80,14 +146,6 @@ class Empresa(models.Model):
         DE_200_A_500 = '200a500', _('200 – 500 m³/mes')
         MAS_500 = 'Mas500', _('Más de 500 m³/mes')
 
-    # Relación 1:1 con Usuario — SET_NULL: borrar el usuario no elimina la empresa ni su historial
-    usuario = models.OneToOneField(
-        CustomUser,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='empresa'
-    )
 
     # Información Fiscal
     razon_social = models.CharField(max_length=150)
@@ -155,6 +213,51 @@ class Empresa(models.Model):
 
     def __str__(self):
         return f"{self.razon_social} ({self.cuit})"
+
+    # ------------------------------------------------------------------
+    # Métodos de dominio — Tell, Don't Ask
+    # ------------------------------------------------------------------
+
+    def get_titular(self):
+        """Devuelve el usuario Titular de la empresa, o None si no hay ninguno."""
+        return self.miembros.filter(
+            rol_empresa=CustomUser.RolEmpresa.TITULAR
+        ).first()
+
+    def get_miembros(self):
+        """QuerySet con todos los usuarios activos asociados a la empresa."""
+        return self.miembros.filter(is_active=True).order_by(
+            'rol_empresa', 'username'
+        )
+
+    def tiene_titular(self) -> bool:
+        """True si existe al menos un usuario Titular activo."""
+        return self.miembros.filter(
+            rol_empresa=CustomUser.RolEmpresa.TITULAR,
+            is_active=True,
+        ).exists()
+
+    def contar_titulares(self) -> int:
+        """Cantidad de usuarios con rol Titular."""
+        return self.miembros.filter(
+            rol_empresa=CustomUser.RolEmpresa.TITULAR
+        ).count()
+
+    def puede_remover_miembro(self, usuario) -> bool:
+        """
+        Indica si el usuario puede ser removido de la empresa.
+        Bloquea la operación si el usuario es el único Titular.
+        """
+        if usuario.rol_empresa != CustomUser.RolEmpresa.TITULAR:
+            return True
+        return self.contar_titulares() > 1
+
+    def puede_degradar_a_estandar(self, usuario) -> bool:
+        """
+        Indica si se puede degradar al usuario a rol Estándar.
+        Bloquea la operación si es el único Titular de la empresa.
+        """
+        return self.puede_remover_miembro(usuario)
 
 
 class Lote(models.Model):

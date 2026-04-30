@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block title %}Transferir Titularidad — GPIV{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:600px;">
+    <div class="gpiv-card" style="border-top:4px solid #DC2626;">
+        <h2 class="sec-title mb-3" style="font-size:1.5rem; color:#991B1B;">Transferir Titularidad</h2>
+        
+        <div class="alert alert-warning mb-4" style="border-radius:12px; background:#FEF2F2; color:#991B1B; border-color:#FCA5A5;">
+            <strong><i class="bi bi-exclamation-triangle-fill"></i> Atención: Acción Irreversible</strong>
+            <p class="mt-2 mb-0" style="font-size:0.9rem;">
+                Al transferir la titularidad de la empresa a otro usuario, <strong>perderás tus privilegios de administrador</strong> y pasarás a ser un usuario Estándar. 
+                Solo el nuevo Titular podrá revertir esta acción o administrar el equipo en el futuro.
+            </p>
+        </div>
+
+        <form method="post" action="" novalidate onsubmit="return confirm('ATENCIÓN: Estás a punto de ceder la administración de la empresa. ¿Estás absolutamente seguro de continuar?');">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger" style="border-radius:12px;">
+                {% for error in form.non_field_errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="mb-4">
+                <label for="{{ form.nuevo_titular.id_for_label }}" class="form-label font-weight-bold" style="color:var(--azul);">
+                    {{ form.nuevo_titular.label }}
+                </label>
+                {{ form.nuevo_titular }}
+                {% if form.nuevo_titular.errors %}
+                <div class="text-danger mt-1" style="font-size:0.85rem;">
+                    {% for error in form.nuevo_titular.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4 pt-3" style="border-top:1px solid var(--borde);">
+                <a href="{% url 'core:empresa_usuarios' %}" class="btn text-muted fw-bold" style="border-radius:20px;">Cancelar</a>
+                <button type="submit" class="btn btn-danger" style="border-radius:20px; font-weight:600;">
+                    <i class="bi bi-arrow-left-right"></i> Confirmar Transferencia
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

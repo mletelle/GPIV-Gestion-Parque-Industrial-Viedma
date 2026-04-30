@@ -39,6 +39,11 @@ from .views import (
     InventarioCreateView,
     InventarioUpdateView,
     InventarioBajaView,
+    # rbac empresa
+    GestionUsuariosEmpresaView,
+    InvitarMiembroView,
+    RemoverMiembroView,
+    TransferirTitularidadView,
 )
 
 app_name = 'core'
@@ -64,6 +69,12 @@ urlpatterns = [
 
     # empresa: prorroga
     path('prorroga/nueva/', ProrrogaCreateView.as_view(), name='prorroga_create'),
+
+    # empresa: gestion de usuarios (RBAC titular)
+    path('empresa/usuarios/', GestionUsuariosEmpresaView.as_view(), name='empresa_usuarios'),
+    path('empresa/usuarios/invitar/', InvitarMiembroView.as_view(), name='empresa_invitar'),
+    path('empresa/usuarios/<int:pk>/remover/', RemoverMiembroView.as_view(), name='empresa_remover'),
+    path('empresa/transferir-titularidad/', TransferirTitularidadView.as_view(), name='empresa_transferir'),
 
     # admin: gestion de lotes
     path('lotes/', LoteListView.as_view(), name='lote_list'),

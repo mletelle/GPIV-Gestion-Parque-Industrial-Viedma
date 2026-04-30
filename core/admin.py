@@ -10,24 +10,34 @@ from .models import (
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
     search_fields = ('username', 'email', 'first_name', 'last_name')
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'empresa_asociada', 'rol_empresa')
+    list_filter = ('is_staff', 'is_superuser', 'is_active', 'groups', 'rol_empresa')
+
+    fieldsets = UserAdmin.fieldsets + (
+        ('Rol Empresa (RBAC Interno)', {
+            'fields': ('empresa_asociada', 'rol_empresa'),
+        }),
+    )
+
+class MiembrosEmpresaInline(admin.TabularInline):
+    model = CustomUser
+    fields = ('username', 'email', 'first_name', 'last_name', 'rol_empresa')
+    readonly_fields = ('username', 'email', 'first_name', 'last_name')
+    extra = 0
+    can_delete = False
+
+    def has_add_permission(self, request, obj):
+        return False
 
 
 @admin.register(Empresa)
 class EmpresaAdmin(admin.ModelAdmin):
-    list_display = ('razon_social', 'cuit', 'estado', 'tipo_empresa', 'usuario')
+    list_display = ('razon_social', 'cuit', 'estado', 'tipo_empresa')
     list_filter = ('estado', 'tipo_empresa', 'rubro')
     search_fields = ('razon_social', 'cuit', 'nombre_fantasia')
-    autocomplete_fields = ('usuario',)
+    inlines = [MiembrosEmpresaInline]
 
     fieldsets = (
-        ('Usuario vinculado', {
-            'fields': ('usuario',),
-            'description': (
-                'Si la empresa fue registrada por un usuario del portal, '
-                'queda vinculada automaticamente. Para empresas historicas '
-                'o cargadas a mano se puede asignar un usuario existente aqui.'
-            ),
-        }),
         ('Datos fiscales', {
             'fields': (
                 'razon_social', 'nombre_fantasia', 'cuit', 'ingresos_brutos',

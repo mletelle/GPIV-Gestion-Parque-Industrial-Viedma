@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block title %}Invitar Miembro — GPIV{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:600px;">
+    <div class="gpiv-card">
+        <h2 class="sec-title mb-3" style="font-size:1.5rem;">Invitar Nuevo Miembro</h2>
+        <p style="color:var(--gris-suave);font-size:0.95rem;margin-bottom:1.5rem;">
+            Ingresá el <strong>nombre de usuario</strong> de la persona que deseas sumar a tu empresa. 
+            El usuario debe estar previamente registrado en la plataforma con perfil de Empresa y no debe pertenecer a otra organización.
+        </p>
+
+        <form method="post" action="" novalidate>
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger" style="border-radius:12px;">
+                {% for error in form.non_field_errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="mb-4">
+                <label for="{{ form.username.id_for_label }}" class="form-label font-weight-bold" style="color:var(--azul);">
+                    {{ form.username.label }}
+                </label>
+                {{ form.username }}
+                {% if form.username.errors %}
+                <div class="text-danger mt-1" style="font-size:0.85rem;">
+                    {% for error in form.username.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if form.username.help_text %}
+                <div class="form-text">{{ form.username.help_text }}</div>
+                {% endif %}
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4 pt-3" style="border-top:1px solid var(--borde);">
+                <a href="{% url 'core:empresa_usuarios' %}" class="btn text-muted fw-bold" style="border-radius:20px;">Cancelar</a>
+                <button type="submit" class="btn-verde">
+                    <i class="bi bi-person-plus"></i> Invitar Usuario
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

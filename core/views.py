@@ -20,6 +20,8 @@ from .models import (
 from .services import (
     registrar_transicion, get_servicio_proveedor,
     SERVICIO_CAMPOS, SERVICIO_LABELS,
+    asociar_titular, invitar_miembro, remover_miembro, transferir_titularidad,
+    RBACError,
 )
 from .forms import (
     LoginForm, LoteForm, RegistroUsuarioForm,
@@ -27,6 +29,7 @@ from .forms import (
     AvanceConstructivoForm, SolicitudProrrogaForm,
     EscrituraForm, BajaEmpresaForm, RespuestaProrrogaForm,
     ConsumoServicioForm, ActivoInventarioForm, BajaActivoForm,
+    InvitarMiembroForm, TransferirTitularidadForm,
 )
 from django import forms as django_forms
 
@@ -57,7 +60,7 @@ class CustomLogoutView(LogoutView):
 
  # mixins de acceso
 class AdminEnrepaviMixin(LoginRequiredMixin, UserPassesTestMixin):
-    """restringe acceso a usuarios del grupo ADMIN_ENREPAVI"""
+    """Restringe acceso a usuarios del grupo ADMIN_ENREPAVI."""
     def test_func(self):
         return (
             self.request.user.is_superuser
@@ -66,14 +69,27 @@ class AdminEnrepaviMixin(LoginRequiredMixin, UserPassesTestMixin):
 
 
 class EmpresaMixin(LoginRequiredMixin, UserPassesTestMixin):
-    """restringe acceso a usuarios del grupo EMPRESA"""
+    """Restringe acceso a usuarios del grupo EMPRESA (cualquier rol interno)."""
     def test_func(self):
         return self.request.user.groups.filter(name='EMPRESA').exists()
 
 
+class TitularEmpresaMixin(EmpresaMixin):
+    """
+    Restringe acceso a usuarios del grupo EMPRESA con rol interno TITULAR.
+
+    Hereda de EmpresaMixin por lo que también valida el grupo externo.
+    Se usa para las vistas de gestión interna de usuarios de la empresa.
+    """
+    def test_func(self):
+        if not super().test_func():
+            return False
+        return self.request.user.es_titular()
+
+
 class ProveedorServiciosMixin(LoginRequiredMixin, UserPassesTestMixin):
-    """restringe acceso a proveedores de cualquier servicio (agua/luz/gas).
-    el usuario tiene que estar en uno de los grupos PROVEEDOR_*."""
+    """Restringe acceso a proveedores de cualquier servicio (agua/luz/gas).
+    El usuario tiene que estar en uno de los grupos PROVEEDOR_*."""
     PROVEEDOR_GROUPS = ['PROVEEDOR_AGUA', 'PROVEEDOR_LUZ', 'PROVEEDOR_GAS']
 
     def test_func(self):
@@ -86,7 +102,7 @@ class ProveedorServiciosMixin(LoginRequiredMixin, UserPassesTestMixin):
 
 
 class OrganismoPublicoMixin(LoginRequiredMixin, UserPassesTestMixin):
-    """restringe acceso a organismos publicos y administradores"""
+    """Restringe acceso a organismos publicos y administradores."""
     def test_func(self):
         return (
             self.request.user.is_superuser
@@ -130,7 +146,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             estado=Empresa.Estado.EN_CONSTRUCCION,
             fecha_limite_obra__lte=limite,
             fecha_limite_obra__gte=hoy,
-        ).select_related('usuario')
+        )
         return ctx
 
 
@@ -204,22 +220,23 @@ class RegistroView(CreateView):
 
 
 class SolicitudCreateView(EmpresaMixin, CreateView):
-    """formulario de solicitud de radicacion, solo para empresas sin solicitud previa"""
+    """Formulario de solicitud de radicacion, solo para empresas sin solicitud previa."""
     template_name = 'core/solicitud_form.html'
     form_class = SolicitudRadicacionForm
     success_url = reverse_lazy('core:mi_solicitud')
 
     def test_func(self):
-        # empresa sin solicitud previa
+        # Solo puede crear solicitud un usuario EMPRESA sin empresa asociada aún
         if not super().test_func():
             return False
-        return not hasattr(self.request.user, 'empresa')
+        return not self.request.user.tiene_empresa_asociada()
 
     def form_valid(self, form):
-        form.instance.usuario = self.request.user
         form.instance.estado = Empresa.Estado.EN_EVALUACION
         response = super().form_valid(form)
-        # registrar primera transicion
+        # Vincular el usuario como Titular de la empresa recién creada
+        asociar_titular(self.object, self.request.user)
+        # Registrar primera transicion
         TransicionEstado.objects.create(
             empresa=self.object,
             estado_anterior=None,
@@ -237,18 +254,21 @@ class SolicitudCreateView(EmpresaMixin, CreateView):
 
 
 class MiSolicitudView(EmpresaMixin, TemplateView):
-    """panel de la empresa: ve su solicitud, lote, avances, prorrogas e historial"""
+    """Panel de la empresa: ve su solicitud, lote, avances, prorrogas e historial."""
     template_name = 'core/mi_solicitud.html'
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        empresa = getattr(self.request.user, 'empresa', None)
+        user = self.request.user
+        empresa = user.empresa_asociada
         ctx['empresa'] = empresa
+        ctx['es_titular'] = user.es_titular()
         if empresa:
             ctx['historial'] = empresa.historial_estados.select_related('usuario').all()
             ctx['lote'] = empresa.lotes.first()
             ctx['avances'] = empresa.avances_constructivos.all()
             ctx['prorrogas'] = empresa.prorrogas.all()
+            ctx['miembros'] = empresa.get_miembros()
             # puede cargar avance si esta radicada o en construccion
             ctx['puede_cargar_avance'] = empresa.estado in [
                 Empresa.Estado.RADICADA, Empresa.Estado.EN_CONSTRUCCION,
@@ -265,14 +285,14 @@ class MiSolicitudView(EmpresaMixin, TemplateView):
  # evaluacion de solicitudes admin
 
 class SolicitudListView(AdminEnrepaviMixin, ListView):
-    """listado de empresas con filtro por estado"""
+    """Listado de empresas con filtro por estado."""
     model = Empresa
     template_name = 'core/solicitud_list.html'
     context_object_name = 'solicitudes'
     paginate_by = 20
 
     def get_queryset(self):
-        qs = Empresa.objects.select_related('usuario').order_by('-pk')
+        qs = Empresa.objects.prefetch_related('miembros').order_by('-pk')
         estado = self.request.GET.get('estado')
         if estado and estado in dict(Empresa.Estado.choices):
             qs = qs.filter(estado=estado)
@@ -400,7 +420,7 @@ class AdjudicacionView(AdminEnrepaviMixin, View):
  # avance constructivo hu-05 hu-06 cu-03
 
 class AvanceCreateView(EmpresaMixin, CreateView):
-    """empresa radicada o en construccion carga un avance de obra"""
+    """Empresa radicada o en construccion carga un avance de obra."""
     template_name = 'core/avance_form.html'
     form_class = AvanceConstructivoForm
     success_url = reverse_lazy('core:mi_solicitud')
@@ -408,13 +428,13 @@ class AvanceCreateView(EmpresaMixin, CreateView):
     def test_func(self):
         if not super().test_func():
             return False
-        empresa = getattr(self.request.user, 'empresa', None)
+        empresa = self.request.user.empresa_asociada
         if not empresa:
             return False
         return empresa.estado in [Empresa.Estado.RADICADA, Empresa.Estado.EN_CONSTRUCCION]
 
     def form_valid(self, form):
-        empresa = self.request.user.empresa
+        empresa = self.request.user.empresa_asociada
         form.instance.empresa = empresa
         response = super().form_valid(form)
         # primer avance: Radicada -> EnConstruccion
@@ -428,7 +448,7 @@ class AvanceCreateView(EmpresaMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['empresa'] = self.request.user.empresa
+        ctx['empresa'] = self.request.user.empresa_asociada
         return ctx
 
 
@@ -458,7 +478,7 @@ class AvanceValidarView(AdminEnrepaviMixin, View):
  # solicitud de prorroga hu-07 cu-05
 
 class ProrrogaCreateView(EmpresaMixin, CreateView):
-    """empresa en construccion solicita extension de plazo"""
+    """Empresa en construccion solicita extension de plazo."""
     template_name = 'core/prorroga_form.html'
     form_class = SolicitudProrrogaForm
     success_url = reverse_lazy('core:mi_solicitud')
@@ -466,20 +486,20 @@ class ProrrogaCreateView(EmpresaMixin, CreateView):
     def test_func(self):
         if not super().test_func():
             return False
-        empresa = getattr(self.request.user, 'empresa', None)
+        empresa = self.request.user.empresa_asociada
         if not empresa:
             return False
         return empresa.estado == Empresa.Estado.EN_CONSTRUCCION
 
     def form_valid(self, form):
-        form.instance.empresa = self.request.user.empresa
+        form.instance.empresa = self.request.user.empresa_asociada
         response = super().form_valid(form)
         messages.success(self.request, 'Solicitud de prórroga enviada correctamente.')
         return response
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['empresa'] = self.request.user.empresa
+        ctx['empresa'] = self.request.user.empresa_asociada
         return ctx
 
 
@@ -1152,3 +1172,91 @@ class InventarioBajaView(AdminEnrepaviMixin, View):
             'activo': activo,
             'form': form,
         })
+
+
+# ---------------------------------------------------------------------------
+# Gestión interna de usuarios de Empresa (RBAC Titular)
+# ---------------------------------------------------------------------------
+
+class GestionUsuariosEmpresaView(TitularEmpresaMixin, TemplateView):
+    """Panel de gestión de miembros para el Titular de la empresa."""
+    template_name = 'core/empresa_usuarios.html'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        empresa = self.request.user.empresa_asociada
+        ctx['empresa'] = empresa
+        ctx['miembros'] = empresa.get_miembros()
+        return ctx
+
+
+class InvitarMiembroView(TitularEmpresaMixin, View):
+    """Permite al Titular invitar a un usuario existente a su empresa."""
+
+    def get(self, request):
+        form = InvitarMiembroForm()
+        return render(request, 'core/empresa_invitar.html', {'form': form})
+
+    def post(self, request):
+        form = InvitarMiembroForm(request.POST)
+        if form.is_valid():
+            usuario = form.get_usuario()
+            empresa = request.user.empresa_asociada
+            try:
+                invitar_miembro(empresa, usuario)
+                messages.success(
+                    request,
+                    f'"{usuario.username}" se ha unido a {empresa.razon_social} como miembro Estándar.'
+                )
+                return redirect('core:empresa_usuarios')
+            except RBACError as e:
+                messages.error(request, str(e))
+        return render(request, 'core/empresa_invitar.html', {'form': form})
+
+
+class RemoverMiembroView(TitularEmpresaMixin, View):
+    """Permite al Titular remover a un miembro de la empresa."""
+
+    def post(self, request, pk):
+        empresa = request.user.empresa_asociada
+        usuario = get_object_or_404(CustomUser, pk=pk)
+        try:
+            remover_miembro(empresa, usuario, request.user)
+            messages.success(
+                request,
+                f'"{usuario.username}" ha sido desvinculado de la empresa.'
+            )
+        except RBACError as e:
+            messages.error(request, str(e))
+        return redirect('core:empresa_usuarios')
+
+
+class TransferirTitularidadView(TitularEmpresaMixin, View):
+    """Permite al Titular transferir su rol a otro miembro de la empresa."""
+
+    def get(self, request):
+        empresa = request.user.empresa_asociada
+        form = TransferirTitularidadForm(
+            empresa=empresa, titular_actual=request.user
+        )
+        return render(request, 'core/empresa_transferir.html', {'form': form})
+
+    def post(self, request):
+        empresa = request.user.empresa_asociada
+        form = TransferirTitularidadForm(
+            request.POST, empresa=empresa, titular_actual=request.user
+        )
+        if form.is_valid():
+            nuevo_titular = form.cleaned_data['nuevo_titular']
+            try:
+                transferir_titularidad(empresa, request.user, nuevo_titular)
+                messages.success(
+                    request,
+                    f'Has transferido la titularidad a "{nuevo_titular.username}". '
+                    'Ahora tienes rol Estándar.'
+                )
+                # Al perder el rol Titular, se le redirige al panel general
+                return redirect('core:mi_solicitud')
+            except RBACError as e:
+                messages.error(request, str(e))
+        return render(request, 'core/empresa_transferir.html', {'form': form})

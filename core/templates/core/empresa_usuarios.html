@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestión de Usuarios — {{ empresa.razon_social }}{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:800px;">
+    <div class="d-flex align-items-center mb-4">
+        <a href="{% url 'core:mi_solicitud' %}" class="btn btn-outline-secondary me-3" style="border-radius:20px;">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+        <h2 class="sec-title mb-0">Gestión de Usuarios</h2>
+    </div>
+    
+    <div class="gpiv-card mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h5 style="color:var(--verde);font-weight:700;margin:0;">Miembros Actuales</h5>
+                <p style="color:var(--gris-suave);font-size:0.9rem;margin:0;">Administra los accesos al panel de {{ empresa.razon_social }}.</p>
+            </div>
+            <a href="{% url 'core:empresa_invitar' %}" class="btn-verde btn-sm">
+                <i class="bi bi-person-plus"></i> Invitar Miembro
+            </a>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table align-middle" style="font-size:0.9rem;">
+                <thead style="color:var(--gris-suave);">
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Email</th>
+                        <th>Rol</th>
+                        <th class="text-end">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for miembro in miembros %}
+                    <tr>
+                        <td>
+                            <strong>{{ miembro.get_full_name|default:miembro.username }}</strong>
+                            {% if miembro == request.user %}
+                            <span class="text-muted" style="font-size:0.8rem;">(Tú)</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">{{ miembro.email|default:"—" }}</td>
+                        <td>
+                            {% if miembro.rol_empresa == 'Titular' %}
+                            <span style="background:#E0E7FF;color:#3730A3;font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:4px;font-weight:700;">Titular</span>
+                            {% else %}
+                            <span style="background:#F1F5F9;color:#475569;font-size:0.75rem;padding:0.2rem 0.5rem;border-radius:4px;font-weight:700;">Estándar</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if miembro != request.user and miembro.rol_empresa != 'Titular' %}
+                            <form action="{% url 'core:empresa_remover' miembro.pk %}" method="post" class="d-inline" onsubmit="return confirm('¿Seguro que deseas remover a {{ miembro.username }} de la empresa?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Remover de la empresa">
+                                    <i class="bi bi-person-x"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-4">No hay miembros registrados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="gpiv-card">
+        <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Transferencia de Titularidad</h5>
+        <p style="color:var(--gris-suave);font-size:0.92rem;margin-bottom:1rem;">
+            El Titular es el responsable legal y administrador principal de la cuenta de la empresa en la plataforma. 
+            Si deseas ceder este rol a otro miembro, puedes hacerlo aquí. Al transferir la titularidad, pasarás a ser un usuario Estándar.
+        </p>
+        <a href="{% url 'core:empresa_transferir' %}" class="btn btn-outline-danger" style="border-radius:20px; font-weight:600;">
+            <i class="bi bi-arrow-left-right"></i> Transferir Titularidad
+        </a>
+    </div>
+</div>
+{% endblock %}
