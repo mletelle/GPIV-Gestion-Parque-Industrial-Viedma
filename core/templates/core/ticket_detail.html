@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+
+{% block title %}Mensaje #{{ ticket.id }} — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .mensaje-box {
+        max-width: 85%;
+        padding: 1.25rem;
+        border-radius: 12px;
+        position: relative;
+    }
+    /* Mensajes del usuario actual / de la empresa */
+    .mensaje-propio {
+        background: #DCFCE7;
+        align-self: flex-start;
+        border: 1px solid #BBF7D0;
+    }
+    /* Mensajes del otro (admin o usuario) */
+    .mensaje-otro {
+        background: #F3F4F6;
+        align-self: flex-end;
+        border: 1px solid #E5E7EB;
+    }
+    .mensaje-header {
+        font-size: 0.8rem;
+        color: #4B5563;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        padding-bottom: 0.25rem;
+    }
+    .mensaje-cuerpo {
+        white-space: pre-wrap;
+        font-size: 0.95rem;
+        color: #1F2937;
+        line-height: 1.5;
+    }
+    .badge-estado {
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 0.3rem 0.6rem;
+        border-radius: 4px;
+    }
+    .badge-estado.abierto { background: #166534; color: #fff; }
+    .badge-estado.cerrado { background: #4B5563; color: #fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 800px;">
+    <!-- Encabezado del Ticket -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div class="d-flex align-items-center gap-3">
+                    <a href="{% if is_admin_view %}{% url 'core:admin_ticket_list' %}{% else %}{% url 'core:ticket_list' %}{% endif %}" class="btn text-muted p-0">
+                        <i class="bi bi-arrow-left fs-4"></i>
+                    </a>
+                    <h3 class="mb-0 fw-bold">{{ ticket.asunto }}</h3>
+                </div>
+                <div>
+                    {% if ticket.estado == 'Abierto' %}
+                        <span class="badge-estado abierto"><i class="bi bi-envelope-open me-1"></i> ABIERTO</span>
+                    {% else %}
+                        <span class="badge-estado cerrado"><i class="bi bi-lock me-1"></i> CERRADO</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="d-flex justify-content-between text-muted ms-5 ps-1 mb-2" style="font-size: 0.85rem;">
+                <span>
+                    Iniciado por: 
+                    <strong>
+                        {% if ticket.creador %}
+                            {{ ticket.creador.username }}
+                        {% else %}
+                            {{ ticket.nombre_contacto }} (Externo)
+                        {% endif %}
+                    </strong>
+                </span>
+                <span>Categoría: <strong>{{ ticket.get_categoria_display }}</strong></span>
+            </div>
+            {% if not ticket.creador and is_admin_view %}
+            <div class="ms-5 ps-1 mb-2" style="font-size: 0.85rem; color: #4B5563;">
+                <i class="bi bi-envelope"></i> {{ ticket.email_contacto }} &nbsp;
+                {% if ticket.telefono_contacto %}<i class="bi bi-telephone"></i> {{ ticket.telefono_contacto }}{% endif %}
+            </div>
+            {% endif %}
+            <div class="d-flex justify-content-between text-muted ms-5 ps-1 border-top pt-2 mt-2" style="font-size: 0.85rem;">
+                <span>Actualizado: {{ ticket.fecha_actualizacion|date:"d/m/Y H:i" }}</span>
+            </div>
+
+            {% if is_admin_view %}
+                <div class="mt-4 ms-5 ps-1 border-top pt-3">
+                    {% if ticket.creador %}
+                        <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            {% if ticket.estado == 'Abierto' %}
+                                <button type="submit" name="cerrar_ticket" value="1" class="btn btn-outline-secondary btn-sm" onclick="return confirm('¿Confirmás el cierre del ticket?');">
+                                    <i class="bi bi-lock"></i> Cerrar Ticket
+                                </button>
+                            {% else %}
+                                <button type="submit" name="abrir_ticket" value="1" class="btn btn-outline-success btn-sm">
+                                    <i class="bi bi-unlock"></i> Reabrir Ticket
+                                </button>
+                            {% endif %}
+                        </form>
+                    {% else %}
+                        <div class="text-danger small"><i class="bi bi-info-circle"></i> Este es un ticket de un usuario no registrado. Al responder, el ticket se cerrará automáticamente y no se podrá reabrir.</div>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Hilo de Mensajes -->
+    <div class="chat-container">
+        {% for mensaje in mensajes %}
+            {% if not is_admin_view %}
+                <!-- Vista Usuario -->
+                {% if mensaje.autor == request.user %}
+                    <div class="mensaje-box mensaje-propio shadow-sm">
+                        <div class="mensaje-header">
+                            <span>Tú</span>
+                            <span>{{ mensaje.fecha_creacion|date:"d/m/Y H:i" }}</span>
+                        </div>
+                        <div class="mensaje-cuerpo">{{ mensaje.contenido }}</div>
+                    </div>
+                {% else %}
+                    <div class="mensaje-box mensaje-otro shadow-sm">
+                        <div class="mensaje-header">
+                            <span><i class="bi bi-person-badge"></i> Administrador</span>
+                            <span>{{ mensaje.fecha_creacion|date:"d/m/Y H:i" }}</span>
+                        </div>
+                        <div class="mensaje-cuerpo">{{ mensaje.contenido }}</div>
+                    </div>
+                {% endif %}
+            {% else %}
+                <!-- Vista Administrador -->
+                {% if mensaje.autor == request.user or mensaje.autor.is_superuser or request.user.groups.all.0 in mensaje.autor.groups.all %}
+                    <!-- Admin o staff -->
+                    <div class="mensaje-box mensaje-otro shadow-sm">
+                        <div class="mensaje-header">
+                            <span>{{ mensaje.autor.username|default:"Admin" }}</span>
+                            <span>{{ mensaje.fecha_creacion|date:"d/m/Y H:i" }}</span>
+                        </div>
+                        <div class="mensaje-cuerpo">{{ mensaje.contenido }}</div>
+                    </div>
+                {% else %}
+                    <!-- Remitente (empresa/proveedor) -->
+                    <div class="mensaje-box mensaje-propio shadow-sm">
+                        <div class="mensaje-header">
+                            <span>{{ mensaje.autor.username }}</span>
+                            <span>{{ mensaje.fecha_creacion|date:"d/m/Y H:i" }}</span>
+                        </div>
+                        <div class="mensaje-cuerpo">{{ mensaje.contenido }}</div>
+                    </div>
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Formulario de Respuesta -->
+    {% if ticket.estado == 'Abierto' %}
+    <div class="card shadow-sm border-0 mt-4">
+        <div class="card-body p-4 bg-light rounded-bottom">
+            <h5 class="mb-3 fs-6 fw-bold">Enviar Respuesta</h5>
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    {{ form.contenido }}
+                    {% if form.contenido.errors %}
+                        <div class="text-danger small mt-1">{{ form.contenido.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                <div class="text-end">
+                    <button type="submit" class="btn-verde px-4">Enviar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-secondary text-center mt-4 border-0">
+        Este ticket se encuentra cerrado. {% if not is_admin_view %}Si tenés nuevas consultas, por favor abrí un nuevo ticket.{% endif %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

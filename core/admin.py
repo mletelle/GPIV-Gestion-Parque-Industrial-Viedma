@@ -3,6 +3,7 @@ from django.contrib.auth.admin import UserAdmin
 from .models import (
     CustomUser, Empresa, Lote, TransicionEstado,
     AvanceConstructivo, SolicitudProrroga, ConsumoServicio,
+    Ticket, MensajeTicket,
 )
 
 
@@ -114,3 +115,35 @@ class ConsumoServicioAdmin(admin.ModelAdmin):
     list_display = ('empresa', 'periodo_mes', 'periodo_anio', 'fecha_carga')
     list_filter = ('periodo_anio',)
     autocomplete_fields = ('empresa',)
+
+
+class MensajeTicketInline(admin.TabularInline):
+    model = MensajeTicket
+    extra = 0
+    fields = ('autor', 'contenido', 'fecha_creacion', 'is_active')
+    readonly_fields = ('fecha_creacion',)
+
+
+@admin.register(Ticket)
+class TicketAdmin(admin.ModelAdmin):
+    list_display = ('asunto', 'creador', 'estado', 'fecha_creacion', 'is_active')
+    list_filter = ('estado', 'is_active', 'fecha_creacion')
+    search_fields = ('asunto', 'creador__username', 'creador__email')
+    autocomplete_fields = ('creador',)
+    inlines = [MensajeTicketInline]
+    
+    actions = ['soft_delete_tickets']
+    
+    @admin.action(description='Dar de baja lógica a los tickets seleccionados')
+    def soft_delete_tickets(self, request, queryset):
+        for ticket in queryset:
+            ticket.soft_delete()
+
+
+@admin.register(MensajeTicket)
+class MensajeTicketAdmin(admin.ModelAdmin):
+    list_display = ('ticket', 'autor', 'fecha_creacion', 'is_active')
+    list_filter = ('is_active', 'fecha_creacion')
+    search_fields = ('ticket__asunto', 'autor__username', 'contenido')
+    autocomplete_fields = ('ticket', 'autor')
+

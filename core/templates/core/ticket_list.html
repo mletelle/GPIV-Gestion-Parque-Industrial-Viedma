@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}Asistencia — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .ticket-wrap {
+        padding: 2.5rem 0;
+        min-height: calc(100vh - 200px);
+    }
+    .tabla-tickets {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+    }
+    .tabla-tickets th {
+        background: var(--verde);
+        color: #fff;
+        padding: 0.7rem 1rem;
+        font-weight: 600;
+        text-align: left;
+    }
+    .tabla-tickets th:first-child { border-radius: var(--radio) 0 0 0; }
+    .tabla-tickets th:last-child { border-radius: 0 var(--radio) 0 0; }
+    .tabla-tickets td {
+        padding: 0.65rem 1rem;
+        border-bottom: 1px solid var(--borde);
+        vertical-align: middle;
+    }
+    .tabla-tickets tr:hover td {
+        background: var(--verde-claro);
+    }
+    .badge-estado {
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 0.2rem 0.55rem;
+        border-radius: 4px;
+    }
+    .badge-estado.abierto { background: #DCFCE7; color: #166534; }
+    .badge-estado.cerrado { background: #F3F4F6; color: #4B5563; }
+    
+    .btn-sm-gpiv {
+        font-size: 0.82rem;
+        padding: 0.3rem 0.7rem;
+        border-radius: 5px;
+        text-decoration: none;
+        border: 1px solid var(--borde);
+        color: var(--gris-texto);
+        background: #fff;
+        transition: border-color 0.2s;
+    }
+    .btn-sm-gpiv:hover {
+        border-color: var(--verde);
+        color: var(--verde);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ticket-wrap">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="sec-title mb-0">Asistencia</h2>
+            <a href="{% url 'core:ticket_create' %}" class="btn-verde">
+                <i class="bi bi-envelope-plus"></i> Nueva Consulta
+            </a>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0" style="overflow-x:auto;">
+                <table class="tabla-tickets">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Asunto</th>
+                            <th>Estado</th>
+                            <th>Última Actualización</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ticket in tickets %}
+                        <tr>
+                            <td><strong>#{{ ticket.id }}</strong></td>
+                            <td>{{ ticket.asunto }}</td>
+                            <td>
+                                {% if ticket.estado == 'Abierto' %}
+                                <span class="badge-estado abierto">Abierto</span>
+                                {% else %}
+                                <span class="badge-estado cerrado">Cerrado</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ ticket.fecha_actualizacion|date:"d/m/Y H:i" }}</td>
+                            <td class="text-end">
+                                <a href="{% url 'core:ticket_detail' ticket.pk %}" class="btn-sm-gpiv">
+                                    <i class="bi bi-eye"></i> Ver Conversación
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">Aún no realizaste una consulta.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <nav class="mt-4" aria-label="Paginación">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a>
+                </li>
+                {% endif %}
+                {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                </li>
+                {% endfor %}
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
