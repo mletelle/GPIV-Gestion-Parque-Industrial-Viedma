@@ -125,8 +125,27 @@
     <!-- Hilo de Mensajes -->
     <div class="chat-container">
         {% for mensaje in mensajes %}
-            {% if not is_admin_view %}
-                <!-- Vista Usuario -->
+            {% if is_admin_view %}
+                {# vista admin: sus propios mensajes (es_admin=True) van a la derecha como "otro" #}
+                {% if mensaje.es_admin %}
+                    <div class="mensaje-box mensaje-otro shadow-sm">
+                        <div class="mensaje-header">
+                            <span><i class="bi bi-person-badge"></i> {{ mensaje.autor.username|default:"Admin" }}</span>
+                            <span>{{ mensaje.fecha_creacion|date:"d/m/Y H:i" }}</span>
+                        </div>
+                        <div class="mensaje-cuerpo">{{ mensaje.contenido }}</div>
+                    </div>
+                {% else %}
+                    <div class="mensaje-box mensaje-propio shadow-sm">
+                        <div class="mensaje-header">
+                            <span>{% if mensaje.autor %}{{ mensaje.autor.username }}{% else %}{{ ticket.nombre_contacto|default:"Externo" }}{% endif %}</span>
+                            <span>{{ mensaje.fecha_creacion|date:"d/m/Y H:i" }}</span>
+                        </div>
+                        <div class="mensaje-cuerpo">{{ mensaje.contenido }}</div>
+                    </div>
+                {% endif %}
+            {% else %}
+                {# vista usuario: mis mensajes a la izquierda, los del admin a la derecha #}
                 {% if mensaje.autor == request.user %}
                     <div class="mensaje-box mensaje-propio shadow-sm">
                         <div class="mensaje-header">
@@ -139,27 +158,6 @@
                     <div class="mensaje-box mensaje-otro shadow-sm">
                         <div class="mensaje-header">
                             <span><i class="bi bi-person-badge"></i> Administrador</span>
-                            <span>{{ mensaje.fecha_creacion|date:"d/m/Y H:i" }}</span>
-                        </div>
-                        <div class="mensaje-cuerpo">{{ mensaje.contenido }}</div>
-                    </div>
-                {% endif %}
-            {% else %}
-                <!-- Vista Administrador -->
-                {% if mensaje.autor == request.user or mensaje.autor.is_superuser or request.user.groups.all.0 in mensaje.autor.groups.all %}
-                    <!-- Admin o staff -->
-                    <div class="mensaje-box mensaje-otro shadow-sm">
-                        <div class="mensaje-header">
-                            <span>{{ mensaje.autor.username|default:"Admin" }}</span>
-                            <span>{{ mensaje.fecha_creacion|date:"d/m/Y H:i" }}</span>
-                        </div>
-                        <div class="mensaje-cuerpo">{{ mensaje.contenido }}</div>
-                    </div>
-                {% else %}
-                    <!-- Remitente (empresa/proveedor) -->
-                    <div class="mensaje-box mensaje-propio shadow-sm">
-                        <div class="mensaje-header">
-                            <span>{{ mensaje.autor.username }}</span>
                             <span>{{ mensaje.fecha_creacion|date:"d/m/Y H:i" }}</span>
                         </div>
                         <div class="mensaje-cuerpo">{{ mensaje.contenido }}</div>

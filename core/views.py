@@ -1074,6 +1074,22 @@ class TicketExternoCreateView(View):
             return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
 
 
+def _anotar_mensajes_es_admin(mensajes):
+    """marca cada mensaje con .es_admin para que el template no tenga que
+    razonar sobre grupos. evita la logica fragil de 'request.user.groups.all.0
+    in mensaje.autor.groups.all' que misclasifica casos comunes."""
+    mensajes = list(mensajes.select_related('autor').prefetch_related('autor__groups'))
+    for m in mensajes:
+        autor = m.autor
+        m.es_admin = bool(
+            autor and (
+                autor.is_superuser
+                or autor.groups.filter(name='ADMIN_ENREPAVI').exists()
+            )
+        )
+    return mensajes
+
+
 class TicketDetailView(LoginRequiredMixin, DetailView):
     """Detalle de un ticket y envío de respuestas (usuario normal)."""
     model = Ticket
@@ -1085,7 +1101,8 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['mensajes'] = self.object.mensajes.filter(is_active=True).order_by('fecha_creacion')
+        mensajes_qs = self.object.mensajes.filter(is_active=True).order_by('fecha_creacion')
+        ctx['mensajes'] = _anotar_mensajes_es_admin(mensajes_qs)
         ctx['form'] = MensajeTicketForm()
         return ctx
 
@@ -1151,7 +1168,8 @@ class AdminTicketDetailView(AdminEnrepaviMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['mensajes'] = self.object.mensajes.filter(is_active=True).order_by('fecha_creacion')
+        mensajes_qs = self.object.mensajes.filter(is_active=True).order_by('fecha_creacion')
+        ctx['mensajes'] = _anotar_mensajes_es_admin(mensajes_qs)
         ctx['form'] = MensajeTicketForm()
         ctx['is_admin_view'] = True
         return ctx

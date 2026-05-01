@@ -3,10 +3,15 @@ capa de servicios de core. centraliza operaciones que usan tanto las vistas
 como los management commands, asi evitamos duplicar logica de transicion
 y circular imports.
 """
-import os
+import logging
+
 import resend
 from django.conf import settings
-from .models import Empresa, TransicionEstado
+from django.utils.html import escape
+
+from .models import TransicionEstado
+
+logger = logging.getLogger(__name__)
 
 
 # mapping de servicio (proveedor) a campos del modelo ConsumoServicio que
@@ -52,73 +57,143 @@ def registrar_transicion(empresa, estado_nuevo, usuario=None, justificacion=''):
     )
 
 
+# =========================================
+# emails transaccionales (mensajeria interna)
+# =========================================
+
 def enviar_email_resend(to_email, subject, html_content):
     """
-    Envía un email transaccional usando la API de Resend.
-    Requiere que la variable de entorno RESEND_API_KEY esté configurada.
+    envia un email transaccional via API de Resend.
+    si RESEND_API_KEY no esta configurada, loguea un warning y devuelve False
+    (modo dev: no rompe el flujo de la vista que lo llama).
     """
-    api_key = os.getenv('RESEND_API_KEY')
+    api_key = settings.RESEND_API_KEY
     if not api_key:
-        print(f"WARN: RESEND_API_KEY no configurada. Simulado envío a {to_email}: {subject}")
+        logger.warning(
+            "RESEND_API_KEY no configurada. Email omitido (to=%s, subject=%r)",
+            to_email, subject,
+        )
         return False
 
     resend.api_key = api_key
     try:
-        r = resend.Emails.send({
-            "from": "GPIV <noreply@tivena.com.ar>",
+        return resend.Emails.send({
+            "from": settings.DEFAULT_FROM_EMAIL,
             "to": to_email,
             "subject": subject,
-            "html": html_content
+            "html": html_content,
         })
-        return r
-    except Exception as e:
-        print(f"ERROR enviando email vía Resend: {e}")
+    except Exception:
+        # capturamos cualquier excepcion del SDK para que la respuesta del
+        # usuario no falle si el proveedor de mail tiene un hipo. log con
+        # traceback completo para diagnostico.
+        logger.exception(
+            "Error enviando email via Resend (to=%s, subject=%r)",
+            to_email, subject,
+        )
         return False
+
+
+def _es_admin(user):
+    return bool(
+        user and (
+            user.is_superuser
+            or user.groups.filter(name='ADMIN_ENREPAVI').exists()
+        )
+    )
 
 
 def notificar_ticket_mensaje(ticket, mensaje):
     """
-    Determina a quién hay que notificar de un nuevo mensaje en un ticket.
-    Si el autor es el creador del ticket (ej: empresa), notifica al admin.
-    Si el autor es otro (admin), notifica al creador del ticket.
+    decide a quien hay que avisar de un nuevo mensaje en un ticket.
+    - si el autor es admin: avisa al creador (interno: solo aviso de "tenes
+      respuesta nueva, ingresa al sistema"; externo: incluye la respuesta
+      porque el visitante no vuelve al sistema).
+    - si el autor es usuario / externo: avisa a SUPPORT_INBOX_EMAIL.
+    todo dato proveniente del usuario se escapa con `escape()` para evitar
+    inyeccion de HTML en el cuerpo del mail.
     """
-    # Si es externo, no tiene creador ni el mensaje tiene autor (en su primer mensaje)
-    es_admin = mensaje.autor and (mensaje.autor.is_superuser or mensaje.autor.groups.filter(name='ADMIN_ENREPAVI').exists())
-    
-    if es_admin:
-        # Administrador respondió, notificar al usuario
+    autor_es_admin = _es_admin(mensaje.autor)
+    asunto_safe = escape(ticket.asunto)
+    contenido_safe = escape(mensaje.contenido)
+
+    if autor_es_admin:
         if ticket.creador:
-            to_email = ticket.creador.email
-            nombre = ticket.creador.username
+            destino = ticket.creador.email
+            nombre = ticket.creador.get_full_name() or ticket.creador.username
+            cuerpo_extra = (
+                '<p>Por favor, ingresá al sistema para leer la respuesta:</p>'
+                f'<p><a href="https://gpiv.tivena.com.ar/mensajes/{ticket.id}/">'
+                f'https://gpiv.tivena.com.ar/mensajes/{ticket.id}/</a></p>'
+            )
         else:
-            to_email = ticket.email_contacto
-            nombre = ticket.nombre_contacto
+            destino = ticket.email_contacto
+            nombre = ticket.nombre_contacto or 'visitante'
+            cuerpo_extra = (
+                '<p>La respuesta es:</p>'
+                f'<blockquote style="border-left:3px solid #0b6623;'
+                ' padding:0.5rem 1rem; background:#f5f5f5;'
+                f' white-space:pre-wrap;">{contenido_safe}</blockquote>'
+            )
 
-        if to_email:
-            subject = f"Respuesta a tu consulta: {ticket.asunto}"
-            html_content = f"""
-            <p>Hola {nombre},</p>
-            <p>El administrador del GPIV ha respondido a tu consulta: <strong>"{ticket.asunto}"</strong>.</p>
-            """
-            if ticket.creador:
-                html_content += "<p>Por favor, ingresá al sistema para leer la respuesta.</p>"
-            else:
-                html_content += f"<p>La respuesta es:</p><blockquote>{mensaje.contenido}</blockquote>"
-                
-            html_content += """
-            <hr>
-            <p><small>Este es un mensaje automático, por favor no respondas a este correo.</small></p>
-            """
-            enviar_email_resend(to_email, subject, html_content)
-    else:
-        # Usuario envió mensaje, notificar al administrador
-        to_email = "admin@tivena.com.ar"
-        nombre_emisor = ticket.creador.username if ticket.creador else ticket.nombre_contacto
-        subject = f"Nuevo mensaje en ticket #{ticket.id} - {nombre_emisor}"
-        html_content = f"""
-        <p>Hola Administrador,</p>
-        <p>El usuario <strong>{nombre_emisor}</strong> ha enviado un nuevo mensaje en el ticket: <strong>"{ticket.asunto}"</strong>.</p>
-        <p>Por favor, ingresá al panel de administración para responder.</p>
-        """
-        enviar_email_resend(to_email, subject, html_content)
+        if not destino:
+            logger.warning(
+                "Ticket #%s sin destinatario para notificar respuesta.",
+                ticket.id,
+            )
+            return False
 
+        html = (
+            f'<p>Hola {escape(nombre)},</p>'
+            f'<p>El administrador del GPIV respondió a tu consulta '
+            f'<strong>"{asunto_safe}"</strong>.</p>'
+            f'{cuerpo_extra}'
+            '<hr>'
+            '<p style="font-size:12px; color:#6B7280;">'
+            'Mensaje automático del Sistema de Gestión del Parque Industrial de'
+            ' Viedma. No respondas a este correo.</p>'
+        )
+        subject = f'Respuesta a tu consulta — {ticket.asunto}'
+        return enviar_email_resend(destino, subject, html)
+
+    # autor: usuario logueado (no admin) o externo. avisa al admin.
+    nombre_emisor = (
+        ticket.creador.get_full_name() or ticket.creador.username
+        if ticket.creador
+        else (ticket.nombre_contacto or 'Externo')
+    )
+    nombre_safe = escape(nombre_emisor)
+    es_externo = ticket.creador is None
+    detalle_externo = ''
+    if es_externo:
+        detalle_externo = (
+            f'<p><strong>Email:</strong> {escape(ticket.email_contacto or "")}'
+            + (
+                f'<br><strong>Teléfono:</strong>'
+                f' {escape(ticket.telefono_contacto)}'
+                if ticket.telefono_contacto else ''
+            )
+            + '</p>'
+        )
+
+    html = (
+        '<p>Hola Administración ENREPAVI,</p>'
+        f'<p>{"Llegó una nueva consulta desde la landing." if es_externo else "Llegó un nuevo mensaje de un usuario registrado."}</p>'
+        f'<p><strong>Ticket:</strong> #{ticket.id}<br>'
+        f'<strong>Asunto:</strong> {asunto_safe}<br>'
+        f'<strong>Categoría:</strong> {escape(ticket.get_categoria_display())}<br>'
+        f'<strong>Remitente:</strong> {nombre_safe}</p>'
+        f'{detalle_externo}'
+        '<p><strong>Mensaje:</strong></p>'
+        f'<blockquote style="border-left:3px solid #0b6623;'
+        ' padding:0.5rem 1rem; background:#f5f5f5;'
+        f' white-space:pre-wrap;">{contenido_safe}</blockquote>'
+        f'<p>Ingresá al panel: <a href="https://gpiv.tivena.com.ar/panel/mensajes/{ticket.id}/">'
+        f'https://gpiv.tivena.com.ar/panel/mensajes/{ticket.id}/</a></p>'
+        '<hr>'
+        '<p style="font-size:12px; color:#6B7280;">'
+        'Mensaje automático del Sistema de Gestión del Parque Industrial de'
+        ' Viedma.</p>'
+    )
+    subject = f'[GPIV] Nuevo mensaje en ticket #{ticket.id} — {nombre_emisor}'
+    return enviar_email_resend(settings.SUPPORT_INBOX_EMAIL, subject, html)

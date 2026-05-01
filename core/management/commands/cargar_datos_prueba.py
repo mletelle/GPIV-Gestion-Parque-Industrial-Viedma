@@ -30,7 +30,9 @@ from core.models import (
     CustomUser,
     Empresa,
     Lote,
+    MensajeTicket,
     SolicitudProrroga,
+    Ticket,
     TransicionEstado,
 )
 
@@ -212,192 +214,225 @@ EMPRESAS_PRUEBA = [
         'fecha_limite_offset_dias': None,
         'avances': [(100, True)],
     },
+    # caducada: vencio el plazo de obra, todavia sin baja
+    {
+        'username': 'empresa_iota',
+        'email': 'iota@test.local',
+        'razon_social': 'Iota Maderas S.R.L.',
+        'cuit': '30-10101010-1',
+        'rubro': Empresa.Rubro.BIENES,
+        'categoria_industrial': Empresa.CategoriaIndustrial.OTRO,
+        'tipo_empresa': Empresa.TipoEmpresa.EXISTENTE,
+        'necesidad_m2': Decimal('1700.00'),
+        'estado': Empresa.Estado.CADUCADO,
+        'parcela': 31,
+        'fecha_limite_offset_dias': -45,
+        'avances': [(15, True), (30, False)],
+    },
+    # baja historica: lote liberado, registro conservado por trazabilidad
+    {
+        'username': None,
+        'email': None,
+        'razon_social': 'Kappa Plasticos S.A.',
+        'cuit': '30-11111212-2',
+        'rubro': Empresa.Rubro.BIENES,
+        'categoria_industrial': Empresa.CategoriaIndustrial.QUIMICA,
+        'tipo_empresa': Empresa.TipoEmpresa.EXISTENTE,
+        'necesidad_m2': Decimal('2000.00'),
+        'estado': Empresa.Estado.HISTORICO_BAJA,
+        'parcela': None,
+        'fecha_limite_offset_dias': None,
+        'avances': [(20, True)],
+    },
 ]
 
 
-# activos de inventario del ENREPAVI: código_inventario se autogenera en el modelo
+# activos de inventario del ENREPAVI: codigo_inventario se autogenera en el modelo.
+# textos en estilo "cargado a mano": minusculas, marcas/modelos abreviados,
+# observaciones cortas, varios campos vacios. evita la sensacion de fixture
+# autogenerada (tipo prefijos largos de numero de serie).
 INVENTARIO_PRUEBA = [
-    # informático / mobiliario de oficina
+    # informatico / mobiliario de oficina
     {
         'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
-        'nombre': 'Computadora de Escritorio',
-        'descripcion': 'PC de escritorio para uso administrativo general.',
-        'marca': 'Dell',
-        'modelo': 'OptiPlex 3000',
-        'numero_serie': 'DL-OPT-2024-001',
-        'fecha_alta_offset_dias': -730,   # 2 años atrás
-        'estado': ActivoInventario.Estado.EN_USO,
-        'ubicacion': 'Oficina administrativa — escritorio 1',
-        'observaciones': None,
-    },
-    {
-        'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
-        'nombre': 'Computadora de Escritorio',
-        'descripcion': 'PC de escritorio para uso administrativo general.',
-        'marca': 'Dell',
-        'modelo': 'OptiPlex 3000',
-        'numero_serie': 'DL-OPT-2024-002',
+        'nombre': 'pc oficina dell',
+        'descripcion': 'pc de escritorio',
+        'marca': 'dell',
+        'modelo': None,
+        'numero_serie': '001',
         'fecha_alta_offset_dias': -730,
         'estado': ActivoInventario.Estado.EN_USO,
-        'ubicacion': 'Oficina administrativa — escritorio 2',
+        'ubicacion': 'oficina administrativa - escritorio 1',
         'observaciones': None,
     },
     {
         'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
-        'nombre': 'Notebook',
-        'descripcion': 'Laptop para trabajo en campo y reuniones externas.',
-        'marca': 'Lenovo',
-        'modelo': 'ThinkPad E14',
-        'numero_serie': 'LN-TP-2023-001',
+        'nombre': 'pc oficina dell',
+        'descripcion': 'pc de escritorio',
+        'marca': 'dell',
+        'modelo': None,
+        'numero_serie': '002',
+        'fecha_alta_offset_dias': -730,
+        'estado': ActivoInventario.Estado.EN_USO,
+        'ubicacion': 'oficina administrativa - escritorio 2',
+        'observaciones': None,
+    },
+    {
+        'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
+        'nombre': 'notebook lenovo',
+        'descripcion': 'notebook para trabajo en campo',
+        'marca': 'lenovo',
+        'modelo': None,
+        'numero_serie': None,
         'fecha_alta_offset_dias': -400,
         'estado': ActivoInventario.Estado.EN_USO,
-        'ubicacion': 'Dirección ejecutiva',
-        'observaciones': 'Asignada al director del parque.',
+        'ubicacion': 'direccion',
+        'observaciones': 'la usa el director',
     },
     {
         'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
-        'nombre': 'Impresora Multifunción',
-        'descripcion': 'Impresora láser para uso compartido de la oficina.',
-        'marca': 'HP',
-        'modelo': 'LaserJet MFP M428',
-        'numero_serie': 'HP-LJ-2022-001',
+        'nombre': 'impresora hp',
+        'descripcion': 'impresora multifuncion compartida',
+        'marca': 'hp',
+        'modelo': None,
+        'numero_serie': None,
         'fecha_alta_offset_dias': -900,
         'estado': ActivoInventario.Estado.EN_USO,
-        'ubicacion': 'Sala común — sector impresión',
+        'ubicacion': 'sala comun',
         'observaciones': None,
     },
     {
         'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
-        'nombre': 'Monitor 24"',
-        'descripcion': 'Monitor Full HD para estación de trabajo.',
-        'marca': 'Samsung',
-        'modelo': 'LS24C310',
-        'numero_serie': 'SM-MON-2024-001',
+        'nombre': 'monitor 24',
+        'descripcion': None,
+        'marca': 'samsung',
+        'modelo': None,
+        'numero_serie': None,
         'fecha_alta_offset_dias': -365,
         'estado': ActivoInventario.Estado.EN_USO,
-        'ubicacion': 'Oficina administrativa — escritorio 3',
+        'ubicacion': 'oficina administrativa - escritorio 3',
         'observaciones': None,
     },
     {
         'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
-        'nombre': 'Switch de Red',
-        'descripcion': 'Switch gestionable de 24 puertos para la red interna.',
-        'marca': 'TP-Link',
-        'modelo': 'TL-SG1024DE',
-        'numero_serie': 'TP-SW-2021-001',
+        'nombre': 'switch tplink',
+        'descripcion': 'switch 24 puertos',
+        'marca': 'tplink',
+        'modelo': None,
+        'numero_serie': None,
         'fecha_alta_offset_dias': -1100,
         'estado': ActivoInventario.Estado.EN_DEPOSITO,
-        'ubicacion': 'Sala de servidores',
-        'observaciones': 'Reemplazado por uno de mayor capacidad; en depósito como backup.',
+        'ubicacion': 'sala de servidores',
+        'observaciones': 'queda de backup',
     },
     {
         'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
-        'nombre': 'Escritorio de Madera',
-        'descripcion': 'Escritorio de 1.40 m para uso administrativo.',
-        'marca': 'Carrefour Home',
+        'nombre': 'escritorio',
+        'descripcion': None,
+        'marca': None,
         'modelo': None,
         'numero_serie': None,
         'fecha_alta_offset_dias': -1460,
         'estado': ActivoInventario.Estado.EN_USO,
-        'ubicacion': 'Oficina administrativa — escritorio 1',
+        'ubicacion': 'oficina administrativa - escritorio 1',
         'observaciones': None,
     },
     {
         'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
-        'nombre': 'Silla Ergonómica',
-        'descripcion': 'Silla con soporte lumbar para uso prolongado.',
-        'marca': 'Pettex',
-        'modelo': 'Ergoline Pro',
+        'nombre': 'silla oficina',
+        'descripcion': None,
+        'marca': None,
+        'modelo': None,
         'numero_serie': None,
         'fecha_alta_offset_dias': -1460,
         'estado': ActivoInventario.Estado.EN_USO,
-        'ubicacion': 'Oficina administrativa — escritorio 1',
+        'ubicacion': 'oficina administrativa - escritorio 1',
         'observaciones': None,
     },
     {
         'categoria': ActivoInventario.Categoria.INFORMATICO_MOBILIARIO,
-        'nombre': 'Proyector',
-        'descripcion': 'Proyector Full HD para sala de reuniones.',
-        'marca': 'Epson',
-        'modelo': 'EB-E10',
-        'numero_serie': 'EP-PRY-2022-001',
+        'nombre': 'proyector',
+        'descripcion': 'proyector sala de reuniones',
+        'marca': 'epson',
+        'modelo': None,
+        'numero_serie': None,
         'fecha_alta_offset_dias': -800,
         'estado': ActivoInventario.Estado.EN_REPARACION,
-        'ubicacion': 'Sala de reuniones',
-        'observaciones': 'Falla en el motor de la lámpara. Enviado a servicio técnico el 10/03/2026.',
+        'ubicacion': 'sala de reuniones',
+        'observaciones': 'falla la lampara, en service',
     },
     # equipamiento de mantenimiento
     {
         'categoria': ActivoInventario.Categoria.EQUIPAMIENTO_MANTENIMIENTO,
-        'nombre': 'Camioneta de Servicio',
-        'descripcion': 'Vehículo para inspección de lotes y traslado de personal de mantenimiento.',
-        'marca': 'Toyota',
-        'modelo': 'Hilux 4x4 SR',
-        'numero_serie': 'VIN-TY-HIL-2023-001',
+        'nombre': 'camioneta',
+        'descripcion': 'camioneta de servicio',
+        'marca': 'toyota',
+        'modelo': 'hilux',
+        'numero_serie': None,
         'fecha_alta_offset_dias': -500,
         'estado': ActivoInventario.Estado.EN_USO,
-        'ubicacion': 'Playa de vehículos — portón norte',
-        'observaciones': 'Dominio AB 123 CD. Próximo service: 80.000 km.',
+        'ubicacion': 'playa de vehiculos',
+        'observaciones': 'dominio ab 123 cd',
     },
     {
         'categoria': ActivoInventario.Categoria.EQUIPAMIENTO_MANTENIMIENTO,
-        'nombre': 'Hidrolavadora Industrial',
-        'descripcion': 'Hidrolavadora de alta presión para limpieza de veredas y desagües.',
-        'marca': 'Karcher',
-        'modelo': 'HD 5/15 C',
-        'numero_serie': 'KA-HD-2022-001',
+        'nombre': 'hidrolavadora',
+        'descripcion': None,
+        'marca': 'karcher',
+        'modelo': None,
+        'numero_serie': None,
         'fecha_alta_offset_dias': -750,
         'estado': ActivoInventario.Estado.EN_USO,
-        'ubicacion': 'Depósito de mantenimiento',
+        'ubicacion': 'deposito de mantenimiento',
         'observaciones': None,
     },
     {
         'categoria': ActivoInventario.Categoria.EQUIPAMIENTO_MANTENIMIENTO,
-        'nombre': 'Grupo Electrógeno',
-        'descripcion': 'Generador de emergencia de 10 kVA para la oficina central.',
-        'marca': 'Generac',
-        'modelo': 'GP10000E',
-        'numero_serie': 'GN-GE-2020-001',
+        'nombre': 'generador',
+        'descripcion': 'grupo electrogeno de emergencia',
+        'marca': None,
+        'modelo': None,
+        'numero_serie': None,
         'fecha_alta_offset_dias': -1500,
         'estado': ActivoInventario.Estado.EN_DEPOSITO,
-        'ubicacion': 'Depósito lateral — galpón 2',
-        'observaciones': 'Cargado con 50 L de gasoil. Verificación mensual el primer lunes de cada mes.',
+        'ubicacion': 'galpon 2',
+        'observaciones': 'verificar 1er lunes de cada mes',
     },
     {
         'categoria': ActivoInventario.Categoria.EQUIPAMIENTO_MANTENIMIENTO,
-        'nombre': 'Taladro Percutor',
-        'descripcion': 'Taladro de 13 mm para trabajos de mantenimiento en infraestructura.',
-        'marca': 'Bosch',
-        'modelo': 'GSB 13 RE',
-        'numero_serie': 'BO-GSB-2021-001',
+        'nombre': 'taladro',
+        'descripcion': None,
+        'marca': 'bosch',
+        'modelo': None,
+        'numero_serie': None,
         'fecha_alta_offset_dias': -950,
         'estado': ActivoInventario.Estado.EN_USO,
-        'ubicacion': 'Depósito de herramientas',
+        'ubicacion': 'deposito de herramientas',
         'observaciones': None,
     },
     {
         'categoria': ActivoInventario.Categoria.EQUIPAMIENTO_MANTENIMIENTO,
-        'nombre': 'Cortadora de Pasto',
-        'descripcion': 'Cortadora de pasto autopropulsada para áreas verdes comunes.',
-        'marca': 'Honda',
-        'modelo': 'HRX476',
-        'numero_serie': 'HO-HRX-2022-001',
+        'nombre': 'cortadora pasto',
+        'descripcion': None,
+        'marca': 'honda',
+        'modelo': None,
+        'numero_serie': None,
         'fecha_alta_offset_dias': -800,
         'estado': ActivoInventario.Estado.EN_USO,
-        'ubicacion': 'Depósito de herramientas',
+        'ubicacion': 'deposito de herramientas',
         'observaciones': None,
     },
     {
         'categoria': ActivoInventario.Categoria.EQUIPAMIENTO_MANTENIMIENTO,
-        'nombre': 'Escalera Telescópica',
-        'descripcion': 'Escalera de aluminio de 3 cuerpos, alcance máximo 7 m.',
-        'marca': 'Escalux',
-        'modelo': '3x12',
+        'nombre': 'escalera',
+        'descripcion': 'escalera de aluminio 3 cuerpos',
+        'marca': None,
+        'modelo': None,
         'numero_serie': None,
         'fecha_alta_offset_dias': -1200,
         'estado': ActivoInventario.Estado.DE_BAJA,
         'ubicacion': None,
-        'observaciones': 'Dada de baja por rotura estructural en un peldaño. Descartada el 15/01/2026.',
+        'observaciones': 'rota, descartada',
     },
 ]
 
@@ -435,6 +470,86 @@ PROVEEDORES = [
 ORGANISMOS = [
     ('organismo_municipal', 'municipal@gob.gpiv.local', 'Municipio de Viedma'),
     ('organismo_provincial', 'provincial@gob.gpiv.local', 'Gobierno Rio Negro'),
+]
+
+
+# tickets de mensajeria interna y consultas externas (issue #25).
+# 'creador' = username del usuario logueado, o None para externos.
+# cada entry tiene una lista de mensajes con (autor_username, contenido) en
+# orden cronologico. autor=None marca el mensaje inicial de un externo.
+TICKETS_PRUEBA = [
+    {
+        'creador': None,
+        'nombre_contacto': 'Juan Perez',
+        'email_contacto': 'juan.perez@example.com',
+        'telefono_contacto': '+54 9 2920 555111',
+        'asunto': 'consulta por disponibilidad de lotes',
+        'categoria': Ticket.Categoria.EXTERNA,
+        'estado': Ticket.Estado.ABIERTO,
+        'mensajes': [
+            (None, 'hola, queria saber si quedan lotes disponibles para una metalurgica chica. gracias.'),
+        ],
+    },
+    {
+        'creador': None,
+        'nombre_contacto': 'Maria Lopez',
+        'email_contacto': 'maria.lopez@example.com',
+        'telefono_contacto': None,
+        'asunto': 'requisitos para habilitacion comercial',
+        'categoria': Ticket.Categoria.EXTERNA,
+        'estado': Ticket.Estado.CERRADO,
+        'mensajes': [
+            (None, 'buenas, donde puedo ver los requisitos para iniciar la habilitacion?'),
+            ('admin_enrepavi', 'Hola Maria, los requisitos estan publicados en la seccion '
+                              '"Solicitudes" del sitio. Cualquier duda mas especifica nos '
+                              'escribis nuevamente. Saludos.'),
+        ],
+    },
+    {
+        'creador': 'empresa_delta',
+        'nombre_contacto': None,
+        'email_contacto': None,
+        'telefono_contacto': None,
+        'asunto': 'duda sobre conexion de agua',
+        'categoria': Ticket.Categoria.LOTE,
+        'estado': Ticket.Estado.ABIERTO,
+        'mensajes': [
+            ('empresa_delta', 'En la parcela 24 figura conexion de agua potable pero no '
+                              'la encontramos en obra. Pueden chequear con la cooperativa?'),
+            ('admin_enrepavi', 'Hola, vamos a coordinar con la cooperativa esta semana '
+                               'y te confirmamos. Mientras tanto, el medidor deberia '
+                               'estar sobre el lateral este del lote.'),
+            ('empresa_delta', 'Perfecto, lo revisamos manana. Gracias.'),
+        ],
+    },
+    {
+        'creador': 'empresa_eta',
+        'nombre_contacto': None,
+        'email_contacto': None,
+        'telefono_contacto': None,
+        'asunto': 'pedido de copia de escritura',
+        'categoria': Ticket.Categoria.ADMINISTRATIVA,
+        'estado': Ticket.Estado.ABIERTO,
+        'mensajes': [
+            ('empresa_eta', 'Buenas, necesitamos una copia digital de la escritura de la '
+                            'parcela para gestiones bancarias. Como podemos solicitarla?'),
+        ],
+    },
+    {
+        'creador': 'proveedor_agua',
+        'nombre_contacto': None,
+        'email_contacto': None,
+        'telefono_contacto': None,
+        'asunto': 'falla en formulario de carga de consumos',
+        'categoria': Ticket.Categoria.TECNICA,
+        'estado': Ticket.Estado.CERRADO,
+        'mensajes': [
+            ('proveedor_agua', 'No me deja cargar el consumo de marzo, tira un error.'),
+            ('admin_enrepavi', 'Lo revisamos: era un periodo ya cargado por error. Lo '
+                               'limpiamos, ya podes volver a intentar. Gracias por avisar.'),
+            ('proveedor_agua', 'Perfecto, ya cargo bien. Cierro el ticket.'),
+        ],
+    },
 ]
 
 
@@ -522,6 +637,22 @@ class Command(BaseCommand):
         self._log('-- Cargando grupos...')
         for nombre in GRUPOS:
             Group.objects.get_or_create(name=nombre)
+        # limpia grupos huerfanos de fixtures previos (ej. PROVEEDOR_SERVICIOS)
+        Group.objects.exclude(name__in=GRUPOS).delete()
+
+        self._log('-- Limpiando usuarios huerfanos...')
+        # borra usuarios que no son parte del set de prueba (preserva
+        # superusuarios y staff manuales). evita que queden cuentas dangling
+        # de iteraciones previas.
+        usernames_validos = {u for u, *_ in ADMINS}
+        usernames_validos.update(u for u, *_ in PROVEEDORES)
+        usernames_validos.update(u for u, *_ in ORGANISMOS)
+        usernames_validos.update(
+            spec['username'] for spec in EMPRESAS_PRUEBA if spec['username']
+        )
+        CustomUser.objects.exclude(
+            username__in=usernames_validos,
+        ).filter(is_superuser=False, is_staff=False).delete()
 
         self._log('-- Cargando parcelas...')
         for nro, superficie in PARCELAS.items():
@@ -555,11 +686,21 @@ class Command(BaseCommand):
             )
 
         self._log('-- Cargando empresas de prueba...')
+        # cleanup destructivo: borra empresas previas y libera todos los lotes
+        # (excepto la reserva fiscal). garantiza que el set de prueba sea el
+        # unico presente y refleja exactamente EMPRESAS_PRUEBA.
+        Empresa.objects.all().delete()
+        Lote.objects.exclude(nro_parcela=5).update(
+            estado=Lote.Estado.DISPONIBLE, empresa=None,
+        )
         for spec in EMPRESAS_PRUEBA:
             self._crear_empresa(spec)
 
         self._log('-- Cargando inventario de activos...')
         self._cargar_inventario()
+
+        self._log('-- Cargando tickets de mensajeria...')
+        self._cargar_tickets()
 
         self._imprimir_resumen()
 
@@ -633,7 +774,8 @@ class Command(BaseCommand):
         for c in _consumos_para(empresa):
             ConsumoServicio.objects.create(empresa=empresa, **c)
 
-        # prorroga pendiente de ejemplo en una empresa en construccion
+        # prorrogas de ejemplo: una pendiente, una aprobada historica y una rechazada
+        # historica. cubren los tres estados del flujo CU-05 / HU-07.
         if spec['username'] == 'empresa_zeta':
             empresa.prorrogas.all().delete()
             SolicitudProrroga.objects.create(
@@ -641,18 +783,47 @@ class Command(BaseCommand):
                 meses_solicitados=Empresa.TiempoRadicacion.MESES_6,
                 justificacion='Demora en entrega de maquinaria importada.',
             )
+        elif spec['username'] == 'empresa_epsilon':
+            empresa.prorrogas.all().delete()
+            admin_user = CustomUser.objects.filter(
+                groups__name='ADMIN_ENREPAVI',
+            ).first()
+            SolicitudProrroga.objects.create(
+                empresa=empresa,
+                meses_solicitados=Empresa.TiempoRadicacion.MESES_12,
+                justificacion='Atraso por importacion de equipamiento.',
+                estado=SolicitudProrroga.EstadoProrroga.APROBADA,
+                respuesta_admin='Aprobada por unica vez.',
+                fecha_respuesta=timezone.now() - timedelta(days=20),
+                resuelta_por=admin_user,
+            )
+        elif spec['username'] == 'empresa_eta':
+            empresa.prorrogas.all().delete()
+            admin_user = CustomUser.objects.filter(
+                groups__name='ADMIN_ENREPAVI',
+            ).first()
+            SolicitudProrroga.objects.create(
+                empresa=empresa,
+                meses_solicitados=Empresa.TiempoRadicacion.MESES_24,
+                justificacion='Solicitud sin documentacion respaldatoria.',
+                estado=SolicitudProrroga.EstadoProrroga.RECHAZADA,
+                respuesta_admin='Rechazada por falta de documentacion.',
+                fecha_respuesta=timezone.now() - timedelta(days=120),
+                resuelta_por=admin_user,
+            )
 
         marca = '+' if creada else '='
         self._log(f'   {marca} {empresa.razon_social} [{empresa.estado}]')
 
     def _cargar_inventario(self):
-        """Carga o actualiza el catálogo de activos de inventario del ENREPAVI.
+        """Carga el catálogo de activos de inventario del ENREPAVI.
 
-        La idempotencia se garantiza por la combinación (nombre, numero_serie).
-        Activos sin número de serie se identifican por (nombre, categoria, ubicacion).
-        Los activos marcados como DE_BAJA se crean ya dados de baja con motivo
-        genérico, para poder probar el toggle de historial en el listado.
+        Borra el inventario existente y lo recrea desde cero para garantizar
+        idempotencia: si cambian nombres/categorías/ubicaciones entre corridas,
+        no quedan duplicados huérfanos. El comando es de "datos de prueba",
+        no debe usarse en producción.
         """
+        ActivoInventario.objects.all().delete()
         hoy = timezone.now().date()
         admin = CustomUser.objects.filter(is_superuser=True).first()
 
@@ -699,6 +870,58 @@ class Command(BaseCommand):
             marca = '+' if creado else '='
             self._log(f'   {marca} [{activo.codigo_inventario}] {activo.nombre}')
 
+    def _cargar_tickets(self):
+        """Carga tickets y mensajes de mensajeria interna (issue #25).
+
+        Borra todos los tickets existentes y los recrea desde cero. Igual que
+        con inventario, prioriza idempotencia sobre preservacion de datos: este
+        comando es solo para entornos de prueba.
+        """
+        Ticket.objects.all().delete()
+        for spec in TICKETS_PRUEBA:
+            creador = None
+            if spec['creador']:
+                creador = CustomUser.objects.filter(username=spec['creador']).first()
+                if not creador:
+                    self._log(f'   ! creador {spec["creador"]} no existe; salto ticket')
+                    continue
+                lookup = {'creador': creador, 'asunto': spec['asunto']}
+            else:
+                lookup = {
+                    'creador__isnull': True,
+                    'email_contacto': spec['email_contacto'],
+                    'asunto': spec['asunto'],
+                }
+
+            defaults = {
+                'categoria': spec['categoria'],
+                'estado': spec['estado'],
+                'creador': creador,
+                'nombre_contacto': spec['nombre_contacto'],
+                'email_contacto': spec['email_contacto'],
+                'telefono_contacto': spec['telefono_contacto'],
+                'is_active': True,
+            }
+            ticket, creado = Ticket.objects.update_or_create(
+                **lookup, defaults=defaults,
+            )
+
+            # recrear mensajes desde cero para evitar duplicados al reejecutar
+            ticket.mensajes.all().delete()
+            for autor_username, contenido in spec['mensajes']:
+                autor = None
+                if autor_username:
+                    autor = CustomUser.objects.filter(username=autor_username).first()
+                MensajeTicket.objects.create(
+                    ticket=ticket,
+                    autor=autor,
+                    contenido=contenido,
+                )
+
+            marca = '+' if creado else '='
+            origen = creador.username if creador else 'externo'
+            self._log(f'   {marca} #{ticket.id} [{ticket.estado}] {origen}: {ticket.asunto}')
+
     def _imprimir_resumen(self):
         self.stdout.write('\n' + '=' * 70)
         self.stdout.write(self.style.SUCCESS('DATOS DE PRUEBA LISTOS'))
@@ -736,6 +959,21 @@ class Command(BaseCommand):
         self.stdout.write(
             f'  {total_activos} activos totales '
             f'({activos_vigentes} vigentes, {total_activos - activos_vigentes} de baja)'
+        )
+
+        total_tickets = Ticket.objects.filter(is_active=True).count()
+        tickets_abiertos = Ticket.objects.filter(
+            is_active=True, estado=Ticket.Estado.ABIERTO,
+        ).count()
+        tickets_externos = Ticket.objects.filter(
+            is_active=True, creador__isnull=True,
+        ).count()
+        total_mensajes = MensajeTicket.objects.filter(is_active=True).count()
+        self.stdout.write(self.style.MIGRATE_HEADING('\nTICKETS'))
+        self.stdout.write(
+            f'  {total_tickets} tickets ({tickets_abiertos} abiertos, '
+            f'{total_tickets - tickets_abiertos} cerrados, '
+            f'{tickets_externos} externos) — {total_mensajes} mensajes en total'
         )
         self.stdout.write('=' * 70)
 

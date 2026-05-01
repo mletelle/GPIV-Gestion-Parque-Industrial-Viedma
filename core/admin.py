@@ -62,8 +62,8 @@ class EmpresaAdmin(admin.ModelAdmin):
         }),
         ('Servicios', {
             'fields': (
-                'energia_tension', 'energia_potencia_kw',
-                'consumo_estimado_agua_potable_m3', 'consumo_estimado_agua_cruda_m3',
+                'energia_tension', 'energia_potencia_rango',
+                'consumo_estimado_agua_potable', 'consumo_estimado_agua_cruda',
                 'gas', 'requiere_internet', 'necesidad_balanza_publica',
                 'necesidad_comedor', 'necesidad_salon_multiuso',
             ),
@@ -71,7 +71,7 @@ class EmpresaAdmin(admin.ModelAdmin):
         }),
         ('Impacto ambiental', {
             'fields': (
-                'categoria_industrial', 'maneja_inflamables',
+                'categoria_industrial', 'maneja_inflamables', 'genera_residuos',
                 'residuos_efluentes', 'tratamiento_en_planta',
             ),
             'classes': ('collapse',),
