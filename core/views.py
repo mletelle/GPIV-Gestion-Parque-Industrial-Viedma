@@ -1177,14 +1177,23 @@ class AdminTicketDetailView(AdminEnrepaviMixin, DetailView):
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
         
-        # Acción para cerrar/abrir ticket
+        # cerrar/abrir ticket: solo para tickets internos (con creador).
+        # los externos se cierran automaticamente al responder (linea 1209+),
+        # nunca de forma manual. el template ya oculta los botones pero hay
+        # que reforzar del lado servidor por si alguien envia el POST a mano.
         if 'cerrar_ticket' in request.POST:
+            if not self.object.creador:
+                messages.error(request, 'Los tickets externos no se pueden cerrar manualmente.')
+                return redirect('core:admin_ticket_detail', pk=self.object.pk)
             self.object.estado = Ticket.Estado.CERRADO
             self.object.save(update_fields=['estado', 'fecha_actualizacion'])
             messages.success(request, 'El ticket ha sido cerrado.')
             return redirect('core:admin_ticket_detail', pk=self.object.pk)
             
         if 'abrir_ticket' in request.POST:
+            if not self.object.creador:
+                messages.error(request, 'Los tickets externos no se pueden reabrir.')
+                return redirect('core:admin_ticket_detail', pk=self.object.pk)
             self.object.estado = Ticket.Estado.ABIERTO
             self.object.save(update_fields=['estado', 'fecha_actualizacion'])
             messages.success(request, 'El ticket ha sido reabierto.')

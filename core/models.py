@@ -278,7 +278,7 @@ class Ticket(models.Model):
 
     asunto = models.CharField(max_length=200)
     categoria = models.CharField(max_length=20, choices=Categoria.choices, default=Categoria.OTRAS)
-    creador = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='tickets_creados', null=True, blank=True)
+    creador = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='tickets_creados', null=True, blank=True)
     estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.ABIERTO)
     
     # Datos para tickets externos (cuando creador es nulo)
@@ -309,7 +309,7 @@ class Ticket(models.Model):
 
 class MensajeTicket(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='mensajes')
-    autor = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='mensajes_ticket', null=True, blank=True)
+    autor = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='mensajes_ticket', null=True, blank=True)
     contenido = models.TextField()
     
     fecha_creacion = models.DateTimeField(auto_now_add=True)

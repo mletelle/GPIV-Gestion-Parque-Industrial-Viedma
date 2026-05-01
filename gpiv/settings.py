@@ -125,3 +125,8 @@ SUPPORT_INBOX_EMAIL = os.environ.get('SUPPORT_INBOX_EMAIL', DEFAULT_FROM_EMAIL)
 # clave de resend.com para envio transaccional. si esta vacia los emails se
 # loguean como warning y no se envian (modo dev sin proveedor configurado).
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
+
+# url base del sitio para generar links absolutos en emails transaccionales.
+# sin barra final. en desarrollo queda en localhost, en produccion se setea
+# al dominio real.
+SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')

@@ -415,6 +415,14 @@ class TicketExternoForm(forms.ModelForm):
         model = Ticket
         fields = ['nombre_contacto', 'email_contacto', 'telefono_contacto', 'asunto']
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # el modelo permite blank (para tickets internos sin contacto) pero
+        # el formulario externo necesita email para responder y nombre para
+        # identificar al remitente.
+        self.fields['nombre_contacto'].required = True
+        self.fields['email_contacto'].required = True
+
 
 class MensajeTicketForm(forms.ModelForm):
     """Formulario para responder en un ticket existente."""

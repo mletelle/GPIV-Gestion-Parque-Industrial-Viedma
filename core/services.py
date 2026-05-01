@@ -13,6 +13,9 @@ from .models import TransicionEstado
 
 logger = logging.getLogger(__name__)
 
+# longitud maxima razonable para el subject de un email
+_MAX_SUBJECT_LEN = 150
+
 
 # mapping de servicio (proveedor) a campos del modelo ConsumoServicio que
 # le competen. agua agrupa potable + cruda porque las administra una sola
@@ -94,6 +97,15 @@ def enviar_email_resend(to_email, subject, html_content):
         return False
 
 
+def _sanitizar_subject(subject):
+    """remueve caracteres que podrian inyectar headers smtp y limita la
+    longitud para evitar problemas con proveedores de correo."""
+    limpio = subject.replace('\r', '').replace('\n', '')
+    if len(limpio) > _MAX_SUBJECT_LEN:
+        limpio = limpio[:_MAX_SUBJECT_LEN] + '…'
+    return limpio
+
+
 def _es_admin(user):
     return bool(
         user and (
@@ -121,10 +133,11 @@ def notificar_ticket_mensaje(ticket, mensaje):
         if ticket.creador:
             destino = ticket.creador.email
             nombre = ticket.creador.get_full_name() or ticket.creador.username
+            site_url = getattr(settings, 'SITE_URL', 'https://gpiv.tivena.com.ar')
+            link = f'{site_url}/mensajes/{ticket.id}/'
             cuerpo_extra = (
                 '<p>Por favor, ingresá al sistema para leer la respuesta:</p>'
-                f'<p><a href="https://gpiv.tivena.com.ar/mensajes/{ticket.id}/">'
-                f'https://gpiv.tivena.com.ar/mensajes/{ticket.id}/</a></p>'
+                f'<p><a href="{link}">{link}</a></p>'
             )
         else:
             destino = ticket.email_contacto
@@ -153,7 +166,7 @@ def notificar_ticket_mensaje(ticket, mensaje):
             'Mensaje automático del Sistema de Gestión del Parque Industrial de'
             ' Viedma. No respondas a este correo.</p>'
         )
-        subject = f'Respuesta a tu consulta — {ticket.asunto}'
+        subject = _sanitizar_subject(f'Respuesta a tu consulta — {ticket.asunto}')
         return enviar_email_resend(destino, subject, html)
 
     # autor: usuario logueado (no admin) o externo. avisa al admin.
@@ -176,6 +189,8 @@ def notificar_ticket_mensaje(ticket, mensaje):
             + '</p>'
         )
 
+    site_url = getattr(settings, 'SITE_URL', 'https://gpiv.tivena.com.ar')
+    link = f'{site_url}/panel/mensajes/{ticket.id}/'
     html = (
         '<p>Hola Administración ENREPAVI,</p>'
         f'<p>{"Llegó una nueva consulta desde la landing." if es_externo else "Llegó un nuevo mensaje de un usuario registrado."}</p>'
@@ -188,12 +203,12 @@ def notificar_ticket_mensaje(ticket, mensaje):
         f'<blockquote style="border-left:3px solid #0b6623;'
         ' padding:0.5rem 1rem; background:#f5f5f5;'
         f' white-space:pre-wrap;">{contenido_safe}</blockquote>'
-        f'<p>Ingresá al panel: <a href="https://gpiv.tivena.com.ar/panel/mensajes/{ticket.id}/">'
-        f'https://gpiv.tivena.com.ar/panel/mensajes/{ticket.id}/</a></p>'
+        f'<p>Ingresá al panel: <a href="{link}">'
+        f'{link}</a></p>'
         '<hr>'
         '<p style="font-size:12px; color:#6B7280;">'
         'Mensaje automático del Sistema de Gestión del Parque Industrial de'
         ' Viedma.</p>'
     )
-    subject = f'[GPIV] Nuevo mensaje en ticket #{ticket.id} — {nombre_emisor}'
+    subject = _sanitizar_subject(f'[GPIV] Nuevo mensaje en ticket #{ticket.id} — {nombre_emisor}')
     return enviar_email_resend(settings.SUPPORT_INBOX_EMAIL, subject, html)
