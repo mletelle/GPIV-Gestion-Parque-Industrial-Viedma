@@ -2,7 +2,7 @@ from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django import forms
 from django.core.validators import FileExtensionValidator
 from django.utils import timezone
-from .models import Lote, Empresa, CustomUser, AvanceConstructivo, SolicitudProrroga, ConsumoServicio, ActivoInventario
+from .models import Lote, Empresa, CustomUser, AvanceConstructivo, SolicitudProrroga, ConsumoServicio, Ticket, MensajeTicket, ActivoInventario
 from .services import SERVICIO_CAMPOS
 
 
@@ -374,6 +374,71 @@ class RespuestaProrrogaForm(forms.Form):
         required=False,
         label='Observaciones',
     )
+
+
+class TicketCreateForm(forms.ModelForm):
+    """Formulario para iniciar un nuevo ticket de mensajería interna."""
+    mensaje_inicial = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': 'Describa su consulta o solicitud...',
+        }),
+        label='Mensaje'
+    )
+
+    class Meta:
+        model = Ticket
+        fields = ['categoria', 'asunto']
+        widgets = {
+            'categoria': forms.Select(attrs={
+                'class': 'form-select',
+            }),
+            'asunto': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej. Consulta sobre habilitación comercial',
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Quitar "Externa" de las opciones para usuarios logueados
+        choices = [(k, v) for k, v in Ticket.Categoria.choices if k != Ticket.Categoria.EXTERNA]
+        self.fields['categoria'].choices = choices
+
+
+class TicketExternoForm(forms.ModelForm):
+    """Formulario para recibir consultas desde la landing page (sin usuario)."""
+    mensaje = forms.CharField(widget=forms.Textarea)
+
+    class Meta:
+        model = Ticket
+        fields = ['nombre_contacto', 'email_contacto', 'telefono_contacto', 'asunto']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # el modelo permite blank (para tickets internos sin contacto) pero
+        # el formulario externo necesita email para responder y nombre para
+        # identificar al remitente.
+        self.fields['nombre_contacto'].required = True
+        self.fields['email_contacto'].required = True
+
+
+class MensajeTicketForm(forms.ModelForm):
+    """Formulario para responder en un ticket existente."""
+    class Meta:
+        model = MensajeTicket
+        fields = ['contenido']
+        widgets = {
+            'contenido': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Escriba su respuesta...',
+            }),
+        }
+        labels = {
+            'contenido': '',
+        }
 
 
 class ActivoInventarioForm(forms.ModelForm):

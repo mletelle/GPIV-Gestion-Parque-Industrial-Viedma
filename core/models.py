@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils import timezone
 
 class CustomUser(AbstractUser):
     """
@@ -261,6 +262,75 @@ class ConsumoServicio(models.Model):
 
     def __str__(self):
         return f"Consumo {self.periodo_mes}/{self.periodo_anio} - Empresa #{self.empresa_id}"
+
+
+class Ticket(models.Model):
+    class Estado(models.TextChoices):
+        ABIERTO = 'Abierto', _('Abierto')
+        CERRADO = 'Cerrado', _('Cerrado')
+
+    class Categoria(models.TextChoices):
+        LOTE = 'Lote', _('Consulta de Lote')
+        ADMINISTRATIVA = 'Administrativa', _('Administrativa')
+        TECNICA = 'Tecnica', _('Soporte Técnico')
+        EXTERNA = 'Externa', _('Consulta Externa')
+        OTRAS = 'Otras', _('Otras Consultas')
+
+    asunto = models.CharField(max_length=200)
+    categoria = models.CharField(max_length=20, choices=Categoria.choices, default=Categoria.OTRAS)
+    creador = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='tickets_creados', null=True, blank=True)
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.ABIERTO)
+    
+    # Datos para tickets externos (cuando creador es nulo)
+    nombre_contacto = models.CharField(max_length=100, null=True, blank=True)
+    email_contacto = models.EmailField(null=True, blank=True)
+    telefono_contacto = models.CharField(max_length=50, null=True, blank=True)
+    
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    # Baja lógica
+    is_active = models.BooleanField(default=True, help_text=_('Indica si el ticket está activo. Desmarcar para baja lógica.'))
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("Ticket")
+        verbose_name_plural = _("Tickets")
+        ordering = ['-fecha_actualizacion']
+
+    def __str__(self):
+        return f"Ticket #{self.id}: {self.asunto} ({self.get_estado_display()})"
+
+    def soft_delete(self):
+        self.is_active = False
+        self.deleted_at = timezone.now()
+        self.save()
+
+
+class MensajeTicket(models.Model):
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='mensajes')
+    autor = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='mensajes_ticket', null=True, blank=True)
+    contenido = models.TextField()
+    
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    # Baja lógica
+    is_active = models.BooleanField(default=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("Mensaje de Ticket")
+        verbose_name_plural = _("Mensajes de Ticket")
+        ordering = ['fecha_creacion']
+
+    def __str__(self):
+        autor_name = self.autor.username if self.autor else "Usuario Externo"
+        return f"Mensaje en Ticket #{self.ticket_id} por {autor_name}"
+
+    def soft_delete(self):
+        self.is_active = False
+        self.deleted_at = timezone.now()
+        self.save()
 
 
 class ActivoInventario(models.Model):

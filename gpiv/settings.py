@@ -117,3 +117,16 @@ EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'False').lower() == 'true'
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@tivena.com.ar')
+
+# bandeja institucional que recibe avisos de tickets nuevos (mensajeria interna
+# y consultas externas desde la landing).
+SUPPORT_INBOX_EMAIL = os.environ.get('SUPPORT_INBOX_EMAIL', DEFAULT_FROM_EMAIL)
+
+# clave de resend.com para envio transaccional. si esta vacia los emails se
+# loguean como warning y no se envian (modo dev sin proveedor configurado).
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
+
+# url base del sitio para generar links absolutos en emails transaccionales.
+# sin barra final. en desarrollo queda en localhost, en produccion se setea
+# al dominio real.
+SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')

@@ -80,6 +80,10 @@
                 class="sidebar-link {% if request.resolver_match.url_name == 'consulta_parque' %}active{% endif %}">
                 <i class="bi bi-speedometer2"></i> Dashboard
             </a>
+            <a href="{% url 'core:admin_ticket_list' %}"
+                class="sidebar-link {% if 'ticket' in request.resolver_match.url_name %}active{% endif %}">
+                <i class="bi bi-envelope"></i> Bandeja de Mensajes
+            </a>
             <a href="{% url 'core:inventario_list' %}"
                 class="sidebar-link {% if 'inventario' in request.resolver_match.url_name %}active{% endif %}">
                 <i class="bi bi-box-seam"></i> Inventario
@@ -104,6 +108,14 @@
             <a href="{% url 'core:consulta_parque' %}"
                 class="sidebar-link {% if request.resolver_match.url_name == 'consulta_parque' %}active{% endif %}">
                 <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+            {% endif %}
+
+            {% if not 'ADMIN_ENREPAVI' in user_groups and not user.is_superuser %}
+            <hr class="sidebar-divider">
+            <a href="{% url 'core:ticket_list' %}"
+                class="sidebar-link {% if 'ticket' in request.resolver_match.url_name and not is_admin_view %}active{% endif %}">
+                <i class="bi bi-chat-dots"></i> Asistencia
             </a>
             {% endif %}
 

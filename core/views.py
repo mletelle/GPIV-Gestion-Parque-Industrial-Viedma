@@ -7,7 +7,7 @@ from django.views.generic import (
 from django.urls import reverse_lazy
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.db.models import Sum, Q
 from datetime import timedelta
@@ -15,18 +15,22 @@ from dateutil.relativedelta import relativedelta
 
 from .models import (
     Lote, Empresa, TransicionEstado, AvanceConstructivo,
-    SolicitudProrroga, CustomUser, ConsumoServicio, ActivoInventario,
+    SolicitudProrroga, CustomUser, ConsumoServicio,
+    Ticket, MensajeTicket,
+    ActivoInventario,
 )
 from .services import (
     registrar_transicion, get_servicio_proveedor,
     SERVICIO_CAMPOS, SERVICIO_LABELS,
+    notificar_ticket_mensaje,
 )
 from .forms import (
     LoginForm, LoteForm, RegistroUsuarioForm,
     SolicitudRadicacionForm, RechazarSolicitudForm,
     AvanceConstructivoForm, SolicitudProrrogaForm,
     EscrituraForm, BajaEmpresaForm, RespuestaProrrogaForm,
-    ConsumoServicioForm, ActivoInventarioForm, BajaActivoForm,
+    ConsumoServicioForm, TicketCreateForm, MensajeTicketForm,
+    TicketExternoForm, ActivoInventarioForm, BajaActivoForm,
 )
 from django import forms as django_forms
 
@@ -997,6 +1001,241 @@ class ReporteConsumoView(AdminEnrepaviMixin, View):
         secciones = [(f'Período: {periodo}', headers, filas)]
         _build_pdf(response, 'Reporte de Consumo de Servicios', secciones)
         return response
+
+
+ # =========================================
+ # TICKETERA / MENSAJERIA INTERNA
+ # =========================================
+
+class TicketListView(LoginRequiredMixin, ListView):
+    """Listado de tickets del usuario logueado."""
+    model = Ticket
+    template_name = 'core/ticket_list.html'
+    context_object_name = 'tickets'
+    paginate_by = 15
+
+    def get_queryset(self):
+        return Ticket.objects.filter(
+            creador=self.request.user,
+            is_active=True
+        ).order_by('-fecha_actualizacion')
+
+
+class TicketCreateView(LoginRequiredMixin, CreateView):
+    """Crear un nuevo ticket por parte de un usuario."""
+    model = Ticket
+    form_class = TicketCreateForm
+    template_name = 'core/ticket_form.html'
+    success_url = reverse_lazy('core:ticket_list')
+
+    def form_valid(self, form):
+        form.instance.creador = self.request.user
+        response = super().form_valid(form)
+        
+        # Crear el primer mensaje con el texto inicial
+        mensaje_texto = form.cleaned_data.get('mensaje_inicial')
+        if mensaje_texto:
+            mensaje = MensajeTicket.objects.create(
+                ticket=self.object,
+                autor=self.request.user,
+                contenido=mensaje_texto
+            )
+            notificar_ticket_mensaje(self.object, mensaje)
+        
+        messages.success(self.request, 'Consulta enviada correctamente.')
+        return response
+
+
+class TicketExternoCreateView(View):
+    """Recibe consultas desde la landing page vía AJAX."""
+    def post(self, request, *args, **kwargs):
+        form = TicketExternoForm(request.POST)
+        if form.is_valid():
+            ticket = form.save(commit=False)
+            ticket.categoria = Ticket.Categoria.EXTERNA
+            ticket.creador = None
+            ticket.save()
+            
+            # Crear el primer mensaje
+            MensajeTicket.objects.create(
+                ticket=ticket,
+                autor=None, # no hay usuario
+                contenido=form.cleaned_data['mensaje']
+            )
+            
+            # Notificar al admin sobre este nuevo ticket externo
+            # Usaremos una instancia temporal dummy o el servicio manejará autor=None
+            # Para simplificar, pasamos el primer mensaje (autor=None)
+            mensaje = ticket.mensajes.first()
+            notificar_ticket_mensaje(ticket, mensaje)
+
+            return JsonResponse({'status': 'ok'})
+        else:
+            return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
+
+
+def _anotar_mensajes_es_admin(mensajes):
+    """marca cada mensaje con .es_admin para que el template no tenga que
+    razonar sobre grupos. evita la logica fragil de 'request.user.groups.all.0
+    in mensaje.autor.groups.all' que misclasifica casos comunes."""
+    mensajes = list(mensajes.select_related('autor').prefetch_related('autor__groups'))
+    for m in mensajes:
+        autor = m.autor
+        m.es_admin = bool(
+            autor and (
+                autor.is_superuser
+                or autor.groups.filter(name='ADMIN_ENREPAVI').exists()
+            )
+        )
+    return mensajes
+
+
+class TicketDetailView(LoginRequiredMixin, DetailView):
+    """Detalle de un ticket y envío de respuestas (usuario normal)."""
+    model = Ticket
+    template_name = 'core/ticket_detail.html'
+    context_object_name = 'ticket'
+
+    def get_queryset(self):
+        return Ticket.objects.filter(creador=self.request.user, is_active=True)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        mensajes_qs = self.object.mensajes.filter(is_active=True).order_by('fecha_creacion')
+        ctx['mensajes'] = _anotar_mensajes_es_admin(mensajes_qs)
+        ctx['form'] = MensajeTicketForm()
+        return ctx
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if self.object.estado == Ticket.Estado.CERRADO:
+            messages.error(request, 'No se puede responder un ticket cerrado.')
+            return redirect('core:ticket_detail', pk=self.object.pk)
+
+        form = MensajeTicketForm(request.POST)
+        if form.is_valid():
+            mensaje = form.save(commit=False)
+            mensaje.ticket = self.object
+            mensaje.autor = request.user
+            mensaje.save()
+            
+            # Notificar vía email
+            notificar_ticket_mensaje(self.object, mensaje)
+            
+            # Actualizar fecha del ticket
+            self.object.fecha_actualizacion = timezone.now()
+            # Si estaba cerrado, lo reabre? Según el doc el admin lo cierra. 
+            # Dejaremos que siga Abierto.
+            self.object.save(update_fields=['fecha_actualizacion'])
+            
+            messages.success(request, 'Mensaje enviado.')
+            return redirect('core:ticket_detail', pk=self.object.pk)
+            
+        ctx = self.get_context_data(object=self.object)
+        ctx['form'] = form
+        return self.render_to_response(ctx)
+
+
+class AdminTicketListView(AdminEnrepaviMixin, ListView):
+    """Bandeja de entrada del administrador."""
+    model = Ticket
+    template_name = 'core/admin_ticket_list.html'
+    context_object_name = 'tickets'
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = Ticket.objects.filter(is_active=True).select_related('creador')
+        estado = self.request.GET.get('estado')
+        if estado and estado in dict(Ticket.Estado.choices):
+            qs = qs.filter(estado=estado)
+        return qs.order_by('-fecha_actualizacion')
+        
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['estados_choices'] = Ticket.Estado.choices
+        ctx['filtro_estado'] = self.request.GET.get('estado', '')
+        return ctx
+
+
+class AdminTicketDetailView(AdminEnrepaviMixin, DetailView):
+    """Detalle de ticket para el admin."""
+    model = Ticket
+    template_name = 'core/ticket_detail.html'
+    context_object_name = 'ticket'
+
+    def get_queryset(self):
+        return Ticket.objects.filter(is_active=True)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        mensajes_qs = self.object.mensajes.filter(is_active=True).order_by('fecha_creacion')
+        ctx['mensajes'] = _anotar_mensajes_es_admin(mensajes_qs)
+        ctx['form'] = MensajeTicketForm()
+        ctx['is_admin_view'] = True
+        return ctx
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        
+        # cerrar/abrir ticket: solo para tickets internos (con creador).
+        # los externos se cierran automaticamente al responder (linea 1209+),
+        # nunca de forma manual. el template ya oculta los botones pero hay
+        # que reforzar del lado servidor por si alguien envia el POST a mano.
+        if 'cerrar_ticket' in request.POST:
+            if not self.object.creador:
+                messages.error(request, 'Los tickets externos no se pueden cerrar manualmente.')
+                return redirect('core:admin_ticket_detail', pk=self.object.pk)
+            self.object.estado = Ticket.Estado.CERRADO
+            self.object.save(update_fields=['estado', 'fecha_actualizacion'])
+            messages.success(request, 'El ticket ha sido cerrado.')
+            return redirect('core:admin_ticket_detail', pk=self.object.pk)
+            
+        if 'abrir_ticket' in request.POST:
+            if not self.object.creador:
+                messages.error(request, 'Los tickets externos no se pueden reabrir.')
+                return redirect('core:admin_ticket_detail', pk=self.object.pk)
+            self.object.estado = Ticket.Estado.ABIERTO
+            self.object.save(update_fields=['estado', 'fecha_actualizacion'])
+            messages.success(request, 'El ticket ha sido reabierto.')
+            return redirect('core:admin_ticket_detail', pk=self.object.pk)
+
+        # Enviar mensaje
+        if self.object.estado == Ticket.Estado.CERRADO:
+            messages.error(request, 'El ticket está cerrado. Reábrelo para enviar un mensaje.')
+            return redirect('core:admin_ticket_detail', pk=self.object.pk)
+
+        form = MensajeTicketForm(request.POST)
+        if form.is_valid():
+            mensaje = form.save(commit=False)
+            mensaje.ticket = self.object
+            mensaje.autor = request.user
+            mensaje.save()
+            
+            # Notificar vía email
+            notificar_ticket_mensaje(self.object, mensaje)
+            
+            # Si es ticket externo, se cierra automáticamente
+            if not self.object.creador:
+                self.object.estado = Ticket.Estado.CERRADO
+            
+            self.object.fecha_actualizacion = timezone.now()
+            self.object.save(update_fields=['estado', 'fecha_actualizacion'])
+            
+            messages.success(request, 'Mensaje enviado.')
+            return redirect('core:admin_ticket_detail', pk=self.object.pk)
+            
+        ctx = self.get_context_data(object=self.object)
+        ctx['form'] = form
+        return self.render_to_response(ctx)
+
+
+class TicketSoftDeleteView(AdminEnrepaviMixin, View):
+    """Baja lógica de un ticket por parte del admin."""
+    def post(self, request, pk):
+        ticket = get_object_or_404(Ticket, pk=pk, is_active=True)
+        ticket.soft_delete()
+        messages.success(request, f'El ticket #{ticket.id} fue eliminado.')
+        return redirect('core:admin_ticket_list')
 
 
 # inventario de activos del ENREPAVI

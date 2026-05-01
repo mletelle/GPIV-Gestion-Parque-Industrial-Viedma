@@ -297,8 +297,10 @@ radicación. Río Negro, Argentina.{% endblock %}
                                 placeholder="Correo electrónico" required>
                         </div>
                         <div class="mb-3">
-                            <input type="text" class="form-control" id="contacto-telefono" placeholder="Telefono"
-                                required>
+                            <input type="text" class="form-control" id="contacto-telefono" placeholder="Teléfono" required>
+                        </div>
+                        <div class="mb-3">
+                            <input type="text" class="form-control" id="contacto-asunto" placeholder="Asunto" required>
                         </div>
                         <div class="mb-3">
                             <textarea class="form-control" rows="4" id="contacto-mensaje"
@@ -320,16 +322,57 @@ radicación. Río Negro, Argentina.{% endblock %}
 
 {% block extra_js %}
 <script>
-    function enviarConsulta(e) {
+    async function enviarConsulta(e) {
         e.preventDefault();
         const form = document.getElementById('form-contacto');
         const alertBox = document.getElementById('contacto-alert');
-        if (!form.checkValidity()) { form.classList.add('was-validated'); return; }
-        alertBox.className = 'alert alert-success py-2 mb-3';
-        alertBox.innerHTML = '<i class="bi bi-check-circle me-1"></i>Consulta recibida. Nos comunicaremos a la brevedad.';
-        alertBox.classList.remove('d-none');
-        form.reset();
-        form.classList.remove('was-validated');
+        const btn = document.getElementById('btn-enviar-consulta');
+        
+        if (!form.checkValidity()) { 
+            form.classList.add('was-validated'); 
+            return; 
+        }
+
+        const btnText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="spinner-border spinner-border-sm me-1"></i> Enviando...';
+
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        formData.append('nombre_contacto', document.getElementById('contacto-nombre').value);
+        formData.append('email_contacto', document.getElementById('contacto-email').value);
+        formData.append('telefono_contacto', document.getElementById('contacto-telefono').value || '');
+        formData.append('asunto', document.getElementById('contacto-asunto').value);
+        formData.append('mensaje', document.getElementById('contacto-mensaje').value);
+
+        try {
+            const response = await fetch("{% url 'core:ticket_externo' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            if (response.ok) {
+                alertBox.className = 'alert alert-success py-2 mb-3';
+                alertBox.innerHTML = '<i class="bi bi-check-circle me-1"></i>Consulta recibida. Nos comunicaremos a la brevedad al correo indicado.';
+                alertBox.classList.remove('d-none');
+                form.reset();
+                form.classList.remove('was-validated');
+            } else {
+                alertBox.className = 'alert alert-danger py-2 mb-3';
+                alertBox.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Error al enviar la consulta. Verifique los datos o intente más tarde.';
+                alertBox.classList.remove('d-none');
+            }
+        } catch (error) {
+            alertBox.className = 'alert alert-danger py-2 mb-3';
+            alertBox.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Error de red al enviar la consulta.';
+            alertBox.classList.remove('d-none');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = btnText;
+        }
     }
 </script>
 {% endblock %}

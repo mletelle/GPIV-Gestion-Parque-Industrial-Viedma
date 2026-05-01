@@ -33,6 +33,14 @@ from .views import (
     ReporteOcupacionView,
     ReporteEmpresasView,
     ReporteConsumoView,
+    # mensajeria interna (ticketera)
+    TicketListView,
+    TicketCreateView,
+    TicketDetailView,
+    AdminTicketListView,
+    AdminTicketDetailView,
+    TicketSoftDeleteView,
+    TicketExternoCreateView,
     # inventario
     InventarioListView,
     InventarioDetailView,
@@ -100,6 +108,19 @@ urlpatterns = [
     path('reportes/ocupacion/', ReporteOcupacionView.as_view(), name='reporte_ocupacion'),
     path('reportes/empresas/', ReporteEmpresasView.as_view(), name='reporte_empresas'),
     path('reportes/consumos/', ReporteConsumoView.as_view(), name='reporte_consumos'),
+
+    # mensajería interna / ticketera (usuario)
+    path('mensajes/', TicketListView.as_view(), name='ticket_list'),
+    path('mensajes/nuevo/', TicketCreateView.as_view(), name='ticket_create'),
+    path('mensajes/<int:pk>/', TicketDetailView.as_view(), name='ticket_detail'),
+
+    # mensajería interna / ticketera (admin)
+    path('panel/mensajes/', AdminTicketListView.as_view(), name='admin_ticket_list'),
+    path('panel/mensajes/<int:pk>/', AdminTicketDetailView.as_view(), name='admin_ticket_detail'),
+    path('panel/mensajes/<int:pk>/eliminar/', TicketSoftDeleteView.as_view(), name='ticket_delete'),
+
+    # contacto externo
+    path('contacto/externo/', TicketExternoCreateView.as_view(), name='ticket_externo'),
 
     # admin: inventario de activos (rf-inv-01 al rf-inv-06)
     path('inventario/', InventarioListView.as_view(), name='inventario_list'),
