@@ -105,26 +105,36 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 
-# correo saliente. por defecto queda en console porque el proyecto no
-# tiene cuenta smtp paga y el despliegue es local/academico. si en algun
-# momento hay credenciales reales se setean las vars EMAIL_* en el .env.
-EMAIL_BACKEND = os.environ.get(
-    'EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend',
-)
-EMAIL_HOST = os.environ.get('EMAIL_HOST', 'localhost')
-EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '25'))
-EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'False').lower() == 'true'
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@tivena.com.ar')
-
-# bandeja institucional que recibe avisos de tickets nuevos (mensajeria interna
-# y consultas externas desde la landing).
-SUPPORT_INBOX_EMAIL = os.environ.get('SUPPORT_INBOX_EMAIL', DEFAULT_FROM_EMAIL)
-
 # clave de resend.com para envio transaccional. si esta vacia los emails se
 # loguean como warning y no se envian (modo dev sin proveedor configurado).
+# la misma key se usa para el SDK (tickets) y para SMTP (password reset).
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
+
+# correo saliente. si hay api key de resend, usamos su relay SMTP para que
+# password_reset y cualquier otro email nativo de django funcione automatico.
+# si no hay key (dev local), queda en console backend (imprime en stdout).
+if RESEND_API_KEY:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = 'smtp.resend.com'
+    EMAIL_PORT = 465
+    EMAIL_USE_SSL = True
+    EMAIL_HOST_USER = 'resend'
+    EMAIL_HOST_PASSWORD = RESEND_API_KEY
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    EMAIL_HOST = 'localhost'
+    EMAIL_PORT = 25
+    EMAIL_USE_SSL = False
+    EMAIL_HOST_USER = ''
+    EMAIL_HOST_PASSWORD = ''
+
+DEFAULT_FROM_EMAIL = os.environ.get(
+    'DEFAULT_FROM_EMAIL', 'GPIV <noreply@gpiv.tivena.com.ar>',
+)
+
+# bandeja que recibe avisos internos de tickets nuevos. en produccion poner
+# el email de quien monitorea (ej: tu gmail personal). NO usar enrepavi.
+SUPPORT_INBOX_EMAIL = os.environ.get('SUPPORT_INBOX_EMAIL', DEFAULT_FROM_EMAIL)
 
 # url base del sitio para generar links absolutos en emails transaccionales.
 # sin barra final. en desarrollo queda en localhost, en produccion se setea
