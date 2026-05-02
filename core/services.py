@@ -144,7 +144,7 @@ def notificar_ticket_mensaje(ticket, mensaje):
             nombre = ticket.nombre_contacto or 'visitante'
             cuerpo_extra = (
                 '<p>La respuesta es:</p>'
-                f'<blockquote style="border-left:3px solid #0b6623;'
+                f'<blockquote style="border-left:3px solid #6ac64f;'
                 ' padding:0.5rem 1rem; background:#f5f5f5;'
                 f' white-space:pre-wrap;">{contenido_safe}</blockquote>'
             )
@@ -200,7 +200,7 @@ def notificar_ticket_mensaje(ticket, mensaje):
         f'<strong>Remitente:</strong> {nombre_safe}</p>'
         f'{detalle_externo}'
         '<p><strong>Mensaje:</strong></p>'
-        f'<blockquote style="border-left:3px solid #0b6623;'
+        f'<blockquote style="border-left:3px solid #6ac64f;'
         ' padding:0.5rem 1rem; background:#f5f5f5;'
         f' white-space:pre-wrap;">{contenido_safe}</blockquote>'
         f'<p>Ingresá al panel: <a href="{link}">'

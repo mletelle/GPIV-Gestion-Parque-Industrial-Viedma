@@ -1,20 +1,20 @@
 /* estilos de gpiv
    se importan en base.html */
 
-@import url('https://fonts.googleapis.com/css2?family=Encode+Sans:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;600;700&display=swap');
 
-/* paleta de rio negro */
+/* paleta segun manual de marca de rio negro */
 :root {
-    --verde: #009A3B;
-    --verde-hover: #007a2f;
-    --verde-medio: #00844D;
-    --verde-claro: #EAF3EE;
-    --azul: #0063BE;
-    --azul-claro: #EAF0F7;
-    --gris-fondo: #F7F9F8;
+    --verde: #6ac64f;
+    --verde-hover: #55a83e;
+    --verde-medio: #5fb847;
+    --verde-claro: #eef8eb;
+    --azul: #007be0;
+    --azul-claro: #e6f1fc;
+    --gris-fondo: #f5f5f5;
     --gris-texto: #000000;
-    --gris-suave: #64748B;
-    --borde: #D9E4DC;
+    --gris-suave: #6b6b6b;
+    --borde: #e8e8e8;
     --sombra-card: none;
     --radio: 10px;
     --sidebar-w: 240px;
@@ -27,7 +27,8 @@ body {
 }
 
 body {
-    font-family: 'Encode Sans', system-ui, -apple-system, sans-serif;
+    font-family: 'Figtree', system-ui, -apple-system, sans-serif;
+    font-weight: 300;
     font-size: 1rem;
     color: var(--gris-texto);
     background: #FFFFFF;

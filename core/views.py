@@ -835,12 +835,12 @@ def _build_pdf(response, titulo, secciones):
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(
         name='TituloGpiv', parent=styles['Title'],
-        fontSize=16, textColor=colors.HexColor('#0b6623'),
+        fontSize=16, textColor=colors.HexColor('#6ac64f'),
         spaceAfter=6, alignment=1,
     ))
     styles.add(ParagraphStyle(
         name='SubGpiv', parent=styles['Heading3'],
-        fontSize=11, textColor=colors.HexColor('#0b6623'),
+        fontSize=11, textColor=colors.HexColor('#6ac64f'),
         spaceBefore=10, spaceAfter=4,
     ))
     elementos = []
@@ -865,7 +865,7 @@ def _build_pdf(response, titulo, secciones):
         data = [headers] + filas if headers else filas
         tabla = Table(data, repeatRows=1 if headers else 0)
         tabla.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0b6623')),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#6ac64f')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 8.5),
