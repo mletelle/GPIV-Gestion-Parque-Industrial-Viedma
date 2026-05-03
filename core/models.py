@@ -623,7 +623,7 @@ class SolicitudAcceso(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=['email_institucional'],
-                condition=Q(estado='PENDIENTE'),
+                condition=Q(estado=Estado.PENDIENTE),
                 name='uniq_solicitud_acceso_pendiente_email',
             ),
         ]
