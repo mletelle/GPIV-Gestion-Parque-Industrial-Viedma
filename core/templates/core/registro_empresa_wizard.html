@@ -1,0 +1,456 @@
+{% extends 'base.html' %}
+
+{% block title %}Solicitud de Radicación — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .wizard-wrap {
+        max-width: 880px;
+        margin: 0 auto;
+        padding: 2.5rem 1rem 4rem;
+    }
+
+    .wizard-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--verde);
+        margin-bottom: 0.3rem;
+    }
+
+    .wizard-subtitle {
+        color: var(--gris-suave);
+        font-size: 0.95rem;
+        margin-bottom: 2.5rem;
+    }
+
+    /* Stepper */
+    .stepper {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 2.5rem;
+        position: relative;
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .stepper .step {
+        flex: 1;
+        text-align: center;
+        position: relative;
+    }
+
+    .stepper .step-circle {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #fff;
+        border: 2px solid var(--borde);
+        color: var(--gris-suave);
+        font-weight: 700;
+        line-height: 32px;
+        margin: 0 auto 0.5rem;
+        position: relative;
+        z-index: 1;
+        transition: all .2s ease;
+    }
+
+    .stepper .step-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--gris-suave);
+        transition: color .2s ease;
+        white-space: nowrap;
+    }
+
+    .stepper .step::before,
+    .stepper .step::after {
+        content: '';
+        position: absolute;
+        top: 17px;
+        height: 2px;
+        background: var(--borde);
+        z-index: 0;
+    }
+    .stepper .step::before { left: 0; right: 50%; }
+    .stepper .step::after  { left: 50%; right: 0; }
+    .stepper .step:first-child::before { display: none; }
+    .stepper .step:last-child::after  { display: none; }
+
+    .stepper .step.is-active .step-circle {
+        background: var(--verde);
+        border-color: var(--verde);
+        color: #fff;
+    }
+
+    .stepper .step.is-active .step-label {
+        color: var(--verde);
+    }
+
+    .stepper .step.is-done .step-circle {
+        background: var(--verde);
+        border-color: var(--verde);
+        color: #fff;
+    }
+    .stepper .step.is-done .step-circle::after {
+        content: '\2713';
+        font-size: 1.05rem;
+    }
+    .stepper .step.is-done .step-circle .num { display: none; }
+
+    .stepper .step.is-done::after,
+    .stepper .step.is-done + .step::before {
+        background: var(--verde);
+    }
+
+    /* Card del paso */
+    .step-card {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 2rem;
+    }
+
+    .step-card h3 {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--verde);
+        margin-bottom: 1rem;
+        padding-bottom: 0.6rem;
+        border-bottom: 1px solid var(--borde);
+    }
+
+    .step-pane { display: none; }
+    .step-pane.is-active { display: block; }
+
+    .step-card label.field-label {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: var(--gris-suave);
+        margin-bottom: 0.3rem;
+        display: block;
+    }
+
+    .step-card .form-text {
+        font-size: 0.78rem;
+        color: var(--gris-suave);
+        margin-top: 0.2rem;
+    }
+
+    .step-card .field-error {
+        color: #DC2626;
+        font-size: 0.82rem;
+        margin-top: 0.25rem;
+    }
+
+    .wizard-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 1.5rem;
+    }
+
+    .btn-prev {
+        background: #fff;
+        border: 1px solid var(--borde);
+        color: var(--gris-suave);
+        padding: 0.55rem 1.2rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.92rem;
+    }
+    .btn-prev:hover { background: var(--gris-fondo); }
+    .btn-prev:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .form-error-summary {
+        background: #FEF2F2;
+        border: 1px solid #FECACA;
+        color: #991B1B;
+        border-radius: 8px;
+        padding: 0.7rem 1rem;
+        font-size: 0.88rem;
+        margin-bottom: 1.2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wizard-wrap">
+    <h1 class="wizard-title">Solicitud de Radicación</h1>
+    <p class="wizard-subtitle">Completá todos los campos para enviar tu solicitud al Parque Industrial de Viedma.</p>
+
+    {# Stepper #}
+    <div class="stepper" id="wizard-stepper">
+        <div class="step is-active" data-step="1">
+            <div class="step-circle"><span class="num">1</span></div>
+            <div class="step-label">Datos de la empresa</div>
+        </div>
+        <div class="step" data-step="2">
+            <div class="step-circle"><span class="num">2</span></div>
+            <div class="step-label">Proyecto industrial</div>
+        </div>
+        <div class="step" data-step="3">
+            <div class="step-circle"><span class="num">3</span></div>
+            <div class="step-label">Representante legal</div>
+        </div>
+        <div class="step" data-step="4">
+            <div class="step-circle"><span class="num">4</span></div>
+            <div class="step-label">Credenciales</div>
+        </div>
+    </div>
+
+    {% if form.non_field_errors %}
+    <div class="form-error-summary">
+        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+    </div>
+    {% endif %}
+
+    {# Resumen de errores si el server rechazó: empuja al primer step con error #}
+    {% if form.errors %}
+    <div class="form-error-summary">
+        <strong><i class="bi bi-exclamation-circle"></i> Revisá los datos marcados en rojo.</strong>
+    </div>
+    {% endif %}
+
+    <form method="post" novalidate id="wizard-form">
+        {% csrf_token %}
+
+        {#  Paso 1: Datos de la empresa  #}
+        <div class="step-pane is-active" data-step="1">
+            <div class="step-card">
+                <h3>Datos de la empresa</h3>
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="field-label" for="{{ form.razon_social.id_for_label }}">Razón social *</label>
+                        {{ form.razon_social }}
+                        {% for e in form.razon_social.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="field-label" for="{{ form.cuit.id_for_label }}">CUIT *</label>
+                        {{ form.cuit }}
+                        {% for e in form.cuit.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-12">
+                        <label class="field-label" for="{{ form.direccion.id_for_label }}">Domicilio legal *</label>
+                        {{ form.direccion }}
+                        {% for e in form.direccion.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.telefono.id_for_label }}">Teléfono *</label>
+                        {{ form.telefono }}
+                        {% for e in form.telefono.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.correo_electronico.id_for_label }}">Correo electrónico *</label>
+                        {{ form.correo_electronico }}
+                        {% for e in form.correo_electronico.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.tipo_societario.id_for_label }}">Tipo societario *</label>
+                        {{ form.tipo_societario }}
+                        {% for e in form.tipo_societario.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="wizard-nav">
+                <button type="button" class="btn-prev" disabled><i class="bi bi-arrow-left"></i> Anterior</button>
+                <button type="button" class="btn-verde" data-action="next">Siguiente <i class="bi bi-arrow-right"></i></button>
+            </div>
+        </div>
+
+        {#  Paso 2: Proyecto industrial  #}
+        <div class="step-pane" data-step="2">
+            <div class="step-card">
+                <h3>Proyecto industrial</h3>
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="field-label" for="{{ form.actividad_principal.id_for_label }}">Rubro / Actividad *</label>
+                        {{ form.actividad_principal }}
+                        {% for e in form.actividad_principal.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="field-label" for="{{ form.personal_a_ocupar.id_for_label }}">Empleados proyectados *</label>
+                        {{ form.personal_a_ocupar }}
+                        {% for e in form.personal_a_ocupar.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.necesidad_m2.id_for_label }}">Superficie requerida (m²) *</label>
+                        {{ form.necesidad_m2 }}
+                        {% for e in form.necesidad_m2.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-12">
+                        <label class="field-label" for="{{ form.descripcion_actividad.id_for_label }}">Descripción del proyecto *</label>
+                        {{ form.descripcion_actividad }}
+                        {% for e in form.descripcion_actividad.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            {{ form.tiene_planos }}
+                            <label class="form-check-label" for="{{ form.tiene_planos.id_for_label }}">
+                                Cuenta con proyecto constructivo aprobado
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="wizard-nav">
+                <button type="button" class="btn-prev" data-action="prev"><i class="bi bi-arrow-left"></i> Anterior</button>
+                <button type="button" class="btn-verde" data-action="next">Siguiente <i class="bi bi-arrow-right"></i></button>
+            </div>
+        </div>
+
+        {#  Paso 3: Representante legal  #}
+        <div class="step-pane" data-step="3">
+            <div class="step-card">
+                <h3>Representante legal</h3>
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="field-label" for="{{ form.representante_nombre.id_for_label }}">Nombre y apellido *</label>
+                        {{ form.representante_nombre }}
+                        {% for e in form.representante_nombre.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="field-label" for="{{ form.representante_dni.id_for_label }}">DNI *</label>
+                        {{ form.representante_dni }}
+                        {% for e in form.representante_dni.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.representante_cargo.id_for_label }}">Cargo *</label>
+                        {{ form.representante_cargo }}
+                        {% for e in form.representante_cargo.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.representante_email.id_for_label }}">Email *</label>
+                        {{ form.representante_email }}
+                        {% for e in form.representante_email.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.representante_telefono.id_for_label }}">Teléfono *</label>
+                        {{ form.representante_telefono }}
+                        {% for e in form.representante_telefono.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="wizard-nav">
+                <button type="button" class="btn-prev" data-action="prev"><i class="bi bi-arrow-left"></i> Anterior</button>
+                <button type="button" class="btn-verde" data-action="next">Siguiente <i class="bi bi-arrow-right"></i></button>
+            </div>
+        </div>
+
+        {#  Paso 4: Credenciales  #}
+        <div class="step-pane" data-step="4">
+            <div class="step-card">
+                <h3>Credenciales de acceso</h3>
+                <p style="color:var(--gris-suave);font-size:0.9rem;margin-bottom:1.2rem;">
+                    Definí cómo vas a iniciar sesión en el sistema una vez enviada tu solicitud.
+                </p>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="field-label" for="{{ form.username.id_for_label }}">Nombre de usuario *</label>
+                        {{ form.username }}
+                        {% if form.username.help_text %}
+                        <div class="form-text">{{ form.username.help_text }}</div>
+                        {% endif %}
+                        {% for e in form.username.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.password1.id_for_label }}">Contraseña *</label>
+                        {{ form.password1 }}
+                        {% for e in form.password1.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.password2.id_for_label }}">Confirmar contraseña *</label>
+                        {{ form.password2 }}
+                        {% for e in form.password2.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="wizard-nav">
+                <button type="button" class="btn-prev" data-action="prev"><i class="bi bi-arrow-left"></i> Anterior</button>
+                <button type="submit" class="btn-verde">
+                    <i class="bi bi-send"></i> Enviar solicitud
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <p class="text-center mt-4 mb-0" style="font-size:0.88rem;">
+        ¿Ya tenés cuenta? <a href="{% url 'core:login' %}"
+            style="color:var(--verde);font-weight:700;">Iniciá sesión</a>
+    </p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    // mascara de cuit: XX-XXXXXXXX-X
+    const cuitInput = document.getElementById('id_cuit');
+    if (cuitInput) {
+        cuitInput.addEventListener('input', function (e) {
+            let v = this.value.replace(/\D/g, '');
+            if (v.length > 11) v = v.slice(0, 11);
+            let formatted = '';
+            for (let i = 0; i < v.length; i++) {
+                if (i === 2 || i === 10) formatted += '-';
+                formatted += v[i];
+            }
+            this.value = formatted;
+        });
+        cuitInput.setAttribute('maxlength', '13');
+    }
+
+    const form = document.getElementById('wizard-form');
+    const panes = Array.from(form.querySelectorAll('.step-pane'));
+    const steps = Array.from(document.querySelectorAll('#wizard-stepper .step'));
+    const TOTAL = panes.length;
+    let current = 1;
+
+    // Si el server devolvió errores de validación, abrir el primer step que tenga errores
+    const firstError = form.querySelector('.field-error');
+    if (firstError) {
+        const pane = firstError.closest('.step-pane');
+        if (pane) current = parseInt(pane.dataset.step, 10);
+    }
+    render();
+
+    function render() {
+        panes.forEach(p => p.classList.toggle('is-active', parseInt(p.dataset.step, 10) === current));
+        steps.forEach(s => {
+            const n = parseInt(s.dataset.step, 10);
+            s.classList.toggle('is-active', n === current);
+            s.classList.toggle('is-done', n < current);
+        });
+        // scroll al inicio del wizard cuando cambia el paso
+        document.querySelector('.wizard-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function validateCurrent() {
+        const pane = panes[current - 1];
+        const inputs = pane.querySelectorAll('input, select, textarea');
+        for (const el of inputs) {
+            if (!el.checkValidity()) {
+                el.reportValidity();
+                return false;
+            }
+        }
+        return true;
+    }
+
+    form.addEventListener('click', (e) => {
+        const action = e.target.closest('[data-action]')?.dataset.action;
+        if (!action) return;
+        if (action === 'next') {
+            if (!validateCurrent()) return;
+            if (current < TOTAL) { current++; render(); }
+        } else if (action === 'prev') {
+            if (current > 1) { current--; render(); }
+        }
+    });
+
+    // Validación HTML5 en submit final (solo paso 4)
+    form.addEventListener('submit', (e) => {
+        if (!validateCurrent()) e.preventDefault();
+    });
+})();
+</script>
+{% endblock %}

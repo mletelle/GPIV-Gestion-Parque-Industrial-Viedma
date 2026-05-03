@@ -98,7 +98,7 @@
         <div class="empresa-resumen mt-3">
             <h3>{{ empresa.razon_social }}</h3>
             <div class="meta">
-                <span><i class="bi bi-rulers"></i> Necesita {{ empresa.necesidad_m2|floatformat:0 }} m²</span>
+                <span><i class="bi bi-rulers"></i> Necesita {{ empresa.get_necesidad_m2_display }}</span>
                 <span><i class="bi bi-building"></i> {{ empresa.get_categoria_industrial_display }}</span>
                 {% if empresa.maneja_inflamables %}<span><i class="bi bi-exclamation-triangle"></i> Maneja
                     inflamables</span>{% endif %}
@@ -113,8 +113,7 @@
         {% endif %}
 
         {% if lotes %}
-        <h4 style="font-size:1rem;font-weight:700;margin-bottom:1rem;">Lotes disponibles (≥ {{
-            empresa.necesidad_m2|floatformat:0 }} m²)</h4>
+        <h4 style="font-size:1rem;font-weight:700;margin-bottom:1rem;">Lotes disponibles ({{ empresa.get_necesidad_m2_display }})</h4>
         <div style="overflow-x:auto;">
             <table class="tabla-lotes-adj">
                 <thead>
@@ -156,7 +155,7 @@
         {% else %}
         <div class="alerta-compat">
             <i class="bi bi-info-circle"></i>
-            No hay lotes disponibles con superficie suficiente (≥ {{ empresa.necesidad_m2|floatformat:0 }} m²).
+            No hay lotes disponibles con superficie suficiente ({{ empresa.get_necesidad_m2_display }}).
             La empresa queda en lista de espera como Pre-Aprobada.
         </div>
         <a href="{% url 'core:solicitud_list' %}" class="btn-verde">

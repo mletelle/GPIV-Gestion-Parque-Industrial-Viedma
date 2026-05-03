@@ -73,10 +73,15 @@
                 <label for="id_username">Usuario</label>
                 {{ form.username }}
             </div>
-            <div class="mb-3">
+            <div class="mb-2">
                 <label for="id_password">Contraseña</label>
                 {{ form.password }}
             </div>
+            <p class="text-end mb-3" style="font-size:0.82rem;">
+                <a href="{% url 'core:password_reset' %}" style="color:var(--azul);font-weight:600;">
+                    ¿Olvidaste tu contraseña?
+                </a>
+            </p>
             <button type="submit" class="btn-verde w-100">
                 <i class="bi bi-box-arrow-in-right"></i> Ingresar
             </button>

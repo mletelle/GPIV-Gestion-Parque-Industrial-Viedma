@@ -129,7 +129,7 @@
 
         <div class="gpiv-card mb-3">
             <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Requerimientos</h5>
-            <div class="dato-row"><span class="dato-label">Superficie requerida</span><span>{{ empresa.necesidad_m2 }} m²</span></div>
+            <div class="dato-row"><span class="dato-label">Superficie requerida</span><span>{{ empresa.get_necesidad_m2_display }}</span></div>
             <div class="dato-row"><span class="dato-label">Tiempo de radicación</span><span>{{ empresa.get_tiempo_radicacion_meses_display }}</span></div>
             <div class="dato-row"><span class="dato-label">Categoría Industrial</span><span>{{ empresa.get_categoria_industrial_display }}</span></div>
         </div>

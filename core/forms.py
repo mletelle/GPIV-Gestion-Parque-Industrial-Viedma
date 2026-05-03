@@ -1,8 +1,8 @@
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, SetPasswordForm
 from django import forms
 from django.core.validators import FileExtensionValidator
 from django.utils import timezone
-from .models import Lote, Empresa, CustomUser, AvanceConstructivo, SolicitudProrroga, ConsumoServicio, Ticket, MensajeTicket, ActivoInventario
+from .models import Lote, Empresa, CustomUser, AvanceConstructivo, SolicitudProrroga, ConsumoServicio, Ticket, MensajeTicket, ActivoInventario, SolicitudAcceso
 from .services import SERVICIO_CAMPOS
 
 
@@ -45,33 +45,32 @@ class LoteForm(forms.ModelForm):
         }
 
 
-class RegistroUsuarioForm(UserCreationForm):
-    """Registro de usuario empresa."""
-    email = forms.EmailField(
-        required=True,
-        widget=forms.EmailInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'correo@ejemplo.com',
-        })
-    )
-
-    class Meta:
-        model = CustomUser
-        fields = ['username', 'email', 'password1', 'password2']
+class GpivPasswordResetForm(PasswordResetForm):
+    """PasswordResetForm con estilos GPIV (issue #29)."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['username'].widget.attrs.update({
+        self.fields['email'].widget.attrs.update({
             'class': 'form-control',
-            'placeholder': 'Nombre de usuario',
+            'placeholder': 'correo@ejemplo.com',
+            'autocomplete': 'email',
         })
-        self.fields['password1'].widget.attrs.update({
+
+
+class GpivSetPasswordForm(SetPasswordForm):
+    """SetPasswordForm con estilos GPIV (issue #29)."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['new_password1'].widget.attrs.update({
             'class': 'form-control',
-            'placeholder': 'Contraseña',
+            'placeholder': 'Nueva contraseña',
+            'autocomplete': 'new-password',
         })
-        self.fields['password2'].widget.attrs.update({
+        self.fields['new_password2'].widget.attrs.update({
             'class': 'form-control',
-            'placeholder': 'Confirmar contraseña',
+            'placeholder': 'Confirmar nueva contraseña',
+            'autocomplete': 'new-password',
         })
 
 
@@ -80,7 +79,7 @@ class SolicitudRadicacionForm(forms.ModelForm):
 
     NUMERICOS_NO_NEGATIVOS = [
         'personal_jerarquico', 'personal_produccion', 'personal_administrativo',
-        'personal_a_ocupar', 'necesidad_m2', 'superficie_cubierta_trabajo_m2',
+        'personal_a_ocupar', 'superficie_cubierta_trabajo_m2',
         'superficie_cubierta_deposito_m2', 'superficie_futura_expansion_m2',
         'superficie_estacionamiento_m2',
     ]
@@ -532,3 +531,230 @@ class BajaActivoForm(forms.Form):
         min_length=10,
         label='Motivo de la baja',
     )
+
+
+class SolicitudAccesoForm(forms.ModelForm):
+    """
+    Formulario único para solicitar acceso como Organismo Público o Proveedor.
+
+    El `tipo` se inyecta vía `__init__` (lo fija la vista, no el usuario), y
+    según el tipo se ajustan label de organización y choices de tipo_acceso.
+    """
+
+    # Credenciales para crear el usuario asociado a la solicitud.
+    username = forms.CharField(
+        max_length=150,
+        label='Nombre de usuario',
+        help_text='Lo usarás para iniciar sesión cuando se apruebe tu solicitud.',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'autocomplete': 'username'}),
+    )
+    password1 = forms.CharField(
+        label='Contraseña',
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'new-password'}),
+    )
+    password2 = forms.CharField(
+        label='Confirmar contraseña',
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'new-password'}),
+    )
+
+    class Meta:
+        model = SolicitudAcceso
+        fields = [
+            'nombre_apellido', 'cargo', 'organizacion', 'telefono',
+            'email_institucional', 'tipo_acceso', 'motivo',
+        ]
+        widgets = {
+            'nombre_apellido': forms.TextInput(attrs={'class': 'form-control'}),
+            'cargo': forms.TextInput(attrs={'class': 'form-control'}),
+            'organizacion': forms.TextInput(attrs={'class': 'form-control'}),
+            'telefono': forms.TextInput(attrs={'class': 'form-control'}),
+            'email_institucional': forms.EmailInput(attrs={'class': 'form-control'}),
+            'tipo_acceso': forms.Select(attrs={'class': 'form-select'}),
+            'motivo': forms.Textarea(attrs={
+                'class': 'form-control', 'rows': 4,
+                'placeholder': 'Describí brevemente para qué necesitás acceso al sistema...',
+            }),
+        }
+
+    def __init__(self, *args, tipo=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if tipo is None:
+            raise ValueError('SolicitudAccesoForm requiere `tipo` (ORGANISMO o PROVEEDOR).')
+        self.tipo = tipo
+
+        # Filtra choices y ajusta labels según el tipo.
+        if tipo == SolicitudAcceso.Tipo.ORGANISMO:
+            self.fields['organizacion'].label = 'Organismo'
+            self.fields['tipo_acceso'].choices = (
+                [('', 'Seleccioná...')] + SolicitudAcceso.TIPO_ACCESO_ORGANISMO
+            )
+        else:
+            self.fields['organizacion'].label = 'Empresa'
+            self.fields['tipo_acceso'].choices = (
+                [('', 'Seleccioná...')] + SolicitudAcceso.TIPO_ACCESO_PROVEEDOR
+            )
+
+    def clean_username(self):
+        username = self.cleaned_data['username'].strip()
+        if CustomUser.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError(
+                'No se puede usar ese nombre de usuario. Elegí otro.'
+            )
+        return username
+
+    def clean_email_institucional(self):
+        email = self.cleaned_data['email_institucional'].strip().lower()
+        if CustomUser.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError(
+                'No se pudo procesar la solicitud con esos datos. '
+                'Si ya tenés cuenta, iniciá sesión.'
+            )
+        if SolicitudAcceso.objects.filter(
+            email_institucional__iexact=email,
+            estado=SolicitudAcceso.Estado.PENDIENTE,
+        ).exists():
+            raise forms.ValidationError('Ya hay una solicitud pendiente para ese email.')
+        return email
+
+    def clean(self):
+        cleaned = super().clean()
+        p1 = cleaned.get('password1')
+        p2 = cleaned.get('password2')
+        if p1 and p2 and p1 != p2:
+            self.add_error('password2', 'Las contraseñas no coinciden.')
+        if p1:
+            from django.contrib.auth.password_validation import validate_password
+            try:
+                validate_password(p1)
+            except forms.ValidationError as e:
+                self.add_error('password1', e)
+        return cleaned
+
+
+class RegistroEmpresaWizardForm(forms.Form):
+    """
+    Form único que recolecta los 4 pasos del wizard de registro de empresa:
+    1. Datos de la empresa
+    2. Proyecto industrial
+    3. Representante legal
+    4. Credenciales de acceso
+
+    El submit final crea User + Empresa + TransicionEstado en una transacción
+    atómica (lo hace la vista). Los campos del modelo Empresa no incluidos
+    aquí se completan con defaults razonables.
+    """
+
+    _TXT = {'class': 'form-control'}
+    _NUM = {'class': 'form-control'}
+    _SEL = {'class': 'form-select'}
+
+    razon_social = forms.CharField(
+        label='Razón social', max_length=150,
+        widget=forms.TextInput(attrs=_TXT),
+    )
+    cuit = forms.CharField(
+        label='CUIT', max_length=13,
+        widget=forms.TextInput(attrs={**_TXT, 'placeholder': '20-12345678-9'}),
+    )
+    direccion = forms.CharField(
+        label='Domicilio legal', max_length=200,
+        widget=forms.TextInput(attrs=_TXT),
+    )
+    telefono = forms.CharField(
+        label='Teléfono', max_length=30,
+        widget=forms.TextInput(attrs=_TXT),
+    )
+    correo_electronico = forms.EmailField(
+        label='Correo electrónico',
+        widget=forms.EmailInput(attrs=_TXT),
+    )
+    tipo_societario = forms.ChoiceField(
+        label='Tipo societario',
+        choices=[('', 'Seleccioná...')] + list(Empresa.TipoSocietario.choices),
+        widget=forms.Select(attrs=_SEL),
+    )
+
+    actividad_principal = forms.CharField(
+        label='Rubro / Actividad', max_length=200,
+        widget=forms.TextInput(attrs=_TXT),
+    )
+    personal_a_ocupar = forms.IntegerField(
+        label='Empleados proyectados', min_value=0,
+        widget=forms.NumberInput(attrs=_NUM),
+    )
+    necesidad_m2 = forms.ChoiceField(
+        label='Superficie requerida (m²)',
+        choices=[('', 'Seleccioná...')] + list(Empresa.RangoNecesidadM2.choices),
+        widget=forms.Select(attrs=_SEL),
+    )
+    descripcion_actividad = forms.CharField(
+        label='Descripción del proyecto',
+        widget=forms.Textarea(attrs={**_TXT, 'rows': 4}),
+    )
+    tiene_planos = forms.BooleanField(
+        label='Cuenta con proyecto constructivo aprobado', required=False,
+    )
+
+    representante_nombre = forms.CharField(
+        label='Nombre y apellido', max_length=150,
+        widget=forms.TextInput(attrs=_TXT),
+    )
+    representante_dni = forms.CharField(
+        label='DNI', max_length=20,
+        widget=forms.TextInput(attrs=_TXT),
+    )
+    representante_cargo = forms.CharField(
+        label='Cargo', max_length=100,
+        widget=forms.TextInput(attrs=_TXT),
+    )
+    representante_email = forms.EmailField(
+        label='Email',
+        widget=forms.EmailInput(attrs=_TXT),
+    )
+    representante_telefono = forms.CharField(
+        label='Teléfono', max_length=30,
+        widget=forms.TextInput(attrs=_TXT),
+    )
+
+    username = forms.CharField(
+        label='Nombre de usuario', max_length=150,
+        help_text='Lo usarás para iniciar sesión en el sistema.',
+        widget=forms.TextInput(attrs={**_TXT, 'autocomplete': 'username'}),
+    )
+    password1 = forms.CharField(
+        label='Contraseña',
+        widget=forms.PasswordInput(attrs={**_TXT, 'autocomplete': 'new-password'}),
+    )
+    password2 = forms.CharField(
+        label='Confirmar contraseña',
+        widget=forms.PasswordInput(attrs={**_TXT, 'autocomplete': 'new-password'}),
+    )
+
+    def clean_username(self):
+        username = self.cleaned_data['username'].strip()
+        if CustomUser.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError('Ese nombre de usuario ya está en uso.')
+        return username
+
+    def clean_cuit(self):
+        import re
+        cuit = self.cleaned_data['cuit'].strip()
+        if not re.match(r'^\d{2}-\d{8}-\d{1}$', cuit):
+            raise forms.ValidationError('El CUIT debe tener el formato XX-XXXXXXXX-X.')
+        if Empresa.objects.filter(cuit=cuit).exists():
+            raise forms.ValidationError('Ya existe una empresa registrada con ese CUIT.')
+        return cuit
+
+    def clean(self):
+        cleaned = super().clean()
+        p1 = cleaned.get('password1')
+        p2 = cleaned.get('password2')
+        if p1 and p2 and p1 != p2:
+            self.add_error('password2', 'Las contraseñas no coinciden.')
+        if p1:
+            from django.contrib.auth.password_validation import validate_password
+            try:
+                validate_password(p1)
+            except forms.ValidationError as e:
+                self.add_error('password1', e)
+        return cleaned

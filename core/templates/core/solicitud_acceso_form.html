@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}Solicitar acceso — GPIV{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:720px;">
+    <a href="{% url 'core:registro' %}" class="btn text-muted fw-bold mb-2" style="border-radius:20px;">
+        <i class="bi bi-arrow-left"></i> Volver
+    </a>
+
+    <h1 class="sec-title mb-1" style="font-size:1.8rem;">Solicitar acceso</h1>
+    <p style="color:var(--gris-suave);font-size:0.95rem;margin-bottom:1.5rem;">
+        {% if es_organismo %}
+        Completá los datos de tu organismo. ENREPAVI verificará tu solicitud antes de habilitarte el acceso.
+        {% else %}
+        Completá los datos de tu empresa proveedora. ENREPAVI verificará tu solicitud antes de habilitarte el acceso.
+        {% endif %}
+    </p>
+
+    <div class="alert alert-warning mb-4" style="border-radius:12px;font-size:0.92rem;">
+        <i class="bi bi-info-circle me-1"></i>
+        El acceso no se crea automáticamente. Podés adjuntar documentación enviando un correo a
+        <strong>{{ support_email|default:'soporte' }}</strong> junto a esta solicitud.
+    </div>
+
+    <div class="gpiv-card">
+        <h3 class="sec-title mb-3" style="font-size:1.2rem;">{{ titulo }}</h3>
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger" style="border-radius:12px;">
+                {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="{{ form.nombre_apellido.id_for_label }}" class="form-label fw-bold"
+                        style="color:var(--azul);">{{ form.nombre_apellido.label }} *</label>
+                    {{ form.nombre_apellido }}
+                    {% for e in form.nombre_apellido.errors %}<div class="text-danger mt-1"
+                        style="font-size:0.85rem;">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.cargo.id_for_label }}" class="form-label fw-bold"
+                        style="color:var(--azul);">{{ form.cargo.label }} *</label>
+                    {{ form.cargo }}
+                    {% for e in form.cargo.errors %}<div class="text-danger mt-1"
+                        style="font-size:0.85rem;">{{ e }}</div>{% endfor %}
+                </div>
+
+                <div class="col-md-6">
+                    <label for="{{ form.organizacion.id_for_label }}" class="form-label fw-bold"
+                        style="color:var(--azul);">{{ form.organizacion.label }} *</label>
+                    {{ form.organizacion }}
+                    {% for e in form.organizacion.errors %}<div class="text-danger mt-1"
+                        style="font-size:0.85rem;">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.telefono.id_for_label }}" class="form-label fw-bold"
+                        style="color:var(--azul);">{{ form.telefono.label }} *</label>
+                    {{ form.telefono }}
+                    {% for e in form.telefono.errors %}<div class="text-danger mt-1"
+                        style="font-size:0.85rem;">{{ e }}</div>{% endfor %}
+                </div>
+
+                <div class="col-md-6">
+                    <label for="{{ form.email_institucional.id_for_label }}" class="form-label fw-bold"
+                        style="color:var(--azul);">{{ form.email_institucional.label }} *</label>
+                    {{ form.email_institucional }}
+                    {% for e in form.email_institucional.errors %}<div class="text-danger mt-1"
+                        style="font-size:0.85rem;">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.tipo_acceso.id_for_label }}" class="form-label fw-bold"
+                        style="color:var(--azul);">{{ form.tipo_acceso.label }} *</label>
+                    {{ form.tipo_acceso }}
+                    {% for e in form.tipo_acceso.errors %}<div class="text-danger mt-1"
+                        style="font-size:0.85rem;">{{ e }}</div>{% endfor %}
+                </div>
+
+                <div class="col-12">
+                    <label for="{{ form.motivo.id_for_label }}" class="form-label fw-bold"
+                        style="color:var(--azul);">{{ form.motivo.label }} *</label>
+                    {{ form.motivo }}
+                    {% for e in form.motivo.errors %}<div class="text-danger mt-1"
+                        style="font-size:0.85rem;">{{ e }}</div>{% endfor %}
+                </div>
+            </div>
+
+            <hr class="my-4">
+            <h3 class="sec-title mb-3" style="font-size:1.2rem;">Credenciales</h3>
+            <p style="color:var(--gris-suave);font-size:0.88rem;margin-bottom:1rem;">
+                Definí cómo vas a iniciar sesión cuando tu solicitud sea aprobada.
+            </p>
+
+            <div class="row g-3">
+                <div class="col-md-12">
+                    <label for="{{ form.username.id_for_label }}" class="form-label fw-bold"
+                        style="color:var(--azul);">{{ form.username.label }} *</label>
+                    {{ form.username }}
+                    {% if form.username.help_text %}
+                    <div class="form-text" style="font-size:0.8rem;">{{ form.username.help_text }}</div>
+                    {% endif %}
+                    {% for e in form.username.errors %}<div class="text-danger mt-1"
+                        style="font-size:0.85rem;">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.password1.id_for_label }}" class="form-label fw-bold"
+                        style="color:var(--azul);">{{ form.password1.label }} *</label>
+                    {{ form.password1 }}
+                    {% for e in form.password1.errors %}<div class="text-danger mt-1"
+                        style="font-size:0.85rem;">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.password2.id_for_label }}" class="form-label fw-bold"
+                        style="color:var(--azul);">{{ form.password2.label }} *</label>
+                    {{ form.password2 }}
+                    {% for e in form.password2.errors %}<div class="text-danger mt-1"
+                        style="font-size:0.85rem;">{{ e }}</div>{% endfor %}
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4 pt-3" style="border-top:1px solid var(--borde);">
+                <a href="{% url 'core:registro' %}" class="btn text-muted fw-bold" style="border-radius:20px;">
+                    Cancelar
+                </a>
+                <button type="submit" class="btn-verde">
+                    <i class="bi bi-send"></i> Enviar solicitud
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <p class="text-center mt-4 mb-0" style="font-size:0.88rem;">
+        ¿Ya tenés cuenta? <a href="{% url 'core:login' %}"
+            style="color:var(--verde);font-weight:700;">Iniciá sesión</a>
+    </p>
+</div>
+{% endblock %}

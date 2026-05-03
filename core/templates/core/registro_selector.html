@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}Crear cuenta — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tipo-card {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 2rem 1.5rem;
+        text-align: center;
+        height: 100%;
+        transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+    }
+
+    .tipo-card:hover {
+        border-color: var(--verde);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    }
+
+    .tipo-card .tipo-icon {
+        font-size: 2.5rem;
+        color: var(--verde);
+        margin-bottom: 1rem;
+    }
+
+    .tipo-card h3 {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--azul);
+        margin-bottom: 0.6rem;
+    }
+
+    .tipo-card p {
+        color: var(--gris-suave);
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+        min-height: 4.5em;
+    }
+
+    .tipo-card a.tipo-cta {
+        color: var(--verde);
+        font-weight: 700;
+        text-decoration: none;
+        font-size: 0.95rem;
+    }
+
+    .tipo-card a.tipo-cta:hover {
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width:980px;">
+    <div class="text-center mb-5">
+        <h1 class="sec-title" style="font-size:2rem;">Creá tu cuenta</h1>
+        <p style="color:var(--gris-suave);">Seleccioná tu tipo de usuario para continuar</p>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="tipo-card">
+                <div class="tipo-icon"><i class="bi bi-buildings"></i></div>
+                <h3>Empresa</h3>
+                <p>Quiero solicitar la radicación de mi empresa en el Parque Industrial de Viedma.</p>
+                <a href="{% url 'core:registro_empresa' %}" class="tipo-cta">
+                    Continuar <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="tipo-card">
+                <div class="tipo-icon"><i class="bi bi-bank"></i></div>
+                <h3>Organismo Público</h3>
+                <p>Represento a un organismo gubernamental y requiero acceso de consulta al sistema.</p>
+                <a href="{% url 'core:solicitud_acceso' tipo_slug='organismo' %}" class="tipo-cta">
+                    Solicitar acceso <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="tipo-card">
+                <div class="tipo-icon"><i class="bi bi-tools"></i></div>
+                <h3>Proveedor de Servicios</h3>
+                <p>Soy proveedor de agua, gas o electricidad y necesito acceso para carga de consumos.</p>
+                <a href="{% url 'core:solicitud_acceso' tipo_slug='proveedor' %}" class="tipo-cta">
+                    Solicitar acceso <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <p class="text-center mt-5" style="font-size:0.9rem;color:var(--gris-suave);">
+        ¿Ya tenés cuenta?
+        <a href="{% url 'core:login' %}" style="color:var(--verde);font-weight:700;">Iniciá sesión</a>
+    </p>
+</div>
+{% endblock %}
