@@ -199,12 +199,12 @@ class Empresa(models.Model):
 
     # mapeo de rango a minimo de m2 para filtrar lotes en adjudicacion
     _RANGO_M2_MINIMO = {
-        'Hasta200': 0,
-        '200a500': 200,
-        '500a1000': 500,
-        '1000a2000': 1000,
-        '2000a5000': 2000,
-        'Mas5000': 5000,
+        RangoNecesidadM2.HASTA_200: 0,
+        RangoNecesidadM2.DE_200_A_500: 200,
+        RangoNecesidadM2.DE_500_A_1000: 500,
+        RangoNecesidadM2.DE_1000_A_2000: 1000,
+        RangoNecesidadM2.DE_2000_A_5000: 2000,
+        RangoNecesidadM2.MAS_5000: 5000,
     }
 
     def get_necesidad_m2_minimo(self):
