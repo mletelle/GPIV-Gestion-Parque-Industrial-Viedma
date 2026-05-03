@@ -35,14 +35,24 @@ SERVICIO_LABELS = {
 
 def get_servicio_proveedor(user):
     """devuelve la clave de servicio (AGUA/LUZ/GAS) segun el grupo del
-    usuario, o None si no es un proveedor especifico (admin/superuser)."""
+    usuario, o None si no es un proveedor especifico (admin/superuser).
+    si el usuario pertenece a mas de un grupo proveedor, loguea un warning
+    y retorna None para que no opere con un servicio arbitrario."""
     if not user.is_authenticated:
         return None
     nombres = set(user.groups.values_list('name', flat=True))
-    for clave in SERVICIO_CAMPOS:
-        if f'PROVEEDOR_{clave}' in nombres:
-            return clave
-    return None
+    encontrados = [
+        clave for clave in SERVICIO_CAMPOS
+        if f'PROVEEDOR_{clave}' in nombres
+    ]
+    if len(encontrados) > 1:
+        logger.warning(
+            "Usuario %s pertenece a multiples grupos proveedor (%s). "
+            "No se puede determinar un servicio unico.",
+            user.username, ', '.join(encontrados),
+        )
+        return None
+    return encontrados[0] if encontrados else None
 
 
 def registrar_transicion(empresa, estado_nuevo, usuario=None, justificacion=''):

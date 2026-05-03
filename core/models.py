@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db import IntegrityError
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -187,6 +188,10 @@ class Empresa(models.Model):
     # Estado y Control
     estado = models.CharField(max_length=30, choices=Estado.choices, default=Estado.EN_EVALUACION)
     fecha_limite_obra = models.DateField(blank=True, null=True)
+    ultimo_aviso_vencimiento = models.DateField(
+        blank=True, null=True,
+        help_text=_('Fecha del último aviso de vencimiento enviado. Evita duplicados.'),
+    )
     escritura_pdf = models.FileField(upload_to='escrituras/', blank=True, null=True)
 
     class Meta:
@@ -515,12 +520,22 @@ class ActivoInventario(models.Model):
         return f'{prefijo}-{anio}{correlativo:03d}'
 
     def save(self, *args, **kwargs):
-        """Auto-genera el código de inventario si no fue provisto."""
+        """Auto-genera el código de inventario si no fue provisto.
+        Reintenta hasta 5 veces en caso de colisión concurrente."""
         if not self.codigo_inventario:
             from django.utils import timezone as tz
             anio = self.fecha_alta.year if self.fecha_alta else tz.now().year
-            self.codigo_inventario = self._generar_codigo(self.categoria, anio)
-        super().save(*args, **kwargs)
+            max_intentos = 5
+            for intento in range(max_intentos):
+                self.codigo_inventario = self._generar_codigo(self.categoria, anio)
+                try:
+                    super().save(*args, **kwargs)
+                    return
+                except IntegrityError:
+                    if intento == max_intentos - 1:
+                        raise
+        else:
+            super().save(*args, **kwargs)
 
 
 class SolicitudAcceso(models.Model):
@@ -623,7 +638,7 @@ class SolicitudAcceso(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=['email_institucional'],
-                condition=Q(estado=Estado.PENDIENTE),
+                condition=Q(estado='PENDIENTE'),
                 name='uniq_solicitud_acceso_pendiente_email',
             ),
         ]

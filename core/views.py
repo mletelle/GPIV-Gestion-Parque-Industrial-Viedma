@@ -10,6 +10,7 @@ from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.db.models import Sum, Q
+from django.db import transaction
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 
@@ -562,17 +563,18 @@ class AdjudicacionView(AdminEnrepaviMixin, View):
             Lote, pk=lote_id, estado=Lote.Estado.DISPONIBLE,
             superficie_m2__gte=m2_min,
         )
-        # asignar lote
-        lote.estado = Lote.Estado.EN_USO
-        lote.empresa = empresa
-        lote.save(update_fields=['estado', 'empresa'])
-        # calcular fecha limite
-        empresa.fecha_limite_obra = (
-            timezone.now().date() + relativedelta(months=empresa.tiempo_radicacion_meses)
-        )
-        empresa.save(update_fields=['fecha_limite_obra'])
-        # transicion a radicada
-        registrar_transicion(empresa, Empresa.Estado.RADICADA, request.user, f'Adjudicada en parcela {lote.nro_parcela}')
+        with transaction.atomic():
+            # asignar lote
+            lote.estado = Lote.Estado.EN_USO
+            lote.empresa = empresa
+            lote.save(update_fields=['estado', 'empresa'])
+            # calcular fecha limite
+            empresa.fecha_limite_obra = (
+                timezone.now().date() + relativedelta(months=empresa.tiempo_radicacion_meses)
+            )
+            empresa.save(update_fields=['fecha_limite_obra'])
+            # transicion a radicada
+            registrar_transicion(empresa, Empresa.Estado.RADICADA, request.user, f'Adjudicada en parcela {lote.nro_parcela}')
         messages.success(request, f'{empresa.razon_social} radicada en Parcela {lote.nro_parcela}.')
         return redirect('core:solicitud_list')
 
@@ -688,6 +690,13 @@ class ProrrogaAprobarView(AdminEnrepaviMixin, View):
         form = RespuestaProrrogaForm(request.POST)
         if form.is_valid():
             empresa = prorroga.empresa
+            if not empresa.fecha_limite_obra:
+                messages.error(
+                    request,
+                    f'{empresa.razon_social} no tiene fecha límite de obra definida. '
+                    'Asignala desde el admin antes de aprobar una prórroga.',
+                )
+                return redirect('core:prorrogas_pendientes')
             empresa.fecha_limite_obra = (
                 empresa.fecha_limite_obra + relativedelta(months=prorroga.meses_solicitados)
             )
@@ -771,15 +780,16 @@ class BajaEmpresaView(AdminEnrepaviMixin, View):
         empresa = get_object_or_404(Empresa, pk=pk, estado__in=self.ESTADOS_BAJA)
         form = BajaEmpresaForm(request.POST)
         if form.is_valid():
-            # liberar lotes asignados
-            for lote in empresa.lotes.filter(estado=Lote.Estado.EN_USO):
-                lote.estado = Lote.Estado.DISPONIBLE
-                lote.empresa = None
-                lote.save(update_fields=['estado', 'empresa'])
-            registrar_transicion(
-                empresa, Empresa.Estado.HISTORICO_BAJA, request.user,
-                form.cleaned_data['justificacion'],
-            )
+            with transaction.atomic():
+                # liberar lotes asignados
+                for lote in empresa.lotes.filter(estado=Lote.Estado.EN_USO):
+                    lote.estado = Lote.Estado.DISPONIBLE
+                    lote.empresa = None
+                    lote.save(update_fields=['estado', 'empresa'])
+                registrar_transicion(
+                    empresa, Empresa.Estado.HISTORICO_BAJA, request.user,
+                    form.cleaned_data['justificacion'],
+                )
             messages.success(request, f'{empresa.razon_social} dada de baja. Lote(s) liberado(s).')
             return redirect('core:solicitud_list')
         return render(request, 'core/baja_empresa.html', {'empresa': empresa, 'form': form})
