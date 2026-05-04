@@ -561,7 +561,7 @@ class SolicitudAccesoForm(forms.ModelForm):
         model = SolicitudAcceso
         fields = [
             'nombre_apellido', 'cargo', 'organizacion', 'telefono',
-            'email_institucional', 'tipo_acceso', 'motivo',
+            'email_institucional', 'tipo_acceso', 'motivo', 'documentacion',
         ]
         widgets = {
             'nombre_apellido': forms.TextInput(attrs={'class': 'form-control'}),
@@ -574,6 +574,7 @@ class SolicitudAccesoForm(forms.ModelForm):
                 'class': 'form-control', 'rows': 4,
                 'placeholder': 'Describí brevemente para qué necesitás acceso al sistema...',
             }),
+            'documentacion': forms.ClearableFileInput(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, tipo=None, **kwargs):

@@ -221,7 +221,7 @@ class SolicitudAccesoAdmin(admin.ModelAdmin):
     )
     readonly_fields = (
         'tipo', 'nombre_apellido', 'cargo', 'organizacion', 'telefono',
-        'email_institucional', 'tipo_acceso', 'motivo',
+        'email_institucional', 'tipo_acceso', 'motivo', 'documentacion',
         'fecha_solicitud', 'fecha_resolucion', 'resuelto_por', 'usuario',
     )
     fieldsets = (
@@ -229,6 +229,7 @@ class SolicitudAccesoAdmin(admin.ModelAdmin):
             'fields': (
                 'tipo', 'nombre_apellido', 'cargo', 'organizacion',
                 'telefono', 'email_institucional', 'tipo_acceso', 'motivo',
+                'documentacion',
             ),
         }),
         ('Resolución', {

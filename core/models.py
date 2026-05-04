@@ -596,6 +596,13 @@ class SolicitudAcceso(models.Model):
         'Motivo del acceso',
         help_text='Describe brevemente para qué necesitás acceso al sistema.',
     )
+    documentacion = models.FileField(
+        'Documentación adjunta',
+        upload_to='solicitudes_acceso/',
+        blank=True,
+        null=True,
+        help_text='Podés adjuntar un PDF, imagen u otro documento que respalde tu solicitud.',
+    )
 
     estado = models.CharField(
         max_length=15,
