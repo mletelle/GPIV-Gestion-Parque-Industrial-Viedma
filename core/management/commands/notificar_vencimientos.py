@@ -5,6 +5,8 @@ busca empresas en construccion con vencimiento de obra proximo y manda
 mail al contacto. se ejecuta desde crontab del servidor todos los dias
 a las 08:00.
 
+Para no enviar emails duplicados cada dia, solo notifica si pasaron
+al menos 7 dias (urgentes) o 30 dias (proximos) desde el ultimo aviso.
 """
 from datetime import timedelta
 
@@ -28,6 +30,10 @@ CUERPO = (
     'Saludos,\nAdministracion ENREPAVI'
 )
 
+# no repetir aviso urgente antes de 7 dias ni proximo antes de 30
+INTERVALO_URGENTE = timedelta(days=7)
+INTERVALO_PROXIMO = timedelta(days=30)
+
 
 class Command(BaseCommand):
     help = 'Envia avisos de vencimiento de plazo de obra a empresas en construccion'
@@ -40,11 +46,15 @@ class Command(BaseCommand):
         urgentes = Empresa.objects.filter(
             estado=Empresa.Estado.EN_CONSTRUCCION,
             fecha_limite_obra__range=(hoy, limite_urgente),
+        ).exclude(
+            ultimo_aviso_vencimiento__gte=hoy - INTERVALO_URGENTE,
         )
         proximos = Empresa.objects.filter(
             estado=Empresa.Estado.EN_CONSTRUCCION,
             fecha_limite_obra__gt=limite_urgente,
             fecha_limite_obra__lte=limite_proximo,
+        ).exclude(
+            ultimo_aviso_vencimiento__gte=hoy - INTERVALO_PROXIMO,
         )
 
         enviados_urgentes = 0
@@ -63,6 +73,8 @@ class Command(BaseCommand):
                 recipient_list=[empresa.correo_electronico],
                 fail_silently=False,
             )
+            empresa.ultimo_aviso_vencimiento = hoy
+            empresa.save(update_fields=['ultimo_aviso_vencimiento'])
             enviados_urgentes += 1
 
         for empresa in proximos:
@@ -78,6 +90,8 @@ class Command(BaseCommand):
                 recipient_list=[empresa.correo_electronico],
                 fail_silently=False,
             )
+            empresa.ultimo_aviso_vencimiento = hoy
+            empresa.save(update_fields=['ultimo_aviso_vencimiento'])
             enviados_proximos += 1
 
         self.stdout.write(self.style.SUCCESS(

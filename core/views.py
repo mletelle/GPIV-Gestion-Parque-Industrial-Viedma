@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import Group
@@ -10,6 +12,7 @@ from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.db.models import Sum, Q
+from django.db import transaction
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 
@@ -18,6 +21,7 @@ from .models import (
     SolicitudProrroga, CustomUser, ConsumoServicio,
     Ticket, MensajeTicket,
     ActivoInventario,
+    SolicitudAcceso,
 )
 from .services import (
     registrar_transicion, get_servicio_proveedor,
@@ -25,14 +29,17 @@ from .services import (
     notificar_ticket_mensaje,
 )
 from .forms import (
-    LoginForm, LoteForm, RegistroUsuarioForm,
+    LoginForm, LoteForm,
     SolicitudRadicacionForm, RechazarSolicitudForm,
     AvanceConstructivoForm, SolicitudProrrogaForm,
     EscrituraForm, BajaEmpresaForm, RespuestaProrrogaForm,
     ConsumoServicioForm, TicketCreateForm, MensajeTicketForm,
     TicketExternoForm, ActivoInventarioForm, BajaActivoForm,
+    SolicitudAccesoForm, RegistroEmpresaWizardForm,
 )
 from django import forms as django_forms
+
+logger = logging.getLogger(__name__)
 
 
  # landing publica
@@ -193,18 +200,192 @@ class LoteUpdateView(AdminEnrepaviMixin, UpdateView):
 
  # registro de empresa y solicitud de radicacion
 
-class RegistroView(CreateView):
-    """registro de usuario empresa, le asigna grupo EMPRESA"""
-    template_name = 'core/registro.html'
-    form_class = RegistroUsuarioForm
-    success_url = reverse_lazy('core:login')
+class RegistroSelectorView(TemplateView):
+    """Pantalla de selección del tipo de cuenta (Empresa / Organismo / Proveedor)."""
+    template_name = 'core/registro_selector.html'
+
+    def get(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect('core:inicio')
+        return super().get(request, *args, **kwargs)
+
+
+class RegistroEmpresaView(View):
+    """
+    Wizard de registro de Empresa en 4 pasos:
+    1. Datos de la empresa
+    2. Proyecto industrial
+    3. Representante legal
+    4. Credenciales de acceso
+
+    Submit final crea User (con grupo EMPRESA) + Empresa + TransicionEstado
+    inicial (None → EnEvaluacion) en una transacción atómica. Los campos del
+    modelo Empresa no presentes en el wizard se completan con defaults
+    razonables (tipo_empresa=Nueva, rubro=Otro, etc.) para que la empresa
+    quede creada y el admin pueda completar el detalle desde el back-office.
+    """
+    template_name = 'core/registro_empresa_wizard.html'
+
+    def get(self, request):
+        if request.user.is_authenticated:
+            return redirect('core:inicio')
+        return render(request, self.template_name, {'form': RegistroEmpresaWizardForm()})
+
+    def post(self, request):
+        if request.user.is_authenticated:
+            return redirect('core:inicio')
+
+        form = RegistroEmpresaWizardForm(request.POST)
+        if not form.is_valid():
+            return render(request, self.template_name, {'form': form})
+
+        from django.db import transaction as db_transaction
+        cd = form.cleaned_data
+
+        with db_transaction.atomic():
+            # 1. Crear el user activo y asignarle el grupo EMPRESA.
+            usuario = CustomUser.objects.create_user(
+                username=cd['username'],
+                email=cd['representante_email'],
+                password=cd['password1'],
+                first_name=cd['representante_nombre'].split(' ', 1)[0],
+                last_name=(
+                    cd['representante_nombre'].split(' ', 1)[1]
+                    if ' ' in cd['representante_nombre'] else ''
+                ),
+                is_active=True,
+            )
+            grupo, _ = Group.objects.get_or_create(name='EMPRESA')
+            usuario.groups.add(grupo)
+
+            # 2. Crear la Empresa con datos del wizard + defaults razonables
+            #    para los campos NOT NULL no capturados (el admin los completa
+            #    desde el back-office si hace falta).
+            empresa = Empresa.objects.create(
+                usuario=usuario,
+                #  capturados por el wizard 
+                razon_social=cd['razon_social'],
+                cuit=cd['cuit'],
+                direccion=cd['direccion'],
+                telefono=cd['telefono'],
+                correo_electronico=cd['correo_electronico'],
+                tipo_societario=cd['tipo_societario'],
+                actividad_principal=cd['actividad_principal'],
+                personal_a_ocupar=cd['personal_a_ocupar'],
+                necesidad_m2=cd['necesidad_m2'],
+                descripcion_actividad=cd['descripcion_actividad'],
+                tiene_planos=cd['tiene_planos'],
+                representante_nombre=cd['representante_nombre'],
+                representante_dni=cd['representante_dni'],
+                representante_cargo=cd['representante_cargo'],
+                representante_email=cd['representante_email'],
+                representante_telefono=cd['representante_telefono'],
+                # espejo: persona_referente legacy = representante_nombre
+                persona_referente=cd['representante_nombre'],
+                #  defaults para campos NOT NULL no capturados 
+                tipo_empresa=Empresa.TipoEmpresa.NUEVA,
+                rubro=Empresa.Rubro.OTRO,
+                categoria_industrial=Empresa.CategoriaIndustrial.OTRO,
+                superficie_cubierta_trabajo_m2=0,
+                superficie_cubierta_deposito_m2=0,
+                tiempo_radicacion_meses=Empresa.TiempoRadicacion.MESES_12,
+                estado=Empresa.Estado.EN_EVALUACION,
+            )
+
+            # 3. Registrar la primera transición de estado (None → EnEvaluacion).
+            TransicionEstado.objects.create(
+                empresa=empresa,
+                estado_anterior=None,
+                estado_nuevo=Empresa.Estado.EN_EVALUACION,
+                usuario=usuario,
+                justificacion_resolucion='Creada desde el wizard de registro.',
+            )
+
+        messages.success(
+            request,
+            f'Tu solicitud para "{empresa.razon_social}" fue enviada. '
+            'Iniciá sesión para hacer seguimiento.',
+        )
+        return redirect('core:login')
+
+
+class SolicitudAccesoCreateView(CreateView):
+    """
+    Solicitud de acceso para Organismo Público o Proveedor.
+
+    Crea un CustomUser inactivo y un registro SolicitudAcceso pendiente.
+    Notifica a SUPPORT_INBOX_EMAIL para que el admin lo apruebe/rechace
+    desde el admin de Django (donde se envían los mails de resolución).
+    """
+    template_name = 'core/solicitud_acceso_form.html'
+    form_class = SolicitudAccesoForm
+    # success_url se setea dinámicamente en form_valid
+
+    # Mapping URL kwarg -> tipo del modelo
+    TIPO_POR_SLUG = {
+        'organismo': SolicitudAcceso.Tipo.ORGANISMO,
+        'proveedor': SolicitudAcceso.Tipo.PROVEEDOR,
+    }
+
+    def dispatch(self, request, *args, **kwargs):
+        slug = kwargs.get('tipo_slug')
+        if slug not in self.TIPO_POR_SLUG:
+            return redirect('core:registro')
+        if request.user.is_authenticated:
+            return redirect('core:inicio')
+        self.tipo = self.TIPO_POR_SLUG[slug]
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['tipo'] = self.tipo
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        from django.conf import settings as dj_settings
+        ctx = super().get_context_data(**kwargs)
+        ctx['tipo'] = self.tipo
+        ctx['es_organismo'] = self.tipo == SolicitudAcceso.Tipo.ORGANISMO
+        ctx['es_proveedor'] = self.tipo == SolicitudAcceso.Tipo.PROVEEDOR
+        ctx['titulo'] = (
+            'Datos del organismo' if ctx['es_organismo']
+            else 'Datos del proveedor'
+        )
+        ctx['support_email'] = dj_settings.SUPPORT_INBOX_EMAIL
+        return ctx
 
     def form_valid(self, form):
-        response = super().form_valid(form)
-        grupo = Group.objects.get(name='EMPRESA')
-        self.object.groups.add(grupo)
-        messages.success(self.request, 'Cuenta creada. Iniciá sesión para completar tu solicitud.')
-        return response
+        from django.db import transaction as db_transaction
+        from .services import notificar_solicitud_acceso_recibida
+
+        with db_transaction.atomic():
+            # 1. Crear usuario inactivo (sin grupo aún, se asigna al aprobar).
+            usuario = CustomUser.objects.create_user(
+                username=form.cleaned_data['username'],
+                email=form.cleaned_data['email_institucional'],
+                password=form.cleaned_data['password1'],
+                is_active=False,
+            )
+            # 2. Crear la solicitud asociada.
+            self.object = form.save(commit=False)
+            self.object.tipo = self.tipo
+            self.object.usuario = usuario
+            self.object.save()
+
+        # 3. Notificar al admin (fuera de la transacción para no bloquear).
+        try:
+            notificar_solicitud_acceso_recibida(self.object)
+        except Exception:  # pylint: disable=broad-except
+            # No revertimos la solicitud si falla el correo: el admin la verá
+            # en su bandeja igualmente.
+            logger.exception("Error al notificar solicitud de acceso recibida (pk=%s)", self.object.pk)
+
+        return redirect('core:solicitud_acceso_enviada')
+
+
+class SolicitudAccesoEnviadaView(TemplateView):
+    """Confirmación tras enviar una solicitud de acceso."""
+    template_name = 'core/solicitud_acceso_enviada.html'
 
 
 class SolicitudCreateView(EmpresaMixin, CreateView):
@@ -368,9 +549,10 @@ class AdjudicacionView(AdminEnrepaviMixin, View):
 
     def get(self, request, pk):
         empresa = get_object_or_404(Empresa, pk=pk, estado=Empresa.Estado.PRE_APROBADO)
+        m2_min = empresa.get_necesidad_m2_minimo()
         lotes = Lote.objects.filter(
             estado=Lote.Estado.DISPONIBLE,
-            superficie_m2__gte=empresa.necesidad_m2,
+            superficie_m2__gte=m2_min,
         ).order_by('nro_parcela')
         return render(request, 'core/adjudicacion.html', {
             'empresa': empresa,
@@ -380,21 +562,23 @@ class AdjudicacionView(AdminEnrepaviMixin, View):
     def post(self, request, pk):
         empresa = get_object_or_404(Empresa, pk=pk, estado=Empresa.Estado.PRE_APROBADO)
         lote_id = request.POST.get('lote_id')
+        m2_min = empresa.get_necesidad_m2_minimo()
         lote = get_object_or_404(
             Lote, pk=lote_id, estado=Lote.Estado.DISPONIBLE,
-            superficie_m2__gte=empresa.necesidad_m2,
+            superficie_m2__gte=m2_min,
         )
-        # asignar lote
-        lote.estado = Lote.Estado.EN_USO
-        lote.empresa = empresa
-        lote.save(update_fields=['estado', 'empresa'])
-        # calcular fecha limite
-        empresa.fecha_limite_obra = (
-            timezone.now().date() + relativedelta(months=empresa.tiempo_radicacion_meses)
-        )
-        empresa.save(update_fields=['fecha_limite_obra'])
-        # transicion a radicada
-        registrar_transicion(empresa, Empresa.Estado.RADICADA, request.user, f'Adjudicada en parcela {lote.nro_parcela}')
+        with transaction.atomic():
+            # asignar lote
+            lote.estado = Lote.Estado.EN_USO
+            lote.empresa = empresa
+            lote.save(update_fields=['estado', 'empresa'])
+            # calcular fecha limite
+            empresa.fecha_limite_obra = (
+                timezone.now().date() + relativedelta(months=empresa.tiempo_radicacion_meses)
+            )
+            empresa.save(update_fields=['fecha_limite_obra'])
+            # transicion a radicada
+            registrar_transicion(empresa, Empresa.Estado.RADICADA, request.user, f'Adjudicada en parcela {lote.nro_parcela}')
         messages.success(request, f'{empresa.razon_social} radicada en Parcela {lote.nro_parcela}.')
         return redirect('core:solicitud_list')
 
@@ -510,6 +694,13 @@ class ProrrogaAprobarView(AdminEnrepaviMixin, View):
         form = RespuestaProrrogaForm(request.POST)
         if form.is_valid():
             empresa = prorroga.empresa
+            if not empresa.fecha_limite_obra:
+                messages.error(
+                    request,
+                    f'{empresa.razon_social} no tiene fecha límite de obra definida. '
+                    'Asignala desde el admin antes de aprobar una prórroga.',
+                )
+                return redirect('core:prorrogas_pendientes')
             empresa.fecha_limite_obra = (
                 empresa.fecha_limite_obra + relativedelta(months=prorroga.meses_solicitados)
             )
@@ -593,15 +784,16 @@ class BajaEmpresaView(AdminEnrepaviMixin, View):
         empresa = get_object_or_404(Empresa, pk=pk, estado__in=self.ESTADOS_BAJA)
         form = BajaEmpresaForm(request.POST)
         if form.is_valid():
-            # liberar lotes asignados
-            for lote in empresa.lotes.filter(estado=Lote.Estado.EN_USO):
-                lote.estado = Lote.Estado.DISPONIBLE
-                lote.empresa = None
-                lote.save(update_fields=['estado', 'empresa'])
-            registrar_transicion(
-                empresa, Empresa.Estado.HISTORICO_BAJA, request.user,
-                form.cleaned_data['justificacion'],
-            )
+            with transaction.atomic():
+                # liberar lotes asignados
+                for lote in empresa.lotes.filter(estado=Lote.Estado.EN_USO):
+                    lote.estado = Lote.Estado.DISPONIBLE
+                    lote.empresa = None
+                    lote.save(update_fields=['estado', 'empresa'])
+                registrar_transicion(
+                    empresa, Empresa.Estado.HISTORICO_BAJA, request.user,
+                    form.cleaned_data['justificacion'],
+                )
             messages.success(request, f'{empresa.razon_social} dada de baja. Lote(s) liberado(s).')
             return redirect('core:solicitud_list')
         return render(request, 'core/baja_empresa.html', {'empresa': empresa, 'form': form})
@@ -1003,9 +1195,9 @@ class ReporteConsumoView(AdminEnrepaviMixin, View):
         return response
 
 
- # =========================================
+ # 
  # TICKETERA / MENSAJERIA INTERNA
- # =========================================
+ # 
 
 class TicketListView(LoginRequiredMixin, ListView):
     """Listado de tickets del usuario logueado."""

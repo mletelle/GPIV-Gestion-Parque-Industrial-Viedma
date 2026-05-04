@@ -158,7 +158,7 @@
                         <td><strong>{{ emp.razon_social }}</strong></td>
                         <td>{{ emp.cuit }}</td>
                         <td>{{ emp.get_rubro_display }}</td>
-                        <td>{{ emp.necesidad_m2|floatformat:0 }}</td>
+                        <td>{{ emp.get_necesidad_m2_display }}</td>
                         <td><span class="badge-estado {{ emp.estado|lower }}">{{ emp.get_estado_display }}</span></td>
                         <td>
                             <a href="{% url 'core:solicitud_detail' emp.pk %}" class="btn-sm-gpiv">

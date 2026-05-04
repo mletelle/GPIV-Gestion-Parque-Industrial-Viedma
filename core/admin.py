@@ -1,11 +1,23 @@
-from django.contrib import admin
+import logging
+
+from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import Group
+from django.db import transaction
+from django.utils import timezone
 from .models import (
     CustomUser, Empresa, Lote, TransicionEstado,
     AvanceConstructivo, SolicitudProrroga, ConsumoServicio,
     Ticket, MensajeTicket,
     ActivoInventario,
+    SolicitudAcceso,
 )
+from .services import (
+    notificar_solicitud_acceso_aprobada,
+    notificar_solicitud_acceso_rechazada,
+)
+
+logger = logging.getLogger(__name__)
 
 
 @admin.register(CustomUser)
@@ -189,3 +201,177 @@ class ActivoInventarioAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('responsable', 'registrado_por')
+
+
+@admin.register(SolicitudAcceso)
+class SolicitudAccesoAdmin(admin.ModelAdmin):
+    """
+    Bandeja de auditoría de solicitudes de acceso (Organismo / Proveedor).
+    Las acciones de aprobar/rechazar activan o dejan inactivo el usuario
+    asociado y notifican por email al solicitante.
+    """
+    list_display = (
+        'nombre_apellido', 'tipo', 'organizacion', 'tipo_acceso',
+        'estado', 'fecha_solicitud',
+    )
+    list_filter = ('estado', 'tipo', 'tipo_acceso')
+    search_fields = (
+        'nombre_apellido', 'organizacion', 'email_institucional',
+        'usuario__username',
+    )
+    readonly_fields = (
+        'tipo', 'nombre_apellido', 'cargo', 'organizacion', 'telefono',
+        'email_institucional', 'tipo_acceso', 'motivo',
+        'fecha_solicitud', 'fecha_resolucion', 'resuelto_por', 'usuario',
+    )
+    fieldsets = (
+        ('Solicitante', {
+            'fields': (
+                'tipo', 'nombre_apellido', 'cargo', 'organizacion',
+                'telefono', 'email_institucional', 'tipo_acceso', 'motivo',
+            ),
+        }),
+        ('Resolución', {
+            'fields': (
+                'estado', 'motivo_resolucion',
+                'fecha_resolucion', 'resuelto_por', 'usuario',
+            ),
+        }),
+    )
+    actions = ['aprobar_solicitudes', 'rechazar_solicitudes']
+
+    def has_add_permission(self, request):
+        # Las solicitudes solo nacen del flujo público.
+        return False
+
+    @admin.action(description='Aprobar solicitudes seleccionadas (activa el usuario)')
+    def aprobar_solicitudes(self, request, queryset):
+        aprobadas = 0
+        for solicitud in queryset.filter(estado=SolicitudAcceso.Estado.PENDIENTE):
+            self._aprobar(request, solicitud)
+            aprobadas += 1
+        if aprobadas:
+            self.message_user(
+                request,
+                f'{aprobadas} solicitud(es) aprobada(s) y notificada(s) por email.',
+                level=messages.SUCCESS,
+            )
+        else:
+            self.message_user(
+                request,
+                'No había solicitudes pendientes en la selección.',
+                level=messages.WARNING,
+            )
+
+    @admin.action(description='Rechazar solicitudes seleccionadas (mantiene usuario inactivo)')
+    def rechazar_solicitudes(self, request, queryset):
+        rechazadas = 0
+        for solicitud in queryset.filter(estado=SolicitudAcceso.Estado.PENDIENTE):
+            self._rechazar(request, solicitud)
+            rechazadas += 1
+        if rechazadas:
+            self.message_user(
+                request,
+                f'{rechazadas} solicitud(es) rechazada(s) y notificada(s) por email.',
+                level=messages.SUCCESS,
+            )
+        else:
+            self.message_user(
+                request,
+                'No había solicitudes pendientes en la selección.',
+                level=messages.WARNING,
+            )
+
+    def save_model(self, request, obj, form, change):
+        """
+        Si el admin cambia el estado desde el formulario (en vez de usar la
+        action), aplicamos el mismo efecto: activar/desactivar usuario y
+        notificar por email. Detecta la transición comparando el estado
+        anterior persistido contra el nuevo.
+
+        Usa select_for_update dentro de un atomic para evitar la race
+        condition en la que dos admins procesan la misma solicitud a la vez.
+        """
+        previo = None
+        with transaction.atomic():
+            if obj.pk:
+                try:
+                    locked = SolicitudAcceso.objects.select_for_update().get(pk=obj.pk)
+                    previo = locked.estado
+                except SolicitudAcceso.DoesNotExist:
+                    pass
+
+            super().save_model(request, obj, form, change)
+
+            if previo == SolicitudAcceso.Estado.PENDIENTE:
+                if obj.estado == SolicitudAcceso.Estado.APROBADA:
+                    self._aprobar(request, obj, ya_guardado=True)
+                elif obj.estado == SolicitudAcceso.Estado.RECHAZADA:
+                    self._rechazar(request, obj, ya_guardado=True)
+
+    def _aprobar(self, request, solicitud, ya_guardado=False):
+        with transaction.atomic():
+            if not ya_guardado:
+                # Refetch con lock para evitar doble procesamiento concurrente.
+                try:
+                    solicitud = SolicitudAcceso.objects.select_for_update().get(pk=solicitud.pk)
+                except SolicitudAcceso.DoesNotExist:
+                    return
+                if solicitud.estado != SolicitudAcceso.Estado.PENDIENTE:
+                    return  # ya fue procesada por otro admin
+
+            usuario = solicitud.usuario
+            if usuario is not None:
+                grupo_nombre = solicitud.get_grupo_destino()
+                grupo, _ = Group.objects.get_or_create(name=grupo_nombre)
+                usuario.is_active = True
+                usuario.save(update_fields=['is_active'])
+                usuario.groups.add(grupo)
+
+            solicitud.estado = SolicitudAcceso.Estado.APROBADA
+            solicitud.fecha_resolucion = timezone.now()
+            solicitud.resuelto_por = request.user if request.user.is_authenticated else None
+            if not ya_guardado:
+                solicitud.save(update_fields=[
+                    'estado', 'fecha_resolucion', 'resuelto_por',
+                ])
+            else:
+                solicitud.save(update_fields=['fecha_resolucion', 'resuelto_por'])
+
+        try:
+            notificar_solicitud_acceso_aprobada(solicitud)
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("Error al notificar aprobación de solicitud (pk=%s)", solicitud.pk)
+
+    def _rechazar(self, request, solicitud, ya_guardado=False):
+        with transaction.atomic():
+            if not ya_guardado:
+                # Refetch con lock para evitar doble procesamiento concurrente.
+                try:
+                    solicitud = SolicitudAcceso.objects.select_for_update().get(pk=solicitud.pk)
+                except SolicitudAcceso.DoesNotExist:
+                    return
+                if solicitud.estado != SolicitudAcceso.Estado.PENDIENTE:
+                    return  # ya fue procesada por otro admin
+
+            # Liberar credenciales: borrar el user inactivo para que el email/
+            # username quede disponible si el solicitante quiere reintentar.
+            usuario = solicitud.usuario
+            if usuario is not None and not usuario.is_active:
+                solicitud.usuario = None
+                usuario.delete()
+
+            solicitud.estado = SolicitudAcceso.Estado.RECHAZADA
+            solicitud.fecha_resolucion = timezone.now()
+            solicitud.resuelto_por = request.user if request.user.is_authenticated else None
+            if not ya_guardado:
+                solicitud.save(update_fields=[
+                    'estado', 'fecha_resolucion', 'resuelto_por', 'usuario',
+                ])
+            else:
+                solicitud.save(update_fields=['fecha_resolucion', 'resuelto_por', 'usuario'])
+
+        try:
+            notificar_solicitud_acceso_rechazada(solicitud)
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("Error al notificar rechazo de solicitud (pk=%s)", solicitud.pk)

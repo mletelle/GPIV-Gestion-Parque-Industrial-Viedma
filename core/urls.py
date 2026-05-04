@@ -1,4 +1,6 @@
-from django.urls import path
+from django.contrib.auth import views as auth_views
+from django.urls import path, reverse_lazy
+from .forms import GpivPasswordResetForm, GpivSetPasswordForm
 from .views import (
     LandingPageView,
     CustomLoginView,
@@ -7,7 +9,10 @@ from .views import (
     LoteListView,
     LoteCreateView,
     LoteUpdateView,
-    RegistroView,
+    RegistroSelectorView,
+    RegistroEmpresaView,
+    SolicitudAccesoCreateView,
+    SolicitudAccesoEnviadaView,
     SolicitudCreateView,
     MiSolicitudView,
     SolicitudListView,
@@ -58,7 +63,56 @@ urlpatterns = [
     # autenticacion
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', CustomLogoutView.as_view(), name='logout'),
-    path('registro/', RegistroView.as_view(), name='registro'),
+
+    # registro: selector de tipo de cuenta
+    path('registro/', RegistroSelectorView.as_view(), name='registro'),
+    path('registro/empresa/', RegistroEmpresaView.as_view(), name='registro_empresa'),
+    path(
+        'registro/<slug:tipo_slug>/solicitud/',
+        SolicitudAccesoCreateView.as_view(),
+        name='solicitud_acceso',
+    ),
+    path(
+        'registro/solicitud-enviada/',
+        SolicitudAccesoEnviadaView.as_view(),
+        name='solicitud_acceso_enviada',
+    ),
+
+    # autenticacion: recupero de contrasena (issue #29)
+    path(
+        'password-reset/',
+        auth_views.PasswordResetView.as_view(
+            template_name='core/auth/password_reset_form.html',
+            email_template_name='core/auth/password_reset_email.html',
+            subject_template_name='core/auth/password_reset_subject.txt',
+            form_class=GpivPasswordResetForm,
+            success_url=reverse_lazy('core:password_reset_done'),
+        ),
+        name='password_reset',
+    ),
+    path(
+        'password-reset/enviado/',
+        auth_views.PasswordResetDoneView.as_view(
+            template_name='core/auth/password_reset_done.html',
+        ),
+        name='password_reset_done',
+    ),
+    path(
+        'password-reset/confirmar/<uidb64>/<token>/',
+        auth_views.PasswordResetConfirmView.as_view(
+            template_name='core/auth/password_reset_confirm.html',
+            form_class=GpivSetPasswordForm,
+            success_url=reverse_lazy('core:password_reset_complete'),
+        ),
+        name='password_reset_confirm',
+    ),
+    path(
+        'password-reset/listo/',
+        auth_views.PasswordResetCompleteView.as_view(
+            template_name='core/auth/password_reset_complete.html',
+        ),
+        name='password_reset_complete',
+    ),
 
     # inicio (protegido)
     path('inicio/', DashboardView.as_view(), name='inicio'),

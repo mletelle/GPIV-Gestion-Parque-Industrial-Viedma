@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}Solicitud enviada — GPIV{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:560px;">
+    <div class="gpiv-card text-center">
+        <div class="mb-3" style="font-size:3rem;color:var(--verde);">
+            <i class="bi bi-envelope-paper"></i>
+        </div>
+        <h2 class="sec-title mb-3" style="font-size:1.5rem;">Solicitud recibida</h2>
+        <p style="color:var(--gris-suave);font-size:0.95rem;">
+            Tu solicitud fue registrada. ENREPAVI la va a auditar y vas a recibir un correo cuando se resuelva.
+        </p>
+        <p style="color:var(--gris-suave);font-size:0.9rem;margin-bottom:1.5rem;">
+            Mientras tanto, tu cuenta queda creada pero <strong>inactiva</strong>: no vas a poder iniciar sesión
+            hasta que el acceso sea aprobado.
+        </p>
+
+        <div class="d-flex justify-content-center mt-4 pt-3" style="border-top:1px solid var(--borde);">
+            <a href="{% url 'core:landing' %}" class="btn-verde">
+                <i class="bi bi-house"></i> Volver al inicio
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

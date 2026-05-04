@@ -35,14 +35,24 @@ SERVICIO_LABELS = {
 
 def get_servicio_proveedor(user):
     """devuelve la clave de servicio (AGUA/LUZ/GAS) segun el grupo del
-    usuario, o None si no es un proveedor especifico (admin/superuser)."""
+    usuario, o None si no es un proveedor especifico (admin/superuser).
+    si el usuario pertenece a mas de un grupo proveedor, loguea un warning
+    y retorna None para que no opere con un servicio arbitrario."""
     if not user.is_authenticated:
         return None
     nombres = set(user.groups.values_list('name', flat=True))
-    for clave in SERVICIO_CAMPOS:
-        if f'PROVEEDOR_{clave}' in nombres:
-            return clave
-    return None
+    encontrados = [
+        clave for clave in SERVICIO_CAMPOS
+        if f'PROVEEDOR_{clave}' in nombres
+    ]
+    if len(encontrados) > 1:
+        logger.warning(
+            "Usuario %s pertenece a multiples grupos proveedor (%s). "
+            "No se puede determinar un servicio unico.",
+            user.username, ', '.join(encontrados),
+        )
+        return None
+    return encontrados[0] if encontrados else None
 
 
 def registrar_transicion(empresa, estado_nuevo, usuario=None, justificacion=''):
@@ -60,9 +70,9 @@ def registrar_transicion(empresa, estado_nuevo, usuario=None, justificacion=''):
     )
 
 
-# =========================================
+# 
 # emails transaccionales (mensajeria interna)
-# =========================================
+# 
 
 def enviar_email_resend(to_email, subject, html_content):
     """
@@ -212,3 +222,92 @@ def notificar_ticket_mensaje(ticket, mensaje):
     )
     subject = _sanitizar_subject(f'[GPIV] Nuevo mensaje en ticket #{ticket.id} — {nombre_emisor}')
     return enviar_email_resend(settings.SUPPORT_INBOX_EMAIL, subject, html)
+
+
+
+def notificar_solicitud_acceso_recibida(solicitud):
+    """
+    Avisa a SUPPORT_INBOX_EMAIL que llegó una solicitud nueva para auditar.
+    Se invoca desde la vista pública al crear la solicitud.
+    """
+    nombre_safe = escape(solicitud.nombre_apellido)
+    organizacion_safe = escape(solicitud.organizacion)
+    motivo_safe = escape(solicitud.motivo)
+    tipo_label = solicitud.get_tipo_display()
+    tipo_acceso_label = solicitud.get_tipo_acceso_display()
+    email_safe = escape(solicitud.email_institucional)
+    cargo_safe = escape(solicitud.cargo)
+    telefono_safe = escape(solicitud.telefono)
+
+    html = (
+        f'<h2>Nueva solicitud de acceso — {tipo_label}</h2>'
+        f'<p><strong>Solicitante:</strong> {nombre_safe} ({cargo_safe})<br>'
+        f'<strong>Organización:</strong> {organizacion_safe}<br>'
+        f'<strong>Tipo de acceso:</strong> {tipo_acceso_label}<br>'
+        f'<strong>Email institucional:</strong> {email_safe}<br>'
+        f'<strong>Teléfono:</strong> {telefono_safe}</p>'
+        '<p><strong>Motivo:</strong></p>'
+        f'<blockquote style="border-left:3px solid #6ac64f;'
+        ' padding:0.5rem 1rem; background:#f5f5f5;'
+        f' white-space:pre-wrap;">{motivo_safe}</blockquote>'
+        '<p>Revisá la solicitud en el admin de Django para aprobarla o rechazarla.</p>'
+        '<hr>'
+        '<p style="font-size:12px; color:#6B7280;">'
+        'Mensaje automático del Sistema de Gestión del Parque Industrial de'
+        ' Viedma.</p>'
+    )
+    subject = _sanitizar_subject(
+        f'[GPIV] Nueva solicitud de acceso ({tipo_label}) — {solicitud.nombre_apellido}'
+    )
+    return enviar_email_resend(settings.SUPPORT_INBOX_EMAIL, subject, html)
+
+
+def notificar_solicitud_acceso_aprobada(solicitud):
+    """Avisa al solicitante que su acceso fue habilitado."""
+    nombre_safe = escape(solicitud.nombre_apellido)
+    motivo_safe = escape(solicitud.motivo_resolucion or '')
+    motivo_block = (
+        '<p><strong>Comentario del administrador:</strong></p>'
+        f'<blockquote style="border-left:3px solid #6ac64f;'
+        ' padding:0.5rem 1rem; background:#f5f5f5;'
+        f' white-space:pre-wrap;">{motivo_safe}</blockquote>'
+    ) if solicitud.motivo_resolucion else ''
+    html = (
+        f'<h2>Tu solicitud de acceso fue aprobada</h2>'
+        f'<p>Hola {nombre_safe},</p>'
+        '<p>Tu solicitud de acceso al Sistema de Gestión del Parque Industrial '
+        'de Viedma fue <strong>aprobada</strong>. Ya podés iniciar sesión con '
+        'el usuario y la contraseña que registraste.</p>'
+        f'{motivo_block}'
+        '<hr>'
+        '<p style="font-size:12px; color:#6B7280;">'
+        'Mensaje automático de ENREPAVI · Parque Industrial de Viedma.</p>'
+    )
+    subject = _sanitizar_subject('[GPIV] Tu solicitud de acceso fue aprobada')
+    return enviar_email_resend(solicitud.email_institucional, subject, html)
+
+
+def notificar_solicitud_acceso_rechazada(solicitud):
+    """Avisa al solicitante que su acceso fue denegado."""
+    nombre_safe = escape(solicitud.nombre_apellido)
+    motivo_safe = escape(solicitud.motivo_resolucion or '')
+    motivo_block = (
+        '<p><strong>Motivo del rechazo:</strong></p>'
+        f'<blockquote style="border-left:3px solid #DC2626;'
+        ' padding:0.5rem 1rem; background:#FEF2F2;'
+        f' white-space:pre-wrap;">{motivo_safe}</blockquote>'
+    ) if solicitud.motivo_resolucion else ''
+    html = (
+        f'<h2>Tu solicitud de acceso fue rechazada</h2>'
+        f'<p>Hola {nombre_safe},</p>'
+        '<p>Lamentamos informarte que tu solicitud de acceso al Sistema de '
+        'Gestión del Parque Industrial de Viedma fue <strong>rechazada</strong>.</p>'
+        f'{motivo_block}'
+        '<p>Si considerás que se trata de un error, podés enviar documentación '
+        'adicional respondiendo a este correo.</p>'
+        '<hr>'
+        '<p style="font-size:12px; color:#6B7280;">'
+        'Mensaje automático de ENREPAVI · Parque Industrial de Viedma.</p>'
+    )
+    subject = _sanitizar_subject('[GPIV] Tu solicitud de acceso fue rechazada')
+    return enviar_email_resend(solicitud.email_institucional, subject, html)

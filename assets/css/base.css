@@ -325,8 +325,7 @@ section {
     box-shadow: none;
 }
 
-/* stepper radicacion */
-.stepper {
+.stepper-vertical {
     display: flex;
     flex-direction: column;
 }

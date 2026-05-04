@@ -1,5 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db import IntegrityError
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
@@ -81,6 +83,22 @@ class Empresa(models.Model):
         DE_200_A_500 = '200a500', _('200 – 500 m³/mes')
         MAS_500 = 'Mas500', _('Más de 500 m³/mes')
 
+    class RangoNecesidadM2(models.TextChoices):
+        HASTA_200 = 'Hasta200', _('Hasta 200 m²')
+        DE_200_A_500 = '200a500', _('200 – 500 m²')
+        DE_500_A_1000 = '500a1000', _('500 – 1000 m²')
+        DE_1000_A_2000 = '1000a2000', _('1000 – 2000 m²')
+        DE_2000_A_5000 = '2000a5000', _('2000 – 5000 m²')
+        MAS_5000 = 'Mas5000', _('Más de 5000 m²')
+
+    class TipoSocietario(models.TextChoices):
+        SRL = 'SRL', _('S.R.L.')
+        SA = 'SA', _('S.A.')
+        SAS = 'SAS', _('S.A.S.')
+        COOPERATIVA = 'Cooperativa', _('Cooperativa')
+        MONOTRIBUTISTA = 'Monotributista', _('Monotributista')
+        OTRO = 'Otro', _('Otro')
+
     # Relación 1:1 con Usuario — SET_NULL: borrar el usuario no elimina la empresa ni su historial
     usuario = models.OneToOneField(
         CustomUser,
@@ -118,7 +136,7 @@ class Empresa(models.Model):
     destino_produccion = models.TextField(blank=True, null=True)
 
     # Requerimientos de Infraestructura Lote
-    necesidad_m2 = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    necesidad_m2 = models.CharField(max_length=20, choices=RangoNecesidadM2.choices)
     superficie_cubierta_trabajo_m2 = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     superficie_cubierta_deposito_m2 = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     superficie_futura_expansion_m2 = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(0)])
@@ -144,9 +162,36 @@ class Empresa(models.Model):
     residuos_efluentes = models.TextField(blank=True, null=True)
     tratamiento_en_planta = models.BooleanField(default=False)
 
+    # Datos jurídicos / societarios (capturados en el wizard de registro)
+    tipo_societario = models.CharField(
+        max_length=20, choices=TipoSocietario.choices, blank=True, null=True,
+        verbose_name=_('Tipo societario'),
+    )
+
+    # Datos del Representante Legal (capturados en el wizard de registro)
+    representante_nombre = models.CharField(
+        max_length=150, blank=True, null=True, verbose_name=_('Representante: nombre y apellido'),
+    )
+    representante_dni = models.CharField(
+        max_length=20, blank=True, null=True, verbose_name=_('Representante: DNI'),
+    )
+    representante_cargo = models.CharField(
+        max_length=100, blank=True, null=True, verbose_name=_('Representante: cargo'),
+    )
+    representante_email = models.EmailField(
+        blank=True, null=True, verbose_name=_('Representante: email'),
+    )
+    representante_telefono = models.CharField(
+        max_length=30, blank=True, null=True, verbose_name=_('Representante: teléfono'),
+    )
+
     # Estado y Control
     estado = models.CharField(max_length=30, choices=Estado.choices, default=Estado.EN_EVALUACION)
     fecha_limite_obra = models.DateField(blank=True, null=True)
+    ultimo_aviso_vencimiento = models.DateField(
+        blank=True, null=True,
+        help_text=_('Fecha del último aviso de vencimiento enviado. Evita duplicados.'),
+    )
     escritura_pdf = models.FileField(upload_to='escrituras/', blank=True, null=True)
 
     class Meta:
@@ -156,6 +201,19 @@ class Empresa(models.Model):
 
     def __str__(self):
         return f"{self.razon_social} ({self.cuit})"
+
+    # mapeo de rango a minimo de m2 para filtrar lotes en adjudicacion
+    _RANGO_M2_MINIMO = {
+        RangoNecesidadM2.HASTA_200: 0,
+        RangoNecesidadM2.DE_200_A_500: 200,
+        RangoNecesidadM2.DE_500_A_1000: 500,
+        RangoNecesidadM2.DE_1000_A_2000: 1000,
+        RangoNecesidadM2.DE_2000_A_5000: 2000,
+        RangoNecesidadM2.MAS_5000: 5000,
+    }
+
+    def get_necesidad_m2_minimo(self):
+        return self._RANGO_M2_MINIMO.get(self.necesidad_m2, 0)
 
 
 class Lote(models.Model):
@@ -462,9 +520,134 @@ class ActivoInventario(models.Model):
         return f'{prefijo}-{anio}{correlativo:03d}'
 
     def save(self, *args, **kwargs):
-        """Auto-genera el código de inventario si no fue provisto."""
+        """Auto-genera el código de inventario si no fue provisto.
+        Reintenta hasta 5 veces en caso de colisión concurrente."""
         if not self.codigo_inventario:
             from django.utils import timezone as tz
             anio = self.fecha_alta.year if self.fecha_alta else tz.now().year
-            self.codigo_inventario = self._generar_codigo(self.categoria, anio)
-        super().save(*args, **kwargs)
+            max_intentos = 5
+            for intento in range(max_intentos):
+                self.codigo_inventario = self._generar_codigo(self.categoria, anio)
+                try:
+                    super().save(*args, **kwargs)
+                    return
+                except IntegrityError:
+                    if intento == max_intentos - 1:
+                        raise
+        else:
+            super().save(*args, **kwargs)
+
+
+class SolicitudAcceso(models.Model):
+    """
+    Solicitud de alta para usuarios de Organismo Público o Proveedor de Servicios.
+
+    A diferencia de Empresa (que se autogestiona), estos perfiles requieren
+    auditoría manual de ENREPAVI antes de habilitarse el acceso. Al aprobarse
+    la solicitud se activa el usuario y se le notifica por email.
+    """
+
+    class Tipo(models.TextChoices):
+        ORGANISMO = 'ORGANISMO', 'Organismo Público'
+        PROVEEDOR = 'PROVEEDOR', 'Proveedor de Servicios'
+
+    class Estado(models.TextChoices):
+        PENDIENTE = 'PENDIENTE', 'Pendiente'
+        APROBADA = 'APROBADA', 'Aprobada'
+        RECHAZADA = 'RECHAZADA', 'Rechazada'
+
+    # tipo_acceso: choices unificadas (filtro depende de tipo en el form/admin)
+    TIPO_ACCESO_ORGANISMO = [
+        ('MUNICIPAL', 'Municipal'),
+        ('PROVINCIAL', 'Provincial'),
+        ('NACIONAL', 'Nacional'),
+    ]
+    TIPO_ACCESO_PROVEEDOR = [
+        ('AGUA', 'Agua'),
+        ('LUZ', 'Luz'),
+        ('GAS', 'Gas'),
+    ]
+    TIPO_ACCESO_CHOICES = TIPO_ACCESO_ORGANISMO + TIPO_ACCESO_PROVEEDOR
+
+    # Mapping para asignar el grupo correcto al aprobar un proveedor
+    GRUPO_POR_TIPO_ACCESO = {
+        'AGUA': 'PROVEEDOR_AGUA',
+        'LUZ': 'PROVEEDOR_LUZ',
+        'GAS': 'PROVEEDOR_GAS',
+    }
+    GRUPO_ORGANISMO = 'ORGANISMO_PUBLICO'
+
+    tipo = models.CharField(max_length=20, choices=Tipo.choices)
+    nombre_apellido = models.CharField('Nombre y apellido', max_length=150)
+    cargo = models.CharField('Cargo', max_length=100)
+    organizacion = models.CharField(
+        'Organización',
+        max_length=200,
+        help_text='Nombre del organismo o de la empresa proveedora.',
+    )
+    telefono = models.CharField('Teléfono', max_length=30)
+    email_institucional = models.EmailField('Email institucional')
+    tipo_acceso = models.CharField(
+        'Tipo de acceso',
+        max_length=20,
+        choices=TIPO_ACCESO_CHOICES,
+    )
+    motivo = models.TextField(
+        'Motivo del acceso',
+        help_text='Describe brevemente para qué necesitás acceso al sistema.',
+    )
+
+    estado = models.CharField(
+        max_length=15,
+        choices=Estado.choices,
+        default=Estado.PENDIENTE,
+    )
+    fecha_solicitud = models.DateTimeField(auto_now_add=True)
+    fecha_resolucion = models.DateTimeField(null=True, blank=True)
+    resuelto_por = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='solicitudes_acceso_resueltas',
+        verbose_name='Resuelto por',
+    )
+    motivo_resolucion = models.TextField(
+        'Motivo de la resolución',
+        blank=True,
+        help_text='Visible para el solicitante en el email de aprobación o rechazo.',
+    )
+
+    # Usuario inactivo creado al recibir la solicitud. Se activa al aprobarse.
+    usuario = models.OneToOneField(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='solicitud_acceso',
+        verbose_name='Usuario creado',
+    )
+
+    class Meta:
+        verbose_name = 'Solicitud de Acceso'
+        verbose_name_plural = 'Solicitudes de Acceso'
+        ordering = ['-fecha_solicitud']
+        indexes = [
+            models.Index(fields=['estado', 'tipo'], name='idx_solacc_estado_tipo'),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['email_institucional'],
+                condition=Q(estado='PENDIENTE'),
+                name='uniq_solicitud_acceso_pendiente_email',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.get_tipo_display()} · {self.nombre_apellido} ({self.get_estado_display()})'
+
+    def get_grupo_destino(self) -> str:
+        """Nombre del Group a asignar al usuario cuando la solicitud se aprueba."""
+        if self.tipo == self.Tipo.ORGANISMO:
+            return self.GRUPO_ORGANISMO
+        return self.GRUPO_POR_TIPO_ACCESO[self.tipo_acceso]
