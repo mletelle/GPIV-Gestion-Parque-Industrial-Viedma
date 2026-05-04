@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import Group
@@ -36,6 +38,8 @@ from .forms import (
     SolicitudAccesoForm, RegistroEmpresaWizardForm,
 )
 from django import forms as django_forms
+
+logger = logging.getLogger(__name__)
 
 
  # landing publica
@@ -374,7 +378,7 @@ class SolicitudAccesoCreateView(CreateView):
         except Exception:  # pylint: disable=broad-except
             # No revertimos la solicitud si falla el correo: el admin la verá
             # en su bandeja igualmente.
-            pass
+            logger.exception("Error al notificar solicitud de acceso recibida (pk=%s)", self.object.pk)
 
         return redirect('core:solicitud_acceso_enviada')
 

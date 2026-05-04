@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
@@ -14,6 +16,8 @@ from .services import (
     notificar_solicitud_acceso_aprobada,
     notificar_solicitud_acceso_rechazada,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @admin.register(CustomUser)
@@ -337,7 +341,7 @@ class SolicitudAccesoAdmin(admin.ModelAdmin):
         try:
             notificar_solicitud_acceso_aprobada(solicitud)
         except Exception:  # pylint: disable=broad-except
-            pass
+            logger.exception("Error al notificar aprobación de solicitud (pk=%s)", solicitud.pk)
 
     def _rechazar(self, request, solicitud, ya_guardado=False):
         with transaction.atomic():
@@ -370,4 +374,4 @@ class SolicitudAccesoAdmin(admin.ModelAdmin):
         try:
             notificar_solicitud_acceso_rechazada(solicitud)
         except Exception:  # pylint: disable=broad-except
-            pass
+            logger.exception("Error al notificar rechazo de solicitud (pk=%s)", solicitud.pk)
