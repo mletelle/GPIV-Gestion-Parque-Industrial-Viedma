@@ -231,17 +231,10 @@
         <div class="detail-header mt-3">
             <div>
                 <h2 class="sec-title mb-0">{{ empresa.razon_social }}</h2>
-                {% if empresa.nombre_fantasia %}<p style="color:var(--gris-suave);margin:0;">{{ empresa.nombre_fantasia
-                    }}</p>{% endif %}
+                {% if empresa.nombre_fantasia %}<p style="color:var(--gris-suave);margin:0;">{{ empresa.nombre_fantasia }}</p>{% endif %}
             </div>
             <span class="estado-badge {{ empresa.estado|lower }}">{{ empresa.get_estado_display }}</span>
         </div>
-
-        {% if messages %}
-        {% for msg in messages %}
-        <div class="alert alert-{{ msg.tags }}" style="font-size:0.88rem;">{{ msg }}</div>
-        {% endfor %}
-        {% endif %}
 
         <!-- acciones segun estado -->
         <div class="acciones-bar mb-3">

@@ -263,32 +263,60 @@ class RegistroEmpresaView(View):
             #    desde el back-office si hace falta).
             empresa = Empresa.objects.create(
                 usuario=usuario,
-                #  capturados por el wizard 
+                # ── paso 1: empresa ──────────────────────────────────────────
                 razon_social=cd['razon_social'],
+                nombre_fantasia=cd.get('nombre_fantasia') or None,
                 cuit=cd['cuit'],
-                direccion=cd['direccion'],
+                ingresos_brutos=cd.get('ingresos_brutos') or None,
+                tipo_empresa=cd['tipo_empresa'],
+                objetivo_proyecto=cd.get('objetivo_proyecto') or None,
+                rubro=cd['rubro'],
+                tipo_societario=cd['tipo_societario'],
+                # ── paso 1: contacto ─────────────────────────────────────────
+                direccion=cd.get('direccion') or None,
+                persona_referente=cd['persona_referente'],
                 telefono=cd['telefono'],
                 correo_electronico=cd['correo_electronico'],
-                tipo_societario=cd['tipo_societario'],
+                # ── paso 2: actividad ────────────────────────────────────────
                 actividad_principal=cd['actividad_principal'],
-                personal_a_ocupar=cd['personal_a_ocupar'],
-                necesidad_m2=cd['necesidad_m2'],
+                actividad_secundaria=cd.get('actividad_secundaria') or None,
                 descripcion_actividad=cd['descripcion_actividad'],
+                emplazamiento_actual=cd.get('emplazamiento_actual') or None,
+                personal_jerarquico=cd.get('personal_jerarquico') or 0,
+                personal_administrativo=cd.get('personal_administrativo') or 0,
+                personal_produccion=cd.get('personal_produccion') or 0,
+                personal_a_ocupar=cd['personal_a_ocupar'],
+                materias_primas=cd.get('materias_primas') or None,
+                destino_produccion=cd.get('destino_produccion') or None,
+                # ── paso 2: infraestructura ──────────────────────────────────
+                necesidad_m2=cd['necesidad_m2'],
+                tiempo_radicacion_meses=cd['tiempo_radicacion_meses'],
+                superficie_cubierta_trabajo_m2=cd['superficie_cubierta_trabajo_m2'],
+                superficie_cubierta_deposito_m2=cd['superficie_cubierta_deposito_m2'],
+                superficie_futura_expansion_m2=cd.get('superficie_futura_expansion_m2') or None,
+                superficie_estacionamiento_m2=cd.get('superficie_estacionamiento_m2') or None,
                 tiene_planos=cd['tiene_planos'],
+                # ── paso 2: servicios ────────────────────────────────────────
+                energia_tension=cd.get('energia_tension') or None,
+                energia_potencia_rango=cd.get('energia_potencia_rango') or None,
+                consumo_estimado_agua_potable=cd.get('consumo_estimado_agua_potable') or None,
+                consumo_estimado_agua_cruda=cd.get('consumo_estimado_agua_cruda') or None,
+                gas=cd.get('gas', False),
+                requiere_internet=cd.get('requiere_internet', False),
+                necesidad_balanza_publica=cd.get('necesidad_balanza_publica', False),
+                necesidad_comedor=cd.get('necesidad_comedor', False),
+                necesidad_salon_multiuso=cd.get('necesidad_salon_multiuso', False),
+                # ── paso 2: impacto ambiental ────────────────────────────────
+                categoria_industrial=cd['categoria_industrial'],
+                maneja_inflamables=cd.get('maneja_inflamables', False),
+                genera_residuos=cd.get('genera_residuos', False),
+                tratamiento_en_planta=cd.get('tratamiento_en_planta', False),
+                # ── paso 3: representante legal ──────────────────────────────
                 representante_nombre=cd['representante_nombre'],
                 representante_dni=cd['representante_dni'],
                 representante_cargo=cd['representante_cargo'],
                 representante_email=cd['representante_email'],
                 representante_telefono=cd['representante_telefono'],
-                # espejo: persona_referente legacy = representante_nombre
-                persona_referente=cd['representante_nombre'],
-                #  defaults para campos NOT NULL no capturados 
-                tipo_empresa=Empresa.TipoEmpresa.NUEVA,
-                rubro=Empresa.Rubro.OTRO,
-                categoria_industrial=Empresa.CategoriaIndustrial.OTRO,
-                superficie_cubierta_trabajo_m2=0,
-                superficie_cubierta_deposito_m2=0,
-                tiempo_radicacion_meses=Empresa.TiempoRadicacion.MESES_12,
                 estado=Empresa.Estado.EN_EVALUACION,
             )
 

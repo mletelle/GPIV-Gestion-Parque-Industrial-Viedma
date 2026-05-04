@@ -673,27 +673,142 @@ class RegistroEmpresaWizardForm(forms.Form):
         choices=[('', 'Seleccioná...')] + list(Empresa.TipoSocietario.choices),
         widget=forms.Select(attrs=_SEL),
     )
-
-    actividad_principal = forms.CharField(
-        label='Rubro / Actividad', max_length=200,
+    nombre_fantasia = forms.CharField(
+        label='Nombre de fantasía', max_length=150, required=False,
         widget=forms.TextInput(attrs=_TXT),
     )
+    ingresos_brutos = forms.CharField(
+        label='Ingresos brutos', max_length=50, required=False,
+        widget=forms.TextInput(attrs=_TXT),
+    )
+    tipo_empresa = forms.ChoiceField(
+        label='Tipo de empresa',
+        choices=[('', 'Seleccioná...')] + list(Empresa.TipoEmpresa.choices),
+        widget=forms.Select(attrs=_SEL),
+    )
+    objetivo_proyecto = forms.ChoiceField(
+        label='Objetivo del proyecto', required=False,
+        choices=[('', '—')] + list(Empresa.ObjetivoProyecto.choices),
+        widget=forms.Select(attrs=_SEL),
+    )
+    rubro = forms.ChoiceField(
+        label='Rubro',
+        choices=[('', 'Seleccioná...')] + list(Empresa.Rubro.choices),
+        widget=forms.Select(attrs=_SEL),
+    )
+    persona_referente = forms.CharField(
+        label='Persona referente', max_length=150,
+        widget=forms.TextInput(attrs=_TXT),
+    )
+
+    # ── Paso 2: Proyecto industrial ──────────────────────────────────────────
+    actividad_principal = forms.CharField(
+        label='Actividad principal', max_length=200,
+        widget=forms.TextInput(attrs=_TXT),
+    )
+    actividad_secundaria = forms.CharField(
+        label='Actividad secundaria', max_length=200, required=False,
+        widget=forms.TextInput(attrs=_TXT),
+    )
+    descripcion_actividad = forms.CharField(
+        label='Descripción del servicio o bien ofrecido',
+        widget=forms.Textarea(attrs={**_TXT, 'rows': 3}),
+    )
+    emplazamiento_actual = forms.ChoiceField(
+        label='Emplazamiento actual', required=False,
+        choices=[('', '—')] + list(Empresa.EmplazamientoActual.choices),
+        widget=forms.Select(attrs=_SEL),
+    )
+    personal_jerarquico = forms.IntegerField(
+        label='Personal jerárquico', min_value=0, required=False, initial=0,
+        widget=forms.NumberInput(attrs={**_NUM, 'min': '0'}),
+    )
+    personal_administrativo = forms.IntegerField(
+        label='Personal administrativo', min_value=0, required=False, initial=0,
+        widget=forms.NumberInput(attrs={**_NUM, 'min': '0'}),
+    )
+    personal_produccion = forms.IntegerField(
+        label='Personal de producción', min_value=0, required=False, initial=0,
+        widget=forms.NumberInput(attrs={**_NUM, 'min': '0'}),
+    )
     personal_a_ocupar = forms.IntegerField(
-        label='Empleados proyectados', min_value=0,
+        label='Personal total a ocupar', min_value=0,
         widget=forms.NumberInput(attrs=_NUM),
     )
+    materias_primas = forms.CharField(
+        label='Materias primas (tipo y origen)', required=False,
+        widget=forms.Textarea(attrs={**_TXT, 'rows': 2}),
+    )
+    destino_produccion = forms.CharField(
+        label='Destino de la producción', required=False,
+        widget=forms.Textarea(attrs={**_TXT, 'rows': 2}),
+    )
     necesidad_m2 = forms.ChoiceField(
-        label='Superficie requerida (m²)',
+        label='Necesidad de lote (m²)',
         choices=[('', 'Seleccioná...')] + list(Empresa.RangoNecesidadM2.choices),
         widget=forms.Select(attrs=_SEL),
     )
-    descripcion_actividad = forms.CharField(
-        label='Descripción del proyecto',
-        widget=forms.Textarea(attrs={**_TXT, 'rows': 4}),
+    tiempo_radicacion_meses = forms.ChoiceField(
+        label='Tiempo de radicación',
+        choices=[('', 'Seleccioná...')] + list(Empresa.TiempoRadicacion.choices),
+        widget=forms.Select(attrs=_SEL),
+    )
+    superficie_cubierta_trabajo_m2 = forms.DecimalField(
+        label='Sup. cubierta de trabajo (m²)', min_value=0,
+        max_digits=10, decimal_places=2,
+        widget=forms.NumberInput(attrs={**_NUM, 'step': '0.01', 'min': '0'}),
+    )
+    superficie_cubierta_deposito_m2 = forms.DecimalField(
+        label='Sup. cubierta de depósito (m²)', min_value=0,
+        max_digits=10, decimal_places=2,
+        widget=forms.NumberInput(attrs={**_NUM, 'step': '0.01', 'min': '0'}),
+    )
+    superficie_futura_expansion_m2 = forms.DecimalField(
+        label='Sup. futura expansión (m²)', min_value=0,
+        max_digits=10, decimal_places=2, required=False,
+        widget=forms.NumberInput(attrs={**_NUM, 'step': '0.01', 'min': '0'}),
+    )
+    superficie_estacionamiento_m2 = forms.DecimalField(
+        label='Sup. estacionamiento (m²)', min_value=0,
+        max_digits=10, decimal_places=2, required=False,
+        widget=forms.NumberInput(attrs={**_NUM, 'step': '0.01', 'min': '0'}),
     )
     tiene_planos = forms.BooleanField(
-        label='Cuenta con proyecto constructivo aprobado', required=False,
+        label='Tiene planos confeccionados', required=False,
     )
+    energia_tension = forms.ChoiceField(
+        label='Energía eléctrica — tensión', required=False,
+        choices=[('', '—')] + list(Empresa.TensionElectrica.choices),
+        widget=forms.Select(attrs=_SEL),
+    )
+    energia_potencia_rango = forms.ChoiceField(
+        label='Energía eléctrica — potencia (kW)', required=False,
+        choices=[('', '—')] + list(Empresa.RangoPotencia.choices),
+        widget=forms.Select(attrs=_SEL),
+    )
+    consumo_estimado_agua_potable = forms.ChoiceField(
+        label='Consumo agua potable estimado', required=False,
+        choices=[('', '—')] + list(Empresa.RangoConsumoAgua.choices),
+        widget=forms.Select(attrs=_SEL),
+    )
+    consumo_estimado_agua_cruda = forms.ChoiceField(
+        label='Consumo agua cruda/industrial estimado', required=False,
+        choices=[('', '—')] + list(Empresa.RangoConsumoAgua.choices),
+        widget=forms.Select(attrs=_SEL),
+    )
+    gas = forms.BooleanField(label='Gas', required=False)
+    requiere_internet = forms.BooleanField(label='Requiere internet', required=False)
+    necesidad_balanza_publica = forms.BooleanField(label='Necesidad de balanza pública', required=False)
+    necesidad_comedor = forms.BooleanField(label='Necesidad de comedor comunitario', required=False)
+    necesidad_salon_multiuso = forms.BooleanField(label='Necesidad de salón de usos múltiples', required=False)
+    categoria_industrial = forms.ChoiceField(
+        label='Categoría industrial',
+        choices=[('', 'Seleccioná...')] + list(Empresa.CategoriaIndustrial.choices),
+        widget=forms.Select(attrs=_SEL),
+    )
+    maneja_inflamables = forms.BooleanField(label='Maneja materiales inflamables', required=False)
+    genera_residuos = forms.BooleanField(label='Genera residuos / efluentes', required=False)
+    tratamiento_en_planta = forms.BooleanField(label='Prevé tratamiento en planta', required=False)
 
     representante_nombre = forms.CharField(
         label='Nombre y apellido', max_length=150,

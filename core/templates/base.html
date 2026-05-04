@@ -131,6 +131,13 @@
     {% endif %}
 
     <main class="{% if user.is_authenticated %}main-with-sidebar{% endif %}">
+        {% if messages %}
+        <div class="container" style="padding-top:1rem;">
+            {% for msg in messages %}
+            <div class="alert alert-{{ msg.tags }}" role="alert" style="font-size:0.88rem;">{{ msg }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
         {% block content %}{% endblock %}
     </main>
 
