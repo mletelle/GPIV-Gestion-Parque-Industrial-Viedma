@@ -113,25 +113,66 @@
         <div class="gpiv-card mb-3">
             <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Información Fiscal</h5>
             <div class="dato-row"><span class="dato-label">Razón Social</span><span>{{ empresa.razon_social }}</span></div>
-            <div class="dato-row"><span class="dato-label">Nombre de Fantasía</span><span>{{ empresa.nombre_fantasia|default:"-" }}</span></div>
+            <div class="dato-row"><span class="dato-label">Nombre de Fantasía</span><span>{{ empresa.nombre_fantasia|default:"—" }}</span></div>
             <div class="dato-row"><span class="dato-label">CUIT</span><span>{{ empresa.cuit }}</span></div>
+            <div class="dato-row"><span class="dato-label">Ingresos Brutos</span><span>{{ empresa.ingresos_brutos|default:"—" }}</span></div>
             <div class="dato-row"><span class="dato-label">Tipo de Empresa</span><span>{{ empresa.get_tipo_empresa_display }}</span></div>
+            <div class="dato-row"><span class="dato-label">Objetivo del Proyecto</span><span>{{ empresa.get_objetivo_proyecto_display|default:"—" }}</span></div>
             <div class="dato-row"><span class="dato-label">Rubro</span><span>{{ empresa.get_rubro_display }}</span></div>
             <div class="dato-row"><span class="dato-label">Actividad Principal</span><span>{{ empresa.actividad_principal }}</span></div>
+            <div class="dato-row"><span class="dato-label">Actividad Secundaria</span><span>{{ empresa.actividad_secundaria|default:"—" }}</span></div>
+            <div class="dato-row"><span class="dato-label">Descripción de Actividad</span><span>{{ empresa.descripcion_actividad }}</span></div>
         </div>
 
         <div class="gpiv-card mb-3">
-            <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Contacto</h5>
-            <div class="dato-row"><span class="dato-label">Referente</span><span>{{ empresa.persona_referente }}</span></div>
+            <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Información de Contacto</h5>
+            <div class="dato-row"><span class="dato-label">Dirección</span><span>{{ empresa.direccion|default:"—" }}</span></div>
+            <div class="dato-row"><span class="dato-label">Persona Referente</span><span>{{ empresa.persona_referente }}</span></div>
             <div class="dato-row"><span class="dato-label">Teléfono</span><span>{{ empresa.telefono }}</span></div>
-            <div class="dato-row"><span class="dato-label">Email</span><span>{{ empresa.correo_electronico }}</span></div>
+            <div class="dato-row"><span class="dato-label">Correo Electrónico</span><span>{{ empresa.correo_electronico }}</span></div>
         </div>
 
         <div class="gpiv-card mb-3">
-            <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Requerimientos</h5>
-            <div class="dato-row"><span class="dato-label">Superficie requerida</span><span>{{ empresa.get_necesidad_m2_display }}</span></div>
-            <div class="dato-row"><span class="dato-label">Tiempo de radicación</span><span>{{ empresa.get_tiempo_radicacion_meses_display }}</span></div>
+            <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Detalle del Proyecto</h5>
+            <div class="dato-row"><span class="dato-label">Emplazamiento Actual</span><span>{{ empresa.get_emplazamiento_actual_display|default:"—" }}</span></div>
+            <div class="dato-row"><span class="dato-label">Personal Jerárquico</span><span>{{ empresa.personal_jerarquico }}</span></div>
+            <div class="dato-row"><span class="dato-label">Personal Administrativo</span><span>{{ empresa.personal_administrativo }}</span></div>
+            <div class="dato-row"><span class="dato-label">Personal de Producción</span><span>{{ empresa.personal_produccion }}</span></div>
+            <div class="dato-row"><span class="dato-label">Personal a Ocupar</span><span>{{ empresa.personal_a_ocupar }}</span></div>
+            <div class="dato-row"><span class="dato-label">Materias Primas</span><span>{{ empresa.materias_primas|default:"—" }}</span></div>
+            <div class="dato-row"><span class="dato-label">Destino de la Producción</span><span>{{ empresa.destino_produccion|default:"—" }}</span></div>
+        </div>
+
+        <div class="gpiv-card mb-3">
+            <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Requerimientos de Infraestructura</h5>
+            <div class="dato-row"><span class="dato-label">Necesidad de Lote</span><span>{{ empresa.get_necesidad_m2_display }}</span></div>
+            <div class="dato-row"><span class="dato-label">Tiempo de Radicación</span><span>{{ empresa.get_tiempo_radicacion_meses_display }}</span></div>
+            <div class="dato-row"><span class="dato-label">Sup. Cubierta de Trabajo (m²)</span><span>{{ empresa.superficie_cubierta_trabajo_m2|floatformat:2 }}</span></div>
+            <div class="dato-row"><span class="dato-label">Sup. Cubierta de Depósito (m²)</span><span>{{ empresa.superficie_cubierta_deposito_m2|floatformat:2 }}</span></div>
+            <div class="dato-row"><span class="dato-label">Sup. Futura Expansión (m²)</span><span>{{ empresa.superficie_futura_expansion_m2|floatformat:2|default:"—" }}</span></div>
+            <div class="dato-row"><span class="dato-label">Sup. Estacionamiento (m²)</span><span>{{ empresa.superficie_estacionamiento_m2|floatformat:2|default:"—" }}</span></div>
+            <div class="dato-row"><span class="dato-label">Tiene Planos</span><span>{% if empresa.tiene_planos %}Sí{% else %}No{% endif %}</span></div>
+        </div>
+
+        <div class="gpiv-card mb-3">
+            <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Requerimientos de Servicios</h5>
+            <div class="dato-row"><span class="dato-label">Energía — Tensión</span><span>{{ empresa.get_energia_tension_display|default:"—" }}</span></div>
+            <div class="dato-row"><span class="dato-label">Energía — Potencia</span><span>{{ empresa.get_energia_potencia_rango_display|default:"—" }}</span></div>
+            <div class="dato-row"><span class="dato-label">Consumo Agua Potable</span><span>{{ empresa.get_consumo_estimado_agua_potable_display|default:"—" }}</span></div>
+            <div class="dato-row"><span class="dato-label">Consumo Agua Cruda</span><span>{{ empresa.get_consumo_estimado_agua_cruda_display|default:"—" }}</span></div>
+            <div class="dato-row"><span class="dato-label">Gas</span><span>{% if empresa.gas %}Sí{% else %}No{% endif %}</span></div>
+            <div class="dato-row"><span class="dato-label">Requiere Internet</span><span>{% if empresa.requiere_internet %}Sí{% else %}No{% endif %}</span></div>
+            <div class="dato-row"><span class="dato-label">Balanza Pública</span><span>{% if empresa.necesidad_balanza_publica %}Sí{% else %}No{% endif %}</span></div>
+            <div class="dato-row"><span class="dato-label">Comedor Comunitario</span><span>{% if empresa.necesidad_comedor %}Sí{% else %}No{% endif %}</span></div>
+            <div class="dato-row"><span class="dato-label">Salón de Usos Múltiples</span><span>{% if empresa.necesidad_salon_multiuso %}Sí{% else %}No{% endif %}</span></div>
+        </div>
+
+        <div class="gpiv-card mb-3">
+            <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Impacto Ambiental</h5>
             <div class="dato-row"><span class="dato-label">Categoría Industrial</span><span>{{ empresa.get_categoria_industrial_display }}</span></div>
+            <div class="dato-row"><span class="dato-label">Maneja Inflamables</span><span>{% if empresa.maneja_inflamables %}Sí{% else %}No{% endif %}</span></div>
+            <div class="dato-row"><span class="dato-label">Genera Residuos</span><span>{% if empresa.genera_residuos %}Sí{% else %}No{% endif %}</span></div>
+            <div class="dato-row"><span class="dato-label">Tratamiento en Planta</span><span>{% if empresa.tratamiento_en_planta %}Sí{% else %}No{% endif %}</span></div>
         </div>
 
         {% if lote %}
