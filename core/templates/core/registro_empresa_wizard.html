@@ -62,19 +62,31 @@
         white-space: nowrap;
     }
 
-    .stepper .step::before,
-    .stepper .step::after {
+    /* línea base única que corre de círculo a círculo */
+    .stepper::before {
         content: '';
         position: absolute;
         top: 17px;
-        height: 2px;
+        left: 12.5%;
+        right: 12.5%;
+        height: 3px;
         background: var(--borde);
+        border-radius: 2px;
         z-index: 0;
     }
-    .stepper .step::before { left: 0; right: 50%; }
-    .stepper .step::after  { left: 50%; right: 0; }
-    .stepper .step:first-child::before { display: none; }
-    .stepper .step:last-child::after  { display: none; }
+    /* segmento verde que avanza con el wizard */
+    .stepper::after {
+        content: '';
+        position: absolute;
+        top: 17px;
+        left: 12.5%;
+        width: var(--progress-width, 0%);
+        height: 3px;
+        background: var(--verde);
+        border-radius: 2px;
+        z-index: 0;
+        transition: width .3s ease;
+    }
 
     .stepper .step.is-active .step-circle {
         background: var(--verde);
@@ -97,10 +109,7 @@
     }
     .stepper .step.is-done .step-circle .num { display: none; }
 
-    .stepper .step.is-done::after,
-    .stepper .step.is-done + .step::before {
-        background: var(--verde);
-    }
+
 
     /* Card del paso */
     .step-card {
@@ -217,7 +226,7 @@
         {#  Paso 1: Datos de la empresa  #}
         <div class="step-pane is-active" data-step="1">
             <div class="step-card">
-                <h3>Datos de la empresa</h3>
+                <h3>Información Fiscal</h3>
                 <div class="row g-3">
                     <div class="col-md-8">
                         <label class="field-label" for="{{ form.razon_social.id_for_label }}">Razón social *</label>
@@ -229,25 +238,60 @@
                         {{ form.cuit }}
                         {% for e in form.cuit.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
                     </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.nombre_fantasia.id_for_label }}">Nombre de fantasía</label>
+                        {{ form.nombre_fantasia }}
+                        {% for e in form.nombre_fantasia.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.ingresos_brutos.id_for_label }}">Ingresos brutos</label>
+                        {{ form.ingresos_brutos }}
+                        {% for e in form.ingresos_brutos.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.tipo_empresa.id_for_label }}">Tipo de empresa *</label>
+                        {{ form.tipo_empresa }}
+                        {% for e in form.tipo_empresa.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.objetivo_proyecto.id_for_label }}">Objetivo del proyecto</label>
+                        {{ form.objetivo_proyecto }}
+                        {% for e in form.objetivo_proyecto.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.rubro.id_for_label }}">Rubro *</label>
+                        {{ form.rubro }}
+                        {% for e in form.rubro.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.tipo_societario.id_for_label }}">Tipo societario *</label>
+                        {{ form.tipo_societario }}
+                        {% for e in form.tipo_societario.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="step-card" style="margin-top:1rem;">
+                <h3>Información de Contacto</h3>
+                <div class="row g-3">
                     <div class="col-12">
-                        <label class="field-label" for="{{ form.direccion.id_for_label }}">Domicilio legal *</label>
+                        <label class="field-label" for="{{ form.direccion.id_for_label }}">Dirección</label>
                         {{ form.direccion }}
                         {% for e in form.direccion.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.persona_referente.id_for_label }}">Persona referente *</label>
+                        {{ form.persona_referente }}
+                        {% for e in form.persona_referente.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
                     </div>
                     <div class="col-md-6">
                         <label class="field-label" for="{{ form.telefono.id_for_label }}">Teléfono *</label>
                         {{ form.telefono }}
                         {% for e in form.telefono.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-12">
                         <label class="field-label" for="{{ form.correo_electronico.id_for_label }}">Correo electrónico *</label>
                         {{ form.correo_electronico }}
                         {% for e in form.correo_electronico.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
-                    </div>
-                    <div class="col-md-6">
-                        <label class="field-label" for="{{ form.tipo_societario.id_for_label }}">Tipo societario *</label>
-                        {{ form.tipo_societario }}
-                        {% for e in form.tipo_societario.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
                     </div>
                 </div>
             </div>
@@ -260,34 +304,183 @@
         {#  Paso 2: Proyecto industrial  #}
         <div class="step-pane" data-step="2">
             <div class="step-card">
-                <h3>Proyecto industrial</h3>
+                <h3>Detalle del Proyecto / Actividad</h3>
                 <div class="row g-3">
-                    <div class="col-md-8">
-                        <label class="field-label" for="{{ form.actividad_principal.id_for_label }}">Rubro / Actividad *</label>
+                    <div class="col-12">
+                        <label class="field-label" for="{{ form.actividad_principal.id_for_label }}">Actividad principal *</label>
                         {{ form.actividad_principal }}
                         {% for e in form.actividad_principal.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
                     </div>
-                    <div class="col-md-4">
-                        <label class="field-label" for="{{ form.personal_a_ocupar.id_for_label }}">Empleados proyectados *</label>
+                    <div class="col-12">
+                        <label class="field-label" for="{{ form.actividad_secundaria.id_for_label }}">Actividad secundaria</label>
+                        {{ form.actividad_secundaria }}
+                        {% for e in form.actividad_secundaria.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-12">
+                        <label class="field-label" for="{{ form.descripcion_actividad.id_for_label }}">Descripción del servicio o bien ofrecido *</label>
+                        {{ form.descripcion_actividad }}
+                        {% for e in form.descripcion_actividad.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.emplazamiento_actual.id_for_label }}">Emplazamiento actual</label>
+                        {{ form.emplazamiento_actual }}
+                        {% for e in form.emplazamiento_actual.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.personal_a_ocupar.id_for_label }}">Personal total a ocupar *</label>
                         {{ form.personal_a_ocupar }}
                         {% for e in form.personal_a_ocupar.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
                     </div>
+                    <div class="col-md-4">
+                        <label class="field-label" for="{{ form.personal_jerarquico.id_for_label }}">Personal jerárquico</label>
+                        {{ form.personal_jerarquico }}
+                        {% for e in form.personal_jerarquico.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="field-label" for="{{ form.personal_administrativo.id_for_label }}">Personal administrativo</label>
+                        {{ form.personal_administrativo }}
+                        {% for e in form.personal_administrativo.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="field-label" for="{{ form.personal_produccion.id_for_label }}">Personal de producción</label>
+                        {{ form.personal_produccion }}
+                        {% for e in form.personal_produccion.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
                     <div class="col-md-6">
-                        <label class="field-label" for="{{ form.necesidad_m2.id_for_label }}">Superficie requerida (m²) *</label>
+                        <label class="field-label" for="{{ form.materias_primas.id_for_label }}">Materias primas</label>
+                        {{ form.materias_primas }}
+                        {% for e in form.materias_primas.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.destino_produccion.id_for_label }}">Destino de la producción</label>
+                        {{ form.destino_produccion }}
+                        {% for e in form.destino_produccion.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="step-card" style="margin-top:1rem;">
+                <h3>Requerimientos de Infraestructura</h3>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.necesidad_m2.id_for_label }}">Necesidad de lote (m²) *</label>
                         {{ form.necesidad_m2 }}
                         {% for e in form.necesidad_m2.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
                     </div>
-                    <div class="col-12">
-                        <label class="field-label" for="{{ form.descripcion_actividad.id_for_label }}">Descripción del proyecto *</label>
-                        {{ form.descripcion_actividad }}
-                        {% for e in form.descripcion_actividad.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.tiempo_radicacion_meses.id_for_label }}">Tiempo de radicación *</label>
+                        {{ form.tiempo_radicacion_meses }}
+                        {% for e in form.tiempo_radicacion_meses.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.superficie_cubierta_trabajo_m2.id_for_label }}">Sup. cubierta de trabajo (m²) *</label>
+                        {{ form.superficie_cubierta_trabajo_m2 }}
+                        {% for e in form.superficie_cubierta_trabajo_m2.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.superficie_cubierta_deposito_m2.id_for_label }}">Sup. cubierta de depósito (m²) *</label>
+                        {{ form.superficie_cubierta_deposito_m2 }}
+                        {% for e in form.superficie_cubierta_deposito_m2.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.superficie_futura_expansion_m2.id_for_label }}">Sup. futura expansión (m²)</label>
+                        {{ form.superficie_futura_expansion_m2 }}
+                        {% for e in form.superficie_futura_expansion_m2.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.superficie_estacionamiento_m2.id_for_label }}">Sup. estacionamiento (m²)</label>
+                        {{ form.superficie_estacionamiento_m2 }}
+                        {% for e in form.superficie_estacionamiento_m2.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
                     </div>
                     <div class="col-12">
                         <div class="form-check">
                             {{ form.tiene_planos }}
                             <label class="form-check-label" for="{{ form.tiene_planos.id_for_label }}">
-                                Cuenta con proyecto constructivo aprobado
+                                Tiene planos confeccionados
                             </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="step-card" style="margin-top:1rem;">
+                <h3>Requerimientos de Servicios</h3>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.energia_tension.id_for_label }}">Energía eléctrica — tensión</label>
+                        {{ form.energia_tension }}
+                        {% for e in form.energia_tension.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.energia_potencia_rango.id_for_label }}">Potencia instalada simultánea</label>
+                        {{ form.energia_potencia_rango }}
+                        {% for e in form.energia_potencia_rango.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.consumo_estimado_agua_potable.id_for_label }}">Consumo agua potable estimado</label>
+                        {{ form.consumo_estimado_agua_potable }}
+                        {% for e in form.consumo_estimado_agua_potable.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.consumo_estimado_agua_cruda.id_for_label }}">Consumo agua cruda/industrial estimado</label>
+                        {{ form.consumo_estimado_agua_cruda }}
+                        {% for e in form.consumo_estimado_agua_cruda.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            {{ form.gas }}
+                            <label class="form-check-label" for="{{ form.gas.id_for_label }}">Gas</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            {{ form.requiere_internet }}
+                            <label class="form-check-label" for="{{ form.requiere_internet.id_for_label }}">Requiere internet</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            {{ form.necesidad_balanza_publica }}
+                            <label class="form-check-label" for="{{ form.necesidad_balanza_publica.id_for_label }}">Balanza pública</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            {{ form.necesidad_comedor }}
+                            <label class="form-check-label" for="{{ form.necesidad_comedor.id_for_label }}">Comedor comunitario</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            {{ form.necesidad_salon_multiuso }}
+                            <label class="form-check-label" for="{{ form.necesidad_salon_multiuso.id_for_label }}">Salón de usos múltiples</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="step-card" style="margin-top:1rem;">
+                <h3>Impacto Ambiental</h3>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="field-label" for="{{ form.categoria_industrial.id_for_label }}">Categoría industrial *</label>
+                        {{ form.categoria_industrial }}
+                        {% for e in form.categoria_industrial.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-6"></div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            {{ form.maneja_inflamables }}
+                            <label class="form-check-label" for="{{ form.maneja_inflamables.id_for_label }}">Maneja inflamables</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            {{ form.genera_residuos }}
+                            <label class="form-check-label" for="{{ form.genera_residuos.id_for_label }}">Genera residuos / efluentes</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            {{ form.tratamiento_en_planta }}
+                            <label class="form-check-label" for="{{ form.tratamiento_en_planta.id_for_label }}">Tratamiento en planta</label>
                         </div>
                     </div>
                 </div>
@@ -420,6 +613,11 @@
             s.classList.toggle('is-active', n === current);
             s.classList.toggle('is-done', n < current);
         });
+        // avanzar la línea verde: el track ocupa 75% del ancho (de 12.5% a 87.5%)
+        const progress = (current - 1) / (TOTAL - 1);
+        document.getElementById('wizard-stepper').style.setProperty(
+            '--progress-width', (progress * 75).toFixed(1) + '%'
+        );
         // scroll al inicio del wizard cuando cambia el paso
         document.querySelector('.wizard-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
