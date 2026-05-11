@@ -61,7 +61,7 @@
 
             {% if 'ADMIN_ENREPAVI' in user_groups or user.is_superuser %}
             <a href="{% url 'core:solicitud_list' %}"
-                class="sidebar-link {% if 'solicitud' in request.resolver_match.url_name or request.resolver_match.url_name == 'adjudicacion' %}active{% endif %}">
+                class="sidebar-link {% if 'solicitud' in request.resolver_match.url_name and 'solicitud_acceso' not in request.resolver_match.url_name or request.resolver_match.url_name == 'adjudicacion' %}active{% endif %}">
                 <i class="bi bi-file-earmark-text"></i> Solicitudes
             </a>
             <a href="{% url 'core:solicitud_acceso_list' %}"
@@ -72,6 +72,7 @@
                 class="sidebar-link {% if 'lote' in request.resolver_match.url_name %}active{% endif %}">
                 <i class="bi bi-grid-3x3-gap"></i> Gestión de Lotes
             </a>
+
 
             <a href="{% url 'core:avances_pendientes' %}"
                 class="sidebar-link {% if 'avance' in request.resolver_match.url_name %}active{% endif %}">

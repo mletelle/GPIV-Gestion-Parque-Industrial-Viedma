@@ -213,8 +213,7 @@
                         <textarea id="obs_aprobar" name="observaciones_admin" class="form-control"
                                   rows="3" placeholder="Comentario para el usuario aprobado..."></textarea>
                     </div>
-                    <button type="submit" class="btn-verde w-100 justify-content-center"
-                            onclick="return confirm('¿Confirmar aprobación de esta solicitud?')">
+                    <button type="submit" class="btn-verde w-100 justify-content-center">
                         <i class="bi bi-check-lg me-1"></i> Aprobar
                     </button>
                 </form>
@@ -236,8 +235,7 @@
                         <textarea id="obs_rechazar" name="observaciones_admin" class="form-control"
                                   rows="3" placeholder="Motivo obligatorio..." required></textarea>
                     </div>
-                    <button type="submit" class="btn btn-danger w-100"
-                            onclick="return confirm('¿Confirmar el rechazo de esta solicitud?')">
+                    <button type="submit" class="btn btn-danger w-100">
                         <i class="bi bi-x-lg me-1"></i> Rechazar
                     </button>
                 </form>
@@ -245,6 +243,7 @@
         </div>
     </div>
     {% endif %}
+
 
 </div>
 {% endblock %}
