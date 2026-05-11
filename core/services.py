@@ -311,3 +311,15 @@ def notificar_solicitud_acceso_rechazada(solicitud):
     )
     subject = _sanitizar_subject('[GPIV] Tu solicitud de acceso fue rechazada')
     return enviar_email_resend(solicitud.email_institucional, subject, html)
+
+
+def notificar_solicitud_acceso_resuelta(solicitud):
+    """
+    Delega en el notificador apropiado según el estado de la solicitud.
+    Llamar desde las vistas de aprobación/rechazo (fuera del atomic).
+    """
+    from .models import SolicitudAcceso
+    if solicitud.estado == SolicitudAcceso.Estado.APROBADA:
+        return notificar_solicitud_acceso_aprobada(solicitud)
+    return notificar_solicitud_acceso_rechazada(solicitud)
+

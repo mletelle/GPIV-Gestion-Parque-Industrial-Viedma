@@ -596,6 +596,13 @@ class SolicitudAcceso(models.Model):
         'Motivo del acceso',
         help_text='Describe brevemente para qué necesitás acceso al sistema.',
     )
+    documentacion_pdf = models.FileField(
+        upload_to='solicitudes_acceso/',
+        null=True,
+        blank=True,
+        verbose_name='Documentación acreditante (PDF)',
+        help_text='Credencial, nota oficial, contrato u otro documento que acredite su rol. Solo formato PDF.',
+    )
 
     estado = models.CharField(
         max_length=15,

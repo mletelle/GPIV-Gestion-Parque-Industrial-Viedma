@@ -38,6 +38,11 @@ from .views import (
     ReporteOcupacionView,
     ReporteEmpresasView,
     ReporteConsumoView,
+    # admin: solicitudes de acceso (organismos y proveedores)
+    SolicitudAccesoListView,
+    SolicitudAccesoDetailView,
+    SolicitudAccesoAprobarView,
+    SolicitudAccesoRechazarView,
     # mensajeria interna (ticketera)
     TicketListView,
     TicketCreateView,
@@ -167,6 +172,12 @@ urlpatterns = [
     path('mensajes/', TicketListView.as_view(), name='ticket_list'),
     path('mensajes/nuevo/', TicketCreateView.as_view(), name='ticket_create'),
     path('mensajes/<int:pk>/', TicketDetailView.as_view(), name='ticket_detail'),
+
+    # admin: solicitudes de acceso (organismos y proveedores)
+    path('panel/accesos/', SolicitudAccesoListView.as_view(), name='solicitud_acceso_list'),
+    path('panel/accesos/<int:pk>/', SolicitudAccesoDetailView.as_view(), name='solicitud_acceso_detail'),
+    path('panel/accesos/<int:pk>/aprobar/', SolicitudAccesoAprobarView.as_view(), name='solicitud_acceso_aprobar'),
+    path('panel/accesos/<int:pk>/rechazar/', SolicitudAccesoRechazarView.as_view(), name='solicitud_acceso_rechazar'),
 
     # mensajería interna / ticketera (admin)
     path('panel/mensajes/', AdminTicketListView.as_view(), name='admin_ticket_list'),

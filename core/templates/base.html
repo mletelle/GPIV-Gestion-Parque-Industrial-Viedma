@@ -64,10 +64,15 @@
                 class="sidebar-link {% if 'solicitud' in request.resolver_match.url_name or request.resolver_match.url_name == 'adjudicacion' %}active{% endif %}">
                 <i class="bi bi-file-earmark-text"></i> Solicitudes
             </a>
+            <a href="{% url 'core:solicitud_acceso_list' %}"
+                class="sidebar-link {% if 'solicitud_acceso' in request.resolver_match.url_name %}active{% endif %}">
+                <i class="bi bi-person-check"></i> Accesos Pendientes
+            </a>
             <a href="{% url 'core:lote_list' %}"
                 class="sidebar-link {% if 'lote' in request.resolver_match.url_name %}active{% endif %}">
                 <i class="bi bi-grid-3x3-gap"></i> Gestión de Lotes
             </a>
+
             <a href="{% url 'core:avances_pendientes' %}"
                 class="sidebar-link {% if 'avance' in request.resolver_match.url_name %}active{% endif %}">
                 <i class="bi bi-bar-chart-steps"></i> Avances Pendientes
