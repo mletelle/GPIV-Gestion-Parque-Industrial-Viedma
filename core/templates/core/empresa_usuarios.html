@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Equipo de {{ empresa.razon_social }} | GPIV{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-content">
+    <h1 class="page-title">
+      <span class="page-title-icon">👥</span>
+      Equipo de la empresa
+    </h1>
+    <p class="page-subtitle">{{ empresa.razon_social }}</p>
+  </div>
+  <div class="page-header-actions">
+    <a href="{% url 'core:empresa_invitar' %}" class="btn btn-primary">
+      ➕ Invitar usuario
+    </a>
+    <a href="{% url 'core:empresa_transferir' %}" class="btn btn-outline">
+      🔄 Transferir titularidad
+    </a>
+    <a href="{% url 'core:mi_solicitud' %}" class="btn btn-ghost">
+      ← Mi empresa
+    </a>
+  </div>
+</div>
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">Miembros ({{ miembros.count }})</h2>
+  </div>
+  <div class="card-body p-0">
+    {% if miembros %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Email</th>
+            <th>Nombre</th>
+            <th>Rol</th>
+            <th>Estado</th>
+            <th class="text-right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for miembro in miembros %}
+          <tr>
+            <td><strong>{{ miembro.username }}</strong></td>
+            <td>{{ miembro.email|default:"—" }}</td>
+            <td>{{ miembro.get_full_name|default:"—" }}</td>
+            <td>
+              {% if miembro.rol_interno == 'TITULAR' %}
+                <span class="badge badge-success">👑 Titular</span>
+              {% else %}
+                <span class="badge badge-secondary">Estándar</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if miembro.is_active %}
+                <span class="badge badge-success">Activo</span>
+              {% else %}
+                <span class="badge badge-danger">Inactivo</span>
+              {% endif %}
+            </td>
+            <td class="text-right">
+              {% if miembro.rol_interno == 'ESTANDAR' %}
+                <form method="post" action="{% url 'core:empresa_remover_miembro' miembro.pk %}"
+                      onsubmit="return confirm('¿Confirmás que querés remover a «{{ miembro.username }}» de la empresa?');"
+                      style="display:inline;">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-danger">
+                    🗑 Remover
+                  </button>
+                </form>
+              {% else %}
+                <span class="text-muted" title="No se puede remover al Titular directamente.">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty-state">
+        <p>No hay miembros registrados todavía.</p>
+        <a href="{% url 'core:empresa_invitar' %}" class="btn btn-primary">Invitar primer miembro</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card card-info mt-4">
+  <div class="card-body">
+    <h3 class="card-title">ℹ️ Sobre los roles</h3>
+    <ul>
+      <li><strong>👑 Titular:</strong> Administra el equipo, puede invitar, remover y transferir la titularidad.</li>
+      <li><strong>Estándar:</strong> Puede ver y operar la empresa pero no gestionar miembros.</li>
+    </ul>
+    <p class="text-muted">
+      Para transferir la titularidad a otro miembro, usá el botón
+      <em>"🔄 Transferir titularidad"</em>.
+      Una vez transferida, perdés el acceso a esta pantalla.
+    </p>
+  </div>
+</div>
+{% endblock %}

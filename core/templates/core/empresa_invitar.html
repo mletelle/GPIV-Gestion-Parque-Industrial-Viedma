@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Invitar usuario — {{ empresa.razon_social }} | GPIV{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-content">
+    <h1 class="page-title">
+      <span class="page-title-icon">➕</span>
+      Invitar usuario
+    </h1>
+    <p class="page-subtitle">{{ empresa.razon_social }}</p>
+  </div>
+  <div class="page-header-actions">
+    <a href="{% url 'core:empresa_usuarios' %}" class="btn btn-ghost">← Volver al equipo</a>
+  </div>
+</div>
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="card" style="max-width:520px; margin:0 auto;">
+  <div class="card-header">
+    <h2 class="card-title">Buscar y asociar usuario</h2>
+  </div>
+  <div class="card-body">
+    <p class="text-muted mb-4">
+      Ingresá el <strong>nombre de usuario</strong> o <strong>email</strong> de una cuenta
+      que ya esté registrada en el sistema como tipo <em>Empresa</em> y que todavía
+      no tenga ninguna empresa asignada.
+    </p>
+
+    <form method="post" id="form-invitar">
+      {% csrf_token %}
+      <div class="form-group">
+        <label for="id_identificador" class="form-label">Usuario o email</label>
+        <input
+          type="text"
+          id="id_identificador"
+          name="identificador"
+          class="form-control"
+          placeholder="ej. juanperez o juan@empresa.com"
+          required
+          autofocus
+        >
+        <small class="form-text text-muted">
+          El usuario será asociado como <strong>Estándar</strong>. Podés transferirle la titularidad después.
+        </small>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Invitar</button>
+        <a href="{% url 'core:empresa_usuarios' %}" class="btn btn-ghost">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card card-info mt-4" style="max-width:520px; margin:1.5rem auto 0;">
+  <div class="card-body">
+    <h3 class="card-title">ℹ️ ¿Cómo agregar un nuevo miembro?</h3>
+    <ol style="margin: 0; padding-left: 1.25rem; line-height:1.8;">
+      <li>La persona debe registrarse en el sistema como cuenta de tipo <em>Empresa</em>.</li>
+      <li>Una vez registrada (sin empresa asignada aún), buscala aquí por su usuario o email.</li>
+      <li>Al invitarla queda asociada a tu empresa con rol <em>Estándar</em>.</li>
+    </ol>
+  </div>
+</div>
+{% endblock %}

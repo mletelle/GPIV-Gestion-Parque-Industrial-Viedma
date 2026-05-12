@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Transferir titularidad — {{ empresa.razon_social }} | GPIV{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-content">
+    <h1 class="page-title">
+      <span class="page-title-icon">🔄</span>
+      Transferir titularidad
+    </h1>
+    <p class="page-subtitle">{{ empresa.razon_social }}</p>
+  </div>
+  <div class="page-header-actions">
+    <a href="{% url 'core:empresa_usuarios' %}" class="btn btn-ghost">← Volver al equipo</a>
+  </div>
+</div>
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="card card-warning" style="max-width:560px; margin:0 auto;">
+  <div class="card-header">
+    <h2 class="card-title">⚠️ Acción irreversible</h2>
+  </div>
+  <div class="card-body">
+    <p>
+      Al confirmar esta acción, <strong>vos perdés el rol de Titular</strong> y
+      el usuario seleccionado lo adquiere de forma inmediata y atómica.
+    </p>
+    <p class="text-muted">
+      Una vez transferido, solo el nuevo Titular podrá volver a transferirte el mando.
+    </p>
+  </div>
+</div>
+
+<div class="card mt-4" style="max-width:560px; margin:1.5rem auto 0;">
+  <div class="card-header">
+    <h2 class="card-title">Seleccioná el nuevo Titular</h2>
+  </div>
+  <div class="card-body">
+    {% if estandares %}
+      <form method="post"
+            id="form-transferir"
+            onsubmit="return confirm('¿Confirmás la transferencia de titularidad? Esta acción no se puede deshacer sin la intervención del nuevo titular.');">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="form-label">Usuarios Estándar disponibles</label>
+          {% for usuario in estandares %}
+          <label class="radio-card">
+            <input type="radio" name="nuevo_titular_pk" value="{{ usuario.pk }}" required>
+            <span class="radio-card-content">
+              <strong>{{ usuario.username }}</strong>
+              {% if usuario.get_full_name %}
+                — {{ usuario.get_full_name }}
+              {% endif %}
+              <small class="text-muted d-block">{{ usuario.email|default:"Sin email" }}</small>
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+
+        <div class="form-actions mt-4">
+          <button type="submit" class="btn btn-danger">
+            🔄 Transferir titularidad
+          </button>
+          <a href="{% url 'core:empresa_usuarios' %}" class="btn btn-ghost">Cancelar</a>
+        </div>
+      </form>
+    {% else %}
+      <div class="empty-state">
+        <p>No hay usuarios Estándar disponibles para transferir la titularidad.</p>
+        <p class="text-muted">
+          Primero <a href="{% url 'core:empresa_invitar' %}">invitá un usuario</a> como Estándar.
+        </p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

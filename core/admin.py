@@ -23,23 +23,62 @@ logger = logging.getLogger(__name__)
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
     search_fields = ('username', 'email', 'first_name', 'last_name')
+    list_display  = ('username', 'email', 'first_name', 'last_name', 'empresa', 'rol_interno', 'is_active')
+    list_filter   = UserAdmin.list_filter + ('rol_interno',)
+
+    # Agrega empresa y rol_interno en el fieldset de "Información personal"
+    fieldsets = UserAdmin.fieldsets + (
+        ('Empresa y Rol RBAC', {
+            'fields': ('empresa', 'rol_interno'),
+            'description': (
+                'La empresa se asigna automáticamente al registrarse. '
+                'El rol TITULAR es el administrador de la empresa; '
+                'ESTÁNDAR es un usuario con acceso restringido.'
+            ),
+        }),
+    )
+    autocomplete_fields = ('empresa',)
+
+
+class EmpleadosInline(admin.TabularInline):
+    """
+    Muestra los usuarios (empleados) asociados a la empresa desde el admin.
+    Permite ver rápidamente el titular y los miembros estándar sin salir del
+    detalle de la empresa.
+    """
+    model = CustomUser
+    fk_name = 'empresa'
+    extra = 0
+    fields = ('username', 'email', 'rol_interno', 'is_active')
+    readonly_fields = ('username', 'email', 'rol_interno', 'is_active')
+    can_delete = False
+    verbose_name = 'Miembro'
+    verbose_name_plural = 'Miembros de la empresa'
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Empresa)
 class EmpresaAdmin(admin.ModelAdmin):
-    list_display = ('razon_social', 'cuit', 'estado', 'tipo_empresa', 'usuario')
+    list_display = ('razon_social', 'cuit', 'estado', 'tipo_empresa', 'get_titular')
     list_filter = ('estado', 'tipo_empresa', 'rubro')
     search_fields = ('razon_social', 'cuit', 'nombre_fantasia')
-    autocomplete_fields = ('usuario',)
+    inlines = [EmpleadosInline]
+
+    @admin.display(description='Titular')
+    def get_titular(self, obj):
+        titular = obj.titular
+        return titular.username if titular else '—'
 
     fieldsets = (
-        ('Usuario vinculado', {
-            'fields': ('usuario',),
+        ('Miembros', {
             'description': (
-                'Si la empresa fue registrada por un usuario del portal, '
-                'queda vinculada automaticamente. Para empresas historicas '
-                'o cargadas a mano se puede asignar un usuario existente aqui.'
+                'Los usuarios asociados a esta empresa se muestran abajo en la '
+                'sección "Miembros de la empresa". La asignación se gestiona '
+                'desde el portal (registro o invitación) o desde el perfil de cada usuario.'
             ),
+            'fields': (),
         }),
         ('Datos fiscales', {
             'fields': (

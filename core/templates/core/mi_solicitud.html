@@ -298,7 +298,53 @@
             {% endfor %}
         </div>
         {% endif %}
+
+        {# ── Gestión de equipo: solo visible para el TITULAR ── #}
+        {% if es_titular %}
+        <div class="gpiv-card mb-3" style="border-left: 4px solid var(--verde);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h5 style="color:var(--verde);font-weight:700;margin:0;">👑 Gestión del equipo</h5>
+                <a href="{% url 'core:empresa_usuarios' %}" class="btn-verde" style="font-size:0.85rem; padding:0.35rem 0.85rem;">
+                    Ver todos los miembros →
+                </a>
+            </div>
+            {% if miembros %}
+            <table style="width:100%;font-size:0.88rem;border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--borde);color:var(--gris-suave);">
+                        <th style="padding:0.35rem 0.5rem;text-align:left;">Usuario</th>
+                        <th style="padding:0.35rem 0.5rem;text-align:left;">Rol</th>
+                        <th style="padding:0.35rem 0.5rem;text-align:left;">Email</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in miembros %}
+                    <tr style="border-bottom:1px solid var(--borde);">
+                        <td style="padding:0.35rem 0.5rem;">{{ m.username }}</td>
+                        <td style="padding:0.35rem 0.5rem;">
+                            {% if m.rol_interno == 'TITULAR' %}
+                                <span style="font-size:0.75rem;font-weight:700;background:#DCFCE7;color:#166534;padding:0.15rem 0.4rem;border-radius:4px;">👑 Titular</span>
+                            {% else %}
+                                <span style="font-size:0.75rem;font-weight:700;background:#F1F5F9;color:#475569;padding:0.15rem 0.4rem;border-radius:4px;">Estándar</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding:0.35rem 0.5rem;color:var(--gris-suave);">{{ m.email|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="color:var(--gris-suave);font-size:0.9rem;margin:0;">Solo vos sos miembro de esta empresa.</p>
+            {% endif %}
+            <div style="display:flex;gap:0.75rem;margin-top:1rem;flex-wrap:wrap;">
+                <a href="{% url 'core:empresa_invitar' %}" class="btn-verde" style="font-size:0.85rem;padding:0.35rem 0.85rem;">➕ Invitar usuario</a>
+                <a href="{% url 'core:empresa_transferir' %}" class="btn-verde" style="font-size:0.85rem;padding:0.35rem 0.85rem;background:var(--azul);">🔄 Transferir titularidad</a>
+            </div>
+        </div>
+        {% endif %}
+
         {% endif %}
     </div>
+
 </div>
-{% endblock %}
+{% endblock %}

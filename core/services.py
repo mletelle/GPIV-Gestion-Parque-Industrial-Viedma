@@ -9,7 +9,174 @@ import resend
 from django.conf import settings
 from django.utils.html import escape
 
+from django.db import transaction
+
 from .models import TransicionEstado
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Excepciones de dominio RBAC
+# ──────────────────────────────────────────────────────────────────────────────
+
+class RBACError(Exception):
+    """Base para errores de negocio del dominio RBAC de empresa."""
+
+
+class SinTitularError(RBACError):
+    """Se lanzaría si una operación dejara a la empresa sin titular activo."""
+
+
+class UsuarioYaVinculadoError(RBACError):
+    """El usuario ya pertenece a una empresa."""
+
+
+class UsuarioNoEsMiembroError(RBACError):
+    """El usuario no pertenece a esta empresa."""
+
+
+class NoSePuedeDegrardarTitularError(RBACError):
+    """No se puede degradar / remover al titular sin asignar uno nuevo."""
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Servicios RBAC de empresa
+# ──────────────────────────────────────────────────────────────────────────────
+
+@transaction.atomic
+def transferir_titularidad(empresa, titular_actual, nuevo_titular):
+    """
+    Transfiere el rol TITULAR de ``titular_actual`` a ``nuevo_titular``
+    de forma atómica:
+      1. ``titular_actual`` pasa a ESTANDAR.
+      2. ``nuevo_titular`` pasa a TITULAR.
+
+    Restricciones:
+    - ``titular_actual`` debe ser TITULAR de ``empresa``.
+    - ``nuevo_titular`` debe ser ESTANDAR de ``empresa``.
+    - Ambos usuarios deben estar activos.
+
+    Raises:
+        RBACError / subclases si alguna restricción no se cumple.
+    """
+    from .models import CustomUser
+
+    # Refetch con lock para evitar race conditions concurrentes.
+    titular_actual = (
+        empresa.empleados
+        .select_for_update()
+        .filter(pk=titular_actual.pk, rol_interno=CustomUser.RolInterno.TITULAR, is_active=True)
+        .first()
+    )
+    if titular_actual is None:
+        raise RBACError("El usuario actual no es un TITULAR activo de esta empresa.")
+
+    nuevo_titular = (
+        empresa.empleados
+        .select_for_update()
+        .filter(pk=nuevo_titular.pk, rol_interno=CustomUser.RolInterno.ESTANDAR, is_active=True)
+        .first()
+    )
+    if nuevo_titular is None:
+        raise RBACError("El nuevo titular debe ser un usuario ESTÁNDAR activo de esta empresa.")
+
+    titular_actual.rol_interno = CustomUser.RolInterno.ESTANDAR
+    titular_actual.save(update_fields=['rol_interno'])
+
+    nuevo_titular.rol_interno = CustomUser.RolInterno.TITULAR
+    nuevo_titular.save(update_fields=['rol_interno'])
+
+
+@transaction.atomic
+def invitar_usuario(empresa, titular, usuario_a_invitar):
+    """
+    Asocia ``usuario_a_invitar`` (sin empresa) a ``empresa`` como ESTANDAR.
+
+    Restricciones:
+    - ``titular`` debe ser TITULAR activo de ``empresa``.
+    - ``usuario_a_invitar`` no debe pertenecer ya a ninguna empresa.
+    - ``usuario_a_invitar`` debe pertenecer al grupo EMPRESA.
+
+    Raises:
+        RBACError / subclases.
+    """
+    from .models import CustomUser
+
+    titular = (
+        empresa.empleados
+        .select_for_update()
+        .filter(pk=titular.pk, rol_interno=CustomUser.RolInterno.TITULAR, is_active=True)
+        .first()
+    )
+    if titular is None:
+        raise RBACError("Solo un TITULAR activo puede invitar usuarios.")
+
+    usuario_a_invitar = (
+        CustomUser.objects
+        .select_for_update()
+        .filter(pk=usuario_a_invitar.pk)
+        .first()
+    )
+    if usuario_a_invitar is None:
+        raise RBACError("Usuario no encontrado.")
+
+    if usuario_a_invitar.empresa_id is not None:
+        raise UsuarioYaVinculadoError(
+            f"El usuario «{usuario_a_invitar.username}» ya pertenece a otra empresa."
+        )
+
+    if not usuario_a_invitar.groups.filter(name='EMPRESA').exists():
+        raise RBACError(
+            f"El usuario «{usuario_a_invitar.username}» no pertenece al grupo EMPRESA."
+        )
+
+    usuario_a_invitar.empresa = empresa
+    usuario_a_invitar.rol_interno = CustomUser.RolInterno.ESTANDAR
+    usuario_a_invitar.save(update_fields=['empresa', 'rol_interno'])
+
+
+@transaction.atomic
+def remover_miembro(empresa, titular, usuario_a_remover):
+    """
+    Desvincula ``usuario_a_remover`` de ``empresa`` (pone empresa=None,
+    rol_interno=None).
+
+    Restricciones:
+    - ``titular`` debe ser TITULAR activo de ``empresa``.
+    - ``usuario_a_remover`` debe ser ESTANDAR de ``empresa`` (no se puede
+      remover al titular directamente; usar transferir_titularidad primero).
+
+    Raises:
+        RBACError / subclases.
+    """
+    from .models import CustomUser
+
+    titular = (
+        empresa.empleados
+        .select_for_update()
+        .filter(pk=titular.pk, rol_interno=CustomUser.RolInterno.TITULAR, is_active=True)
+        .first()
+    )
+    if titular is None:
+        raise RBACError("Solo un TITULAR activo puede remover miembros.")
+
+    usuario_a_remover = (
+        empresa.empleados
+        .select_for_update()
+        .filter(pk=usuario_a_remover.pk)
+        .first()
+    )
+    if usuario_a_remover is None:
+        raise UsuarioNoEsMiembroError("El usuario no pertenece a esta empresa.")
+
+    if usuario_a_remover.rol_interno == CustomUser.RolInterno.TITULAR:
+        raise NoSePuedeDegrardarTitularError(
+            "No se puede remover al TITULAR directamente. "
+            "Transferí la titularidad antes de remover este usuario."
+        )
+
+    usuario_a_remover.empresa = None
+    usuario_a_remover.rol_interno = None
+    usuario_a_remover.save(update_fields=['empresa', 'rol_interno'])
 
 logger = logging.getLogger(__name__)
 
