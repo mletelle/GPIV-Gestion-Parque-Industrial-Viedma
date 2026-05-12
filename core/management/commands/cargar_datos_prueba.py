@@ -172,9 +172,9 @@ EMPRESAS_PRUEBA = [
         'avances': [(40, True), (75, True), (100, True)],
     },
     {
-        'username': 'empresa_theta',
-        'email': 'theta@test.local',
-        'razon_social': 'Theta Alimentos del Sur S.A.',
+        'username': 'empresa_pix',
+        'email': 'pix@test.local',
+        'razon_social': 'Pix Alimentos del Sur S.A.',
         'cuit': '30-88888888-8',
         'rubro': Empresa.Rubro.BIENES,
         'categoria_industrial': Empresa.CategoriaIndustrial.ALIMENTICIA,
