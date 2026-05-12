@@ -512,23 +512,29 @@ class SolicitudAccesoAprobarView(AdminEnrepaviMixin, View):
         )
         observaciones = request.POST.get('observaciones_admin', '').strip()
 
-        with transaction.atomic():
-            # 1. Actualizar solicitud
-            solicitud.estado = SolicitudAcceso.Estado.APROBADA
-            solicitud.fecha_resolucion = timezone.now()
-            solicitud.resuelto_por = request.user
-            solicitud.motivo_resolucion = observaciones
-            solicitud.save(update_fields=[
-                'estado', 'fecha_resolucion', 'resuelto_por', 'motivo_resolucion',
-            ])
-            # 2. Activar usuario
-            usuario = solicitud.usuario
-            usuario.is_active = True
-            usuario.save(update_fields=['is_active'])
-            # 3. Asignar grupo correcto
-            nombre_grupo = solicitud.get_grupo_destino()
-            grupo, _ = Group.objects.get_or_create(name=nombre_grupo)
-            usuario.groups.add(grupo)
+        try:
+            with transaction.atomic():
+                # 1. Actualizar solicitud
+                solicitud.estado = SolicitudAcceso.Estado.APROBADA
+                solicitud.fecha_resolucion = timezone.now()
+                solicitud.resuelto_por = request.user
+                solicitud.motivo_resolucion = observaciones
+                solicitud.save(update_fields=[
+                    'estado', 'fecha_resolucion', 'resuelto_por', 'motivo_resolucion',
+                ])
+                # 2. Activar usuario
+                usuario = solicitud.usuario
+                if usuario is None:
+                    raise ValueError('La solicitud no tiene usuario asociado y no puede ser aprobada.')
+                usuario.is_active = True
+                usuario.save(update_fields=['is_active'])
+                # 3. Asignar grupo correcto
+                nombre_grupo = solicitud.get_grupo_destino()
+                grupo, _ = Group.objects.get_or_create(name=nombre_grupo)
+                usuario.groups.add(grupo)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect('core:solicitud_acceso_detail', pk=pk)
 
         # 4. Notificar al usuario por email (fuera del atomic)
         try:

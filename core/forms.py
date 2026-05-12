@@ -631,8 +631,19 @@ class SolicitudAccesoForm(forms.ModelForm):
 
     def clean_documentacion_pdf(self):
         archivo = self.cleaned_data.get('documentacion_pdf')
-        if archivo and not archivo.name.lower().endswith('.pdf'):
-            raise forms.ValidationError('Solo se aceptan archivos en formato PDF.')
+        if archivo:
+            # Validar extensión
+            if not archivo.name.lower().endswith('.pdf'):
+                raise forms.ValidationError('Solo se aceptan archivos en formato PDF.')
+            # Validar tamaño (máx. 5 MB)
+            max_size = 5 * 1024 * 1024
+            if archivo.size > max_size:
+                raise forms.ValidationError('El archivo no puede superar los 5 MB.')
+            # Validar magic header (%PDF-)
+            header = archivo.read(5)
+            archivo.seek(0)
+            if header != b'%PDF-':
+                raise forms.ValidationError('El archivo no es un PDF válido.')
         return archivo
 
     def clean(self):
