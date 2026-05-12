@@ -383,10 +383,9 @@ class SolicitudAccesoCreateView(CreateView):
         return ctx
 
     def form_valid(self, form):
-        from django.db import transaction as db_transaction
         from .services import notificar_solicitud_acceso_recibida
 
-        with db_transaction.atomic():
+        with transaction.atomic():
             # 1. Crear usuario inactivo (sin grupo aún, se asigna al aprobar).
             usuario = CustomUser.objects.create_user(
                 username=form.cleaned_data['username'],
@@ -394,26 +393,206 @@ class SolicitudAccesoCreateView(CreateView):
                 password=form.cleaned_data['password1'],
                 is_active=False,
             )
-            # 2. Crear la solicitud asociada.
+            # 2. Crear la solicitud asociada (con PDF si viene).
             self.object = form.save(commit=False)
             self.object.tipo = self.tipo
             self.object.usuario = usuario
+            if 'documentacion_pdf' in self.request.FILES:
+                self.object.documentacion_pdf = self.request.FILES['documentacion_pdf']
             self.object.save()
 
-        # 3. Notificar al admin (fuera de la transacción para no bloquear).
+            # 3. Generar Ticket ADMINISTRATIVA para la bandeja del admin.
+            tipo_display = self.object.get_tipo_display()
+            acceso_display = (
+                self.object.get_tipo_acceso_display() if self.object.tipo_acceso else '—'
+            )
+            tiene_doc = 'Sí' if self.object.documentacion_pdf else 'No'
+            contenido_ticket = (
+                f"Nueva solicitud de acceso al sistema GPIV.\n\n"
+                f"Tipo: {tipo_display} ({acceso_display})\n"
+                f"Solicitante: {self.object.nombre_apellido} — {self.object.cargo}\n"
+                f"Organización: {self.object.organizacion}\n"
+                f"Teléfono: {self.object.telefono}\n"
+                f"Email institucional: {self.object.email_institucional}\n"
+                f"Documentación adjunta: {tiene_doc}\n\n"
+                f"Motivo del acceso:\n{self.object.motivo}\n\n"
+                f"Para aprobar o rechazar ingresá a:\n"
+                f"Panel › Solicitudes de Acceso › #{self.object.pk}"
+            )
+            ticket = Ticket.objects.create(
+                asunto=f'Solicitud de acceso: {tipo_display} — {self.object.organizacion}',
+                categoria=Ticket.Categoria.ADMINISTRATIVA,
+                creador=None,
+                nombre_contacto=self.object.nombre_apellido,
+                email_contacto=self.object.email_institucional,
+                telefono_contacto=self.object.telefono,
+            )
+            MensajeTicket.objects.create(
+                ticket=ticket,
+                autor=None,
+                contenido=contenido_ticket,
+            )
+
+        # 4. Notificar al admin por email (fuera de atomic para no bloquear rollback).
         try:
             notificar_solicitud_acceso_recibida(self.object)
         except Exception:  # pylint: disable=broad-except
-            # No revertimos la solicitud si falla el correo: el admin la verá
-            # en su bandeja igualmente.
-            logger.exception("Error al notificar solicitud de acceso recibida (pk=%s)", self.object.pk)
+            logger.exception(
+                "Error al notificar solicitud de acceso recibida (pk=%s)", self.object.pk
+            )
 
         return redirect('core:solicitud_acceso_enviada')
+
+
 
 
 class SolicitudAccesoEnviadaView(TemplateView):
     """Confirmación tras enviar una solicitud de acceso."""
     template_name = 'core/solicitud_acceso_enviada.html'
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ADMIN: gestión de solicitudes de acceso (Organismos y Proveedores)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class SolicitudAccesoListView(AdminEnrepaviMixin, ListView):
+    """Admin: bandeja de solicitudes de acceso pendientes de revisión."""
+    model = SolicitudAcceso
+    template_name = 'core/solicitud_acceso_list.html'
+    context_object_name = 'solicitudes'
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = SolicitudAcceso.objects.select_related('usuario', 'resuelto_por')
+        estado = self.request.GET.get('estado')
+        if estado and estado in dict(SolicitudAcceso.Estado.choices):
+            qs = qs.filter(estado=estado)
+        else:
+            qs = qs.filter(estado=SolicitudAcceso.Estado.PENDIENTE)
+        tipo = self.request.GET.get('tipo')
+        if tipo and tipo in dict(SolicitudAcceso.Tipo.choices):
+            qs = qs.filter(tipo=tipo)
+        return qs.order_by('-fecha_solicitud')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['estados_choices'] = SolicitudAcceso.Estado.choices
+        ctx['tipos_choices'] = SolicitudAcceso.Tipo.choices
+        ctx['filtro_estado'] = self.request.GET.get('estado', SolicitudAcceso.Estado.PENDIENTE)
+        ctx['filtro_tipo'] = self.request.GET.get('tipo', '')
+        ctx['pendientes_count'] = SolicitudAcceso.objects.filter(
+            estado=SolicitudAcceso.Estado.PENDIENTE
+        ).count()
+        return ctx
+
+
+class SolicitudAccesoDetailView(AdminEnrepaviMixin, DetailView):
+    """Admin: detalle de una solicitud de acceso con botones de acción."""
+    model = SolicitudAcceso
+    template_name = 'core/solicitud_acceso_detail.html'
+    context_object_name = 'solicitud'
+
+    def get_queryset(self):
+        return SolicitudAcceso.objects.select_related('usuario', 'resuelto_por')
+
+
+class SolicitudAccesoAprobarView(AdminEnrepaviMixin, View):
+    """
+    Admin: aprobar una solicitud de acceso.
+
+    En una transacción atómica:
+    1. Marca la solicitud como Aprobada.
+    2. Activa el usuario (is_active=True).
+    3. Asigna el grupo correcto según tipo/tipo_acceso.
+    4. Envía email de notificación al usuario (fuera del atomic).
+    """
+    def post(self, request, pk):
+        solicitud = get_object_or_404(
+            SolicitudAcceso, pk=pk, estado=SolicitudAcceso.Estado.PENDIENTE
+        )
+        observaciones = request.POST.get('observaciones_admin', '').strip()
+
+        try:
+            with transaction.atomic():
+                # 1. Actualizar solicitud
+                solicitud.estado = SolicitudAcceso.Estado.APROBADA
+                solicitud.fecha_resolucion = timezone.now()
+                solicitud.resuelto_por = request.user
+                solicitud.motivo_resolucion = observaciones
+                solicitud.save(update_fields=[
+                    'estado', 'fecha_resolucion', 'resuelto_por', 'motivo_resolucion',
+                ])
+                # 2. Activar usuario
+                usuario = solicitud.usuario
+                if usuario is None:
+                    raise ValueError('La solicitud no tiene usuario asociado y no puede ser aprobada.')
+                usuario.is_active = True
+                usuario.save(update_fields=['is_active'])
+                # 3. Asignar grupo correcto
+                nombre_grupo = solicitud.get_grupo_destino()
+                grupo, _ = Group.objects.get_or_create(name=nombre_grupo)
+                usuario.groups.add(grupo)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect('core:solicitud_acceso_detail', pk=pk)
+
+        # 4. Notificar al usuario por email (fuera del atomic)
+        try:
+            from .services import notificar_solicitud_acceso_resuelta
+            notificar_solicitud_acceso_resuelta(solicitud)
+        except Exception:
+            logger.exception(
+                "Error al notificar aprobación de solicitud de acceso (pk=%s)", pk
+            )
+
+        messages.success(
+            request,
+            f'Solicitud de {solicitud.nombre_apellido} aprobada. '
+            f'Usuario activado con grupo {nombre_grupo}.'
+        )
+        return redirect('core:solicitud_acceso_list')
+
+
+class SolicitudAccesoRechazarView(AdminEnrepaviMixin, View):
+    """
+    Admin: rechazar una solicitud de acceso.
+
+    Marca la solicitud como Rechazada y mantiene el usuario inactivo.
+    Envía email con el motivo de rechazo.
+    """
+    def post(self, request, pk):
+        solicitud = get_object_or_404(
+            SolicitudAcceso, pk=pk, estado=SolicitudAcceso.Estado.PENDIENTE
+        )
+        observaciones = request.POST.get('observaciones_admin', '').strip()
+        if not observaciones:
+            messages.error(request, 'Debe ingresar un motivo de rechazo.')
+            return redirect('core:solicitud_acceso_detail', pk=pk)
+
+        with transaction.atomic():
+            solicitud.estado = SolicitudAcceso.Estado.RECHAZADA
+            solicitud.fecha_resolucion = timezone.now()
+            solicitud.resuelto_por = request.user
+            solicitud.motivo_resolucion = observaciones
+            solicitud.save(update_fields=[
+                'estado', 'fecha_resolucion', 'resuelto_por', 'motivo_resolucion',
+            ])
+
+        try:
+            from .services import notificar_solicitud_acceso_resuelta
+            notificar_solicitud_acceso_resuelta(solicitud)
+        except Exception:
+            logger.exception(
+                "Error al notificar rechazo de solicitud de acceso (pk=%s)", pk
+            )
+
+        messages.warning(
+            request,
+            f'Solicitud de {solicitud.nombre_apellido} rechazada.'
+        )
+        return redirect('core:solicitud_acceso_list')
+
+
 
 
 class SolicitudCreateView(EmpresaMixin, CreateView):

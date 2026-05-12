@@ -561,7 +561,7 @@ class SolicitudAccesoForm(forms.ModelForm):
         model = SolicitudAcceso
         fields = [
             'nombre_apellido', 'cargo', 'organizacion', 'telefono',
-            'email_institucional', 'tipo_acceso', 'motivo',
+            'email_institucional', 'tipo_acceso', 'motivo', 'documentacion_pdf',
         ]
         widgets = {
             'nombre_apellido': forms.TextInput(attrs={'class': 'form-control'}),
@@ -574,6 +574,19 @@ class SolicitudAccesoForm(forms.ModelForm):
                 'class': 'form-control', 'rows': 4,
                 'placeholder': 'Describí brevemente para qué necesitás acceso al sistema...',
             }),
+            'documentacion_pdf': forms.ClearableFileInput(attrs={
+                'class': 'form-control',
+                'accept': '.pdf',
+            }),
+        }
+        labels = {
+            'documentacion_pdf': 'Documentación acreditante (PDF)',
+        }
+        help_texts = {
+            'documentacion_pdf': (
+                'Adjuntá tu credencial, nota institucional o contrato de servicio en formato PDF. '
+                'La administración lo revisará para validar tu acceso.'
+            ),
         }
 
     def __init__(self, *args, tipo=None, **kwargs):
@@ -615,6 +628,23 @@ class SolicitudAccesoForm(forms.ModelForm):
         ).exists():
             raise forms.ValidationError('Ya hay una solicitud pendiente para ese email.')
         return email
+
+    def clean_documentacion_pdf(self):
+        archivo = self.cleaned_data.get('documentacion_pdf')
+        if archivo:
+            # Validar extensión
+            if not archivo.name.lower().endswith('.pdf'):
+                raise forms.ValidationError('Solo se aceptan archivos en formato PDF.')
+            # Validar tamaño (máx. 5 MB)
+            max_size = 5 * 1024 * 1024
+            if archivo.size > max_size:
+                raise forms.ValidationError('El archivo no puede superar los 5 MB.')
+            # Validar magic header (%PDF-)
+            header = archivo.read(5)
+            archivo.seek(0)
+            if header != b'%PDF-':
+                raise forms.ValidationError('El archivo no es un PDF válido.')
+        return archivo
 
     def clean(self):
         cleaned = super().clean()

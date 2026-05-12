@@ -3,7 +3,7 @@ from django.db import models
 from django.db import IntegrityError
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator, FileExtensionValidator
 from django.utils import timezone
 
 class CustomUser(AbstractUser):
@@ -595,6 +595,14 @@ class SolicitudAcceso(models.Model):
     motivo = models.TextField(
         'Motivo del acceso',
         help_text='Describe brevemente para qué necesitás acceso al sistema.',
+    )
+    documentacion_pdf = models.FileField(
+        upload_to='solicitudes_acceso/',
+        null=True,
+        blank=True,
+        validators=[FileExtensionValidator(['pdf'])],
+        verbose_name='Documentación acreditante (PDF)',
+        help_text='Credencial, nota oficial, contrato u otro documento que acredite su rol. Solo formato PDF.',
     )
 
     estado = models.CharField(
