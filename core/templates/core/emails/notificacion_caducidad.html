@@ -1,0 +1,121 @@
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notificación de caducidad — GPIV</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f4f5f7; font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7; padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+
+          {# ── Header rojo (caducidad) ── #}
+          <tr>
+            <td style="background-color:#991B1B; padding:24px 32px;">
+              <h1 style="margin:0; font-size:22px; color:#ffffff; font-weight:700;">
+                🏭 GPIV — Parque Industrial de Viedma
+              </h1>
+              <p style="margin:6px 0 0; font-size:14px; color:rgba(255,255,255,0.9);">
+                Notificación de Caducidad de Plazo de Obra
+              </p>
+            </td>
+          </tr>
+
+          {# ── Badge de caducidad ── #}
+          <tr>
+            <td style="padding:24px 32px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="background-color:#FEF2F2; border:1px solid #FECACA; border-radius:6px; padding:10px 18px;">
+                    <span style="font-size:14px; font-weight:700; color:#991B1B;">
+                      ⛔ ADJUDICACIÓN CADUCADA
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          {# ── Cuerpo ── #}
+          <tr>
+            <td style="padding:20px 32px;">
+              <p style="font-size:15px; color:#374151; line-height:1.6; margin:0 0 16px;">
+                Estimado/a representante de <strong>{{ razon_social }}</strong>,
+              </p>
+              <p style="font-size:15px; color:#374151; line-height:1.6; margin:0 0 16px;">
+                Le informamos que el plazo máximo para la finalización de la obra
+                en el Parque Industrial de Viedma
+                <strong>venció el {{ fecha_limite }}</strong> y su adjudicación ha sido
+                marcada como <strong>Caducada</strong> de forma automática por el sistema.
+              </p>
+              <p style="font-size:15px; color:#374151; line-height:1.6; margin:0 0 20px;">
+                Si considera que se trata de un error o desea presentar documentación
+                adicional, comuníquese con la administración de ENREPAVI a la brevedad.
+              </p>
+
+              {# ── Tabla de datos ── #}
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#FEF2F2; border:1px solid #FECACA; border-radius:6px; margin-bottom:24px;">
+                <tr>
+                  <td style="padding:16px;">
+                    <table role="presentation" width="100%" cellpadding="4" cellspacing="0">
+                      <tr>
+                        <td style="font-size:13px; color:#6B7280; width:40%;">Empresa:</td>
+                        <td style="font-size:13px; color:#111827; font-weight:600;">{{ razon_social }}</td>
+                      </tr>
+                      <tr>
+                        <td style="font-size:13px; color:#6B7280;">CUIT:</td>
+                        <td style="font-size:13px; color:#111827;">{{ cuit }}</td>
+                      </tr>
+                      <tr>
+                        <td style="font-size:13px; color:#6B7280;">Fecha límite de obra:</td>
+                        <td style="font-size:13px; color:#DC2626; font-weight:700;">{{ fecha_limite }}</td>
+                      </tr>
+                      <tr>
+                        <td style="font-size:13px; color:#6B7280;">Estado anterior:</td>
+                        <td style="font-size:13px; color:#111827;">{{ estado_anterior }}</td>
+                      </tr>
+                      <tr>
+                        <td style="font-size:13px; color:#6B7280;">Nuevo estado:</td>
+                        <td style="font-size:13px; color:#991B1B; font-weight:700;">Caducado</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              {# ── Botón CTA ── #}
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                <tr>
+                  <td style="background-color:#059669; border-radius:6px;">
+                    <a href="{{ site_url }}" target="_blank"
+                       style="display:inline-block; padding:12px 28px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600;">
+                      Ingresar al Panel
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          {# ── Footer ── #}
+          <tr>
+            <td style="background-color:#F9FAFB; padding:20px 32px; border-top:1px solid #E5E7EB;">
+              <p style="margin:0; font-size:12px; color:#9CA3AF; line-height:1.5;">
+                Este es un mensaje automático generado por el Sistema de Gestión
+                del Parque Industrial de Viedma (GPIV). No responda a este correo.
+              </p>
+              <p style="margin:8px 0 0; font-size:12px; color:#9CA3AF;">
+                ENREPAVI · Ente de Regulación del Parque Industrial de Viedma
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

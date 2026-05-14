@@ -11,6 +11,8 @@ from .models import (
     Ticket, MensajeTicket,
     ActivoInventario,
     SolicitudAcceso,
+    AvisoVencimiento,
+    CaducidadRegistro,
 )
 from .services import (
     notificar_solicitud_acceso_aprobada,
@@ -375,3 +377,72 @@ class SolicitudAccesoAdmin(admin.ModelAdmin):
             notificar_solicitud_acceso_rechazada(solicitud)
         except Exception:  # pylint: disable=broad-except
             logger.exception("Error al notificar rechazo de solicitud (pk=%s)", solicitud.pk)
+
+
+@admin.register(AvisoVencimiento)
+class AvisoVencimientoAdmin(admin.ModelAdmin):
+    """Bandeja de auditoría de avisos automáticos de vencimiento."""
+    list_display = (
+        'empresa', 'nivel', 'dias_restantes', 'email_destino',
+        'fecha_envio', 'is_active',
+    )
+    list_filter = ('nivel', 'is_active', 'fecha_envio')
+    search_fields = ('empresa__razon_social', 'empresa__cuit', 'email_destino')
+    readonly_fields = (
+        'empresa', 'nivel', 'dias_restantes', 'email_destino',
+        'fecha_envio', 'is_active', 'deleted_at',
+    )
+    date_hierarchy = 'fecha_envio'
+
+    def has_add_permission(self, request):
+        # Los avisos solo se crean desde el command automatizado.
+        return False
+
+    actions = ['soft_delete_avisos']
+
+    @admin.action(description='Dar de baja lógica los avisos seleccionados')
+    def soft_delete_avisos(self, request, queryset):
+        count = 0
+        for aviso in queryset.filter(is_active=True):
+            aviso.soft_delete()
+            count += 1
+        self.message_user(
+            request,
+            f'{count} aviso(s) dado(s) de baja lógica.',
+            level=messages.SUCCESS,
+        )
+
+
+@admin.register(CaducidadRegistro)
+class CaducidadRegistroAdmin(admin.ModelAdmin):
+    """Bandeja de auditoría de caducidades automáticas."""
+    list_display = (
+        'empresa', 'estado_anterior', 'fecha_limite_original',
+        'notificacion_enviada', 'fecha_ejecucion', 'is_active',
+    )
+    list_filter = ('is_active', 'notificacion_enviada', 'fecha_ejecucion')
+    search_fields = ('empresa__razon_social', 'empresa__cuit', 'email_destino')
+    readonly_fields = (
+        'empresa', 'estado_anterior', 'fecha_limite_original',
+        'justificacion', 'email_destino', 'notificacion_enviada',
+        'fecha_ejecucion', 'is_active', 'deleted_at',
+    )
+    date_hierarchy = 'fecha_ejecucion'
+
+    def has_add_permission(self, request):
+        # Los registros solo se crean desde el command automatizado.
+        return False
+
+    actions = ['soft_delete_registros']
+
+    @admin.action(description='Dar de baja lógica los registros seleccionados')
+    def soft_delete_registros(self, request, queryset):
+        count = 0
+        for registro in queryset.filter(is_active=True):
+            registro.soft_delete()
+            count += 1
+        self.message_user(
+            request,
+            f'{count} registro(s) dado(s) de baja lógica.',
+            level=messages.SUCCESS,
+        )
