@@ -34,7 +34,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--dry-run',
             action='store_true',
-            help='Lista las empresas que recibirian aviso sin enviar emails ni crear registros.',
+            help='Lista las empresas que recibirían aviso sin enviar emails ni crear registros.',
         )
 
     def handle(self, *args, **options):

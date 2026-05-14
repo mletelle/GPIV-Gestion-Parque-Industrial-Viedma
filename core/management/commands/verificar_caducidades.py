@@ -30,7 +30,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--dry-run',
             action='store_true',
-            help='Lista las empresas que serian caducadas sin ejecutar cambios.',
+            help='Lista las empresas que serían caducadas sin ejecutar cambios.',
         )
 
     def handle(self, *args, **options):
