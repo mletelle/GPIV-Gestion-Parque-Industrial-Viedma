@@ -65,7 +65,7 @@ class AvisoVencimientoServiceTest(TestCase):
         self.hoy = timezone.now().date()
 
     @patch(MOCK_RESEND_PATH, return_value={'id': 'mock-email-id'})
-    def test_envio_urgente_crea_aviso_sin_mutar_tracking_global(self, mock_email):
+    def test_envio_urgente_no_actualiza_tracking_global(self, mock_email):
         """empresa con 5 dias → aviso urgente creado, email enviado."""
         empresa = _crear_empresa(
             'Urgente SA', '20-11111111-1',
