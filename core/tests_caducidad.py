@@ -18,7 +18,7 @@ usa mock de enviar_email_resend para no depender de Resend API.
 """
 from datetime import timedelta
 from io import StringIO
-from unittest.mock import patch, call
+from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 from django.core.management import call_command

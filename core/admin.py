@@ -390,7 +390,7 @@ class AvisoVencimientoAdmin(admin.ModelAdmin):
     search_fields = ('empresa__razon_social', 'empresa__cuit', 'email_destino')
     readonly_fields = (
         'empresa', 'nivel', 'dias_restantes', 'email_destino',
-        'fecha_envio', 'deleted_at',
+        'fecha_envio', 'is_active', 'deleted_at',
     )
     date_hierarchy = 'fecha_envio'
 
@@ -425,7 +425,7 @@ class CaducidadRegistroAdmin(admin.ModelAdmin):
     readonly_fields = (
         'empresa', 'estado_anterior', 'fecha_limite_original',
         'justificacion', 'email_destino', 'notificacion_enviada',
-        'fecha_ejecucion', 'deleted_at',
+        'fecha_ejecucion', 'is_active', 'deleted_at',
     )
     date_hierarchy = 'fecha_ejecucion'
 
