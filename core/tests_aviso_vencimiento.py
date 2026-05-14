@@ -65,7 +65,7 @@ class AvisoVencimientoServiceTest(TestCase):
         self.hoy = timezone.now().date()
 
     @patch(MOCK_RESEND_PATH, return_value={'id': 'mock-email-id'})
-    def test_envio_urgente_crea_aviso_y_actualiza_empresa(self, mock_email):
+    def test_envio_urgente_crea_aviso_sin_mutar_tracking_global(self, mock_email):
         """empresa con 5 dias → aviso urgente creado, email enviado."""
         empresa = _crear_empresa(
             'Urgente SA', '20-11111111-1',
@@ -87,9 +87,9 @@ class AvisoVencimientoServiceTest(TestCase):
         self.assertEqual(call_args[0][0], empresa.correo_electronico)
         self.assertIn('urgente', call_args[0][1].lower())
 
-        # verificar que se actualizo ultimo_aviso_vencimiento
+        # el tracking por nivel queda en AvisoVencimiento
         empresa.refresh_from_db()
-        self.assertEqual(empresa.ultimo_aviso_vencimiento, self.hoy)
+        self.assertIsNone(empresa.ultimo_aviso_vencimiento)
 
     @patch(MOCK_RESEND_PATH, return_value={'id': 'mock-email-id'})
     def test_envio_proximo_crea_aviso(self, mock_email):
@@ -207,20 +207,51 @@ class NotificarVencimientosCommandTest(TestCase):
 
     @patch(MOCK_RESEND_PATH, return_value={'id': 'mock-id'})
     def test_idempotencia_urgente_no_duplica(self, mock_email):
-        """empresa con aviso reciente (<7 dias) no recibe duplicado."""
-        _crear_empresa(
+        """empresa con aviso urgente reciente (<7 dias) no recibe duplicado."""
+        empresa = _crear_empresa(
             'NoDup SA', '20-88888888-8',
             Empresa.Estado.EN_CONSTRUCCION,
             fecha_limite_obra=self.hoy + timedelta(days=5),
-            ultimo_aviso=self.hoy - timedelta(days=3),  # hace 3 dias
+        )
+        AvisoVencimiento.objects.create(
+            empresa=empresa,
+            nivel=AvisoVencimiento.Nivel.URGENTE,
+            dias_restantes=6,
+            email_destino=empresa.correo_electronico,
         )
 
         out = StringIO()
         call_command('notificar_vencimientos', stdout=out)
 
-        self.assertEqual(AvisoVencimiento.objects.count(), 0)
+        self.assertEqual(AvisoVencimiento.objects.count(), 1)
         mock_email.assert_not_called()
         self.assertIn('Avisos urgentes: 0', out.getvalue())
+
+    @patch(MOCK_RESEND_PATH, return_value={'id': 'mock-id'})
+    def test_aviso_proximo_reciente_no_bloquea_aviso_urgente(self, mock_email):
+        """un aviso proximo reciente no impide enviar luego el urgente."""
+        empresa = _crear_empresa(
+            'CambioUmbral SA', '20-89898989-8',
+            Empresa.Estado.EN_CONSTRUCCION,
+            fecha_limite_obra=self.hoy + timedelta(days=7),
+        )
+        AvisoVencimiento.objects.create(
+            empresa=empresa,
+            nivel=AvisoVencimiento.Nivel.PROXIMO,
+            dias_restantes=8,
+            email_destino=empresa.correo_electronico,
+        )
+
+        out = StringIO()
+        call_command('notificar_vencimientos', stdout=out)
+
+        self.assertEqual(AvisoVencimiento.objects.count(), 2)
+        self.assertEqual(
+            AvisoVencimiento.objects.latest('fecha_envio').nivel,
+            AvisoVencimiento.Nivel.URGENTE,
+        )
+        mock_email.assert_called_once()
+        self.assertIn('Avisos urgentes: 1', out.getvalue())
 
     @patch(MOCK_RESEND_PATH, return_value={'id': 'mock-id'})
     def test_empresa_radicada_no_recibe(self, mock_email):

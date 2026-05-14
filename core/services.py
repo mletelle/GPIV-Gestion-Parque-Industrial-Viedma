@@ -380,15 +380,12 @@ def enviar_aviso_vencimiento(empresa, dias_restantes, nivel):
     if not resultado:
         return None
 
-    from django.utils import timezone as tz
     aviso = AvisoVencimiento.objects.create(
         empresa=empresa,
         nivel=nivel,
         dias_restantes=dias_restantes,
         email_destino=destino,
     )
-    empresa.ultimo_aviso_vencimiento = tz.now().date()
-    empresa.save(update_fields=['ultimo_aviso_vencimiento'])
 
     logger.info(
         "Aviso de vencimiento enviado: empresa=%s, nivel=%s, dias=%d, destino=%s",
@@ -539,5 +536,4 @@ def notificar_admin_caducidades(registros):
         f'[GPIV] {len(registros)} caducidad(es) automática(s) ejecutada(s)'
     )
     return enviar_email_resend(settings.SUPPORT_INBOX_EMAIL, subject, html)
-
 

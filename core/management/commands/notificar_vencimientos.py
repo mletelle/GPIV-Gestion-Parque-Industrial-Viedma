@@ -10,11 +10,12 @@ ejemplo de cron:
       notificar_vencimientos >> /var/log/gpiv/vencimientos.log 2>&1
 
 idempotencia: no repite aviso urgente antes de 7 dias ni proximo antes
-de 30 dias, usando el campo Empresa.ultimo_aviso_vencimiento.
+de 30 dias, consultando AvisoVencimiento por empresa y nivel.
 """
 from datetime import timedelta
 
 from django.core.management.base import BaseCommand
+from django.db.models import Exists, OuterRef
 from django.utils import timezone
 
 from core.models import Empresa, AvisoVencimiento
@@ -41,13 +42,27 @@ class Command(BaseCommand):
         hoy = timezone.now().date()
         limite_urgente = hoy + timedelta(days=7)
         limite_proximo = hoy + timedelta(days=30)
+        avisos_urgentes_recientes = AvisoVencimiento.objects.filter(
+            empresa=OuterRef('pk'),
+            nivel=AvisoVencimiento.Nivel.URGENTE,
+            is_active=True,
+            fecha_envio__date__gte=hoy - INTERVALO_URGENTE,
+        )
+        avisos_proximos_recientes = AvisoVencimiento.objects.filter(
+            empresa=OuterRef('pk'),
+            nivel=AvisoVencimiento.Nivel.PROXIMO,
+            is_active=True,
+            fecha_envio__date__gte=hoy - INTERVALO_PROXIMO,
+        )
 
         # empresas con vencimiento <= 7 dias (urgentes)
         urgentes = Empresa.objects.filter(
             estado=Empresa.Estado.EN_CONSTRUCCION,
             fecha_limite_obra__range=(hoy, limite_urgente),
-        ).exclude(
-            ultimo_aviso_vencimiento__gte=hoy - INTERVALO_URGENTE,
+        ).annotate(
+            aviso_urgente_reciente=Exists(avisos_urgentes_recientes),
+        ).filter(
+            aviso_urgente_reciente=False,
         )
 
         # empresas con vencimiento entre 8 y 30 dias (proximos)
@@ -55,8 +70,10 @@ class Command(BaseCommand):
             estado=Empresa.Estado.EN_CONSTRUCCION,
             fecha_limite_obra__gt=limite_urgente,
             fecha_limite_obra__lte=limite_proximo,
-        ).exclude(
-            ultimo_aviso_vencimiento__gte=hoy - INTERVALO_PROXIMO,
+        ).annotate(
+            aviso_proximo_reciente=Exists(avisos_proximos_recientes),
+        ).filter(
+            aviso_proximo_reciente=False,
         )
 
         enviados_urgentes = 0
