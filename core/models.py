@@ -659,3 +659,139 @@ class SolicitudAcceso(models.Model):
         if self.tipo == self.Tipo.ORGANISMO:
             return self.GRUPO_ORGANISMO
         return self.GRUPO_POR_TIPO_ACCESO[self.tipo_acceso]
+
+
+class AvisoVencimiento(models.Model):
+    """
+    Log auditable de avisos de vencimiento de plazo de obra enviados
+    automáticamente por el command ``notificar_vencimientos``.
+
+    Baja lógica: ``is_active=False`` + ``deleted_at`` al desactivar.
+    El registro permanece para conservar la trazabilidad de las
+    notificaciones enviadas.
+    """
+
+    class Nivel(models.TextChoices):
+        URGENTE = 'Urgente', _('Urgente (≤ 7 días)')
+        PROXIMO = 'Proximo', _('Próximo (8 – 30 días)')
+
+    empresa = models.ForeignKey(
+        Empresa,
+        on_delete=models.CASCADE,
+        related_name='avisos_vencimiento',
+        verbose_name=_('Empresa'),
+    )
+    nivel = models.CharField(
+        max_length=10,
+        choices=Nivel.choices,
+        verbose_name=_('Nivel de urgencia'),
+    )
+    dias_restantes = models.IntegerField(
+        verbose_name=_('Días restantes al momento del envío'),
+    )
+    email_destino = models.EmailField(
+        verbose_name=_('Email destino'),
+    )
+    fecha_envio = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('Fecha de envío'),
+    )
+
+    # Baja lógica
+    is_active = models.BooleanField(
+        default=True,
+        help_text=_('Desmarcar para baja lógica del registro de aviso.'),
+    )
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _('Aviso de Vencimiento')
+        verbose_name_plural = _('Avisos de Vencimiento')
+        ordering = ['-fecha_envio']
+        indexes = [
+            models.Index(
+                fields=['empresa', 'nivel', 'fecha_envio'],
+                name='idx_aviso_emp_nivel_fecha',
+            ),
+        ]
+
+    def __str__(self):
+        return f'Aviso {self.get_nivel_display()} → {self.empresa} ({self.dias_restantes}d)'
+
+    def soft_delete(self):
+        """Baja lógica: desactiva el registro sin eliminarlo de la BD."""
+        self.is_active = False
+        self.deleted_at = timezone.now()
+        self.save(update_fields=['is_active', 'deleted_at'])
+
+
+class CaducidadRegistro(models.Model):
+    """
+    Log auditable de caducidades automáticas ejecutadas por el command
+    ``verificar_caducidades``.
+
+    Cada registro representa una empresa cuyo plazo de obra venció y fue
+    marcada como Caducado automáticamente.  Baja lógica: ``is_active=False``
+    + ``deleted_at`` al desactivar.
+    """
+
+    empresa = models.ForeignKey(
+        Empresa,
+        on_delete=models.CASCADE,
+        related_name='caducidades',
+        verbose_name=_('Empresa'),
+    )
+    estado_anterior = models.CharField(
+        max_length=30,
+        choices=Empresa.Estado.choices,
+        verbose_name=_('Estado anterior'),
+    )
+    fecha_limite_original = models.DateField(
+        verbose_name=_('Fecha límite de obra al momento de caducar'),
+    )
+    justificacion = models.TextField(
+        verbose_name=_('Justificación'),
+    )
+    email_destino = models.EmailField(
+        verbose_name=_('Email notificado'),
+        blank=True,
+    )
+    notificacion_enviada = models.BooleanField(
+        default=False,
+        verbose_name=_('Notificación enviada a la empresa'),
+    )
+    fecha_ejecucion = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('Fecha de ejecución'),
+    )
+
+    # Baja lógica
+    is_active = models.BooleanField(
+        default=True,
+        help_text=_('Desmarcar para baja lógica del registro.'),
+    )
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _('Registro de Caducidad')
+        verbose_name_plural = _('Registros de Caducidad')
+        ordering = ['-fecha_ejecucion']
+        indexes = [
+            models.Index(
+                fields=['empresa', 'fecha_ejecucion'],
+                name='idx_caducidad_emp_fecha',
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f'Caducidad → {self.empresa} '
+            f'(límite: {self.fecha_limite_original})'
+        )
+
+    def soft_delete(self):
+        """Baja lógica: desactiva el registro sin eliminarlo de la BD."""
+        self.is_active = False
+        self.deleted_at = timezone.now()
+        self.save(update_fields=['is_active', 'deleted_at'])
+

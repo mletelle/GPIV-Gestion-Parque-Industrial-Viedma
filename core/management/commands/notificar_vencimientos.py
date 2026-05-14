@@ -2,33 +2,24 @@
 management command: notificar_vencimientos
 
 busca empresas en construccion con vencimiento de obra proximo y manda
-mail al contacto. se ejecuta desde crontab del servidor todos los dias
-a las 08:00.
+mail al contacto via la funcion de servicio enviar_aviso_vencimiento.
+se ejecuta desde crontab del servidor todos los dias a las 08:00.
 
-Para no enviar emails duplicados cada dia, solo notifica si pasaron
-al menos 7 dias (urgentes) o 30 dias (proximos) desde el ultimo aviso.
+ejemplo de cron:
+  0 8 * * * /ruta/venv/bin/python /ruta/proyecto/manage.py \
+      notificar_vencimientos >> /var/log/gpiv/vencimientos.log 2>&1
+
+idempotencia: no repite aviso urgente antes de 7 dias ni proximo antes
+de 30 dias, usando el campo Empresa.ultimo_aviso_vencimiento.
 """
 from datetime import timedelta
 
-from django.conf import settings
-from django.core.mail import send_mail
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from core.models import Empresa
+from core.models import Empresa, AvisoVencimiento
+from core.services import enviar_aviso_vencimiento
 
-
-ASUNTO_URGENTE = '[GPIV] Aviso urgente: plazo de obra vence en {dias} dia(s)'
-ASUNTO_PROXIMO = '[GPIV] Recordatorio: plazo de obra vence en {dias} dia(s)'
-
-CUERPO = (
-    'Estimado/a {razon_social},\n\n'
-    'Le informamos que el plazo maximo para la finalizacion de la obra en el '
-    'Parque Industrial de Viedma vence el {fecha}. Quedan {dias} dia(s) habiles.\n\n'
-    'Si considera que no llegara a finalizar en termino, puede solicitar una '
-    'prorroga desde el panel de GPIV.\n\n'
-    'Saludos,\nAdministracion ENREPAVI'
-)
 
 # no repetir aviso urgente antes de 7 dias ni proximo antes de 30
 INTERVALO_URGENTE = timedelta(days=7)
@@ -38,17 +29,28 @@ INTERVALO_PROXIMO = timedelta(days=30)
 class Command(BaseCommand):
     help = 'Envia avisos de vencimiento de plazo de obra a empresas en construccion'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--dry-run',
+            action='store_true',
+            help='Lista las empresas que recibirian aviso sin enviar emails ni crear registros.',
+        )
+
     def handle(self, *args, **options):
+        dry_run = options['dry_run']
         hoy = timezone.now().date()
         limite_urgente = hoy + timedelta(days=7)
         limite_proximo = hoy + timedelta(days=30)
 
+        # empresas con vencimiento <= 7 dias (urgentes)
         urgentes = Empresa.objects.filter(
             estado=Empresa.Estado.EN_CONSTRUCCION,
             fecha_limite_obra__range=(hoy, limite_urgente),
         ).exclude(
             ultimo_aviso_vencimiento__gte=hoy - INTERVALO_URGENTE,
         )
+
+        # empresas con vencimiento entre 8 y 30 dias (proximos)
         proximos = Empresa.objects.filter(
             estado=Empresa.Estado.EN_CONSTRUCCION,
             fecha_limite_obra__gt=limite_urgente,
@@ -62,41 +64,40 @@ class Command(BaseCommand):
 
         for empresa in urgentes:
             dias = (empresa.fecha_limite_obra - hoy).days
-            send_mail(
-                subject=ASUNTO_URGENTE.format(dias=dias),
-                message=CUERPO.format(
-                    razon_social=empresa.razon_social,
-                    fecha=empresa.fecha_limite_obra.strftime('%d/%m/%Y'),
-                    dias=dias,
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[empresa.correo_electronico],
-                fail_silently=False,
+            if dry_run:
+                self.stdout.write(
+                    f'  [DRY-RUN] URGENTE: {empresa.razon_social} '
+                    f'(vence {empresa.fecha_limite_obra}, {dias}d)'
+                )
+                enviados_urgentes += 1
+                continue
+
+            resultado = enviar_aviso_vencimiento(
+                empresa, dias, AvisoVencimiento.Nivel.URGENTE,
             )
-            empresa.ultimo_aviso_vencimiento = hoy
-            empresa.save(update_fields=['ultimo_aviso_vencimiento'])
-            enviados_urgentes += 1
+            if resultado:
+                enviados_urgentes += 1
 
         for empresa in proximos:
             dias = (empresa.fecha_limite_obra - hoy).days
-            send_mail(
-                subject=ASUNTO_PROXIMO.format(dias=dias),
-                message=CUERPO.format(
-                    razon_social=empresa.razon_social,
-                    fecha=empresa.fecha_limite_obra.strftime('%d/%m/%Y'),
-                    dias=dias,
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[empresa.correo_electronico],
-                fail_silently=False,
-            )
-            empresa.ultimo_aviso_vencimiento = hoy
-            empresa.save(update_fields=['ultimo_aviso_vencimiento'])
-            enviados_proximos += 1
+            if dry_run:
+                self.stdout.write(
+                    f'  [DRY-RUN] PROXIMO: {empresa.razon_social} '
+                    f'(vence {empresa.fecha_limite_obra}, {dias}d)'
+                )
+                enviados_proximos += 1
+                continue
 
+            resultado = enviar_aviso_vencimiento(
+                empresa, dias, AvisoVencimiento.Nivel.PROXIMO,
+            )
+            if resultado:
+                enviados_proximos += 1
+
+        prefijo = '[DRY-RUN] ' if dry_run else ''
         self.stdout.write(self.style.SUCCESS(
-            f'Avisos urgentes enviados: {enviados_urgentes}'
+            f'{prefijo}Avisos urgentes: {enviados_urgentes}'
         ))
         self.stdout.write(self.style.SUCCESS(
-            f'Avisos proximos enviados: {enviados_proximos}'
+            f'{prefijo}Avisos proximos: {enviados_proximos}'
         ))
