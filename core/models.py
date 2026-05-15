@@ -231,6 +231,22 @@ class Lote(models.Model):
     empresa = models.ForeignKey(Empresa, on_delete=models.SET_NULL, null=True, blank=True, related_name='lotes')
     lotes_colindantes = models.ManyToManyField('self', blank=True, symmetrical=True)
 
+    # medidas referenciales del plano catastral (ancho x alto en metros)
+    ancho_m = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True,
+        verbose_name=_('Ancho (m)'), validators=[MinValueValidator(0)],
+    )
+    alto_m = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True,
+        verbose_name=_('Alto (m)'), validators=[MinValueValidator(0)],
+    )
+
+    # posicion en el mapa svg (coordenadas del viewBox, editables desde /lotes/editor/)
+    mapa_x = models.IntegerField(null=True, blank=True, verbose_name=_('Mapa: X'))
+    mapa_y = models.IntegerField(null=True, blank=True, verbose_name=_('Mapa: Y'))
+    mapa_w = models.IntegerField(null=True, blank=True, verbose_name=_('Mapa: ancho'))
+    mapa_h = models.IntegerField(null=True, blank=True, verbose_name=_('Mapa: alto'))
+
     class Meta:
         verbose_name = _("Lote")
         verbose_name_plural = _("Lotes")

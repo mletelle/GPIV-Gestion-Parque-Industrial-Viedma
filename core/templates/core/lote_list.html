@@ -101,10 +101,17 @@
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h2 class="sec-title mb-0">Gestión de Lotes</h2>
-            <a href="{% url 'core:lote_create' %}" class="btn-verde">
-                <i class="bi bi-plus-lg"></i> Nuevo Lote
-            </a>
+            <div class="d-flex gap-2">
+                <a href="{% url 'core:mapa_editor' %}" class="btn-sm-gpiv d-flex align-items-center gap-1" style="padding:.45rem .9rem;">
+                    <i class="bi bi-pencil-square"></i> Editor de mapa
+                </a>
+                <a href="{% url 'core:lote_create' %}" class="btn-verde">
+                    <i class="bi bi-plus-lg"></i> Nuevo Lote
+                </a>
+            </div>
         </div>
+
+        {% include 'core/_lotes_mapa.html' %}
 
         <div class="filtros-card">
             <form method="get" class="row g-3 align-items-end">
