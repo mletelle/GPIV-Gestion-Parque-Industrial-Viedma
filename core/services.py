@@ -9,7 +9,7 @@ import resend
 from django.conf import settings
 from django.utils.html import escape
 
-from .models import TransicionEstado
+from .models import Empresa, Lote, TransicionEstado
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +31,72 @@ SERVICIO_LABELS = {
     'LUZ': 'Electricidad',
     'GAS': 'Gas',
 }
+
+
+def _empresa_genera_residuos(empresa):
+    return bool(
+        empresa.genera_residuos
+        or (empresa.residuos_efluentes or '').strip()
+    )
+
+
+def evaluar_incompatibilidades_lote(empresa, lote):
+    """
+    Evalua incompatibilidades simples entre una empresa candidata y los
+    ocupantes de lotes colindantes.
+
+    Regla GPIV inicial: advertir cuando una actividad quimica o generadora de
+    residuos queda junto a actividad alimenticia. Devuelve una lista de alertas
+    informativas; la adjudicacion no se bloquea desde este servicio.
+    """
+    alertas = []
+    empresa_es_alimenticia = (
+        empresa.categoria_industrial == Empresa.CategoriaIndustrial.ALIMENTICIA
+    )
+    empresa_es_quimica = (
+        empresa.categoria_industrial == Empresa.CategoriaIndustrial.QUIMICA
+    )
+    empresa_tiene_residuos = _empresa_genera_residuos(empresa)
+
+    vecinos = lote.lotes_colindantes.filter(
+        estado=Lote.Estado.EN_USO,
+        empresa__isnull=False,
+    ).select_related('empresa').order_by('nro_parcela')
+
+    for lote_vecino in vecinos:
+        empresa_vecina = lote_vecino.empresa
+        vecino_es_alimenticia = (
+            empresa_vecina.categoria_industrial
+            == Empresa.CategoriaIndustrial.ALIMENTICIA
+        )
+        vecino_es_quimica = (
+            empresa_vecina.categoria_industrial
+            == Empresa.CategoriaIndustrial.QUIMICA
+        )
+        vecino_tiene_residuos = _empresa_genera_residuos(empresa_vecina)
+
+        motivos = []
+        if (
+            (empresa_es_quimica and vecino_es_alimenticia)
+            or (empresa_es_alimenticia and vecino_es_quimica)
+        ):
+            motivos.append('actividad química junto a actividad alimenticia')
+
+        if (
+            (empresa_tiene_residuos and vecino_es_alimenticia)
+            or (empresa_es_alimenticia and vecino_tiene_residuos)
+        ):
+            motivos.append('generación de residuos junto a actividad alimenticia')
+
+        if motivos:
+            alertas.append({
+                'lote_vecino': lote_vecino,
+                'empresa_vecina': empresa_vecina,
+                'motivo': '; '.join(motivos),
+                'severidad': 'alta',
+            })
+
+    return alertas
 
 
 def get_servicio_proveedor(user):
@@ -536,4 +602,3 @@ def notificar_admin_caducidades(registros):
         f'[GPIV] {len(registros)} caducidad(es) automática(s) ejecutada(s)'
     )
     return enviar_email_resend(settings.SUPPORT_INBOX_EMAIL, subject, html)
-

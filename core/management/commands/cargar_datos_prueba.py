@@ -130,28 +130,41 @@ PARCELAS = {
     28: (1267.09, 42.88, 29.83, 1258, 604,  57,  56),
 }
 
-# lindantes por cuadra (lotes que comparten borde fisico)
+# lindantes por lote (comparten borde fisico; no cuenta contacto por vertice
+# ni lotes separados por calles/servidumbre).
 LINDANTES = {
     22: [23], 23: [22],
     20: [19, 18], 19: [20, 18], 18: [20, 19, 17], 17: [18, 15, 16],
     15: [17, 16], 16: [15, 17],
-    11: [10, 12], 10: [11, 9, 8], 9: [10, 8],
-    12: [11, 13, 8], 13: [12, 14, 7], 14: [13, 6, 5],
-    8: [12, 10, 9, 7], 7: [13, 8, 6], 6: [14, 7, 5],
-    5: [14, 6],
-    1: [2], 2: [1, 3], 3: [2, 4], 4: [3],
+    11: [10, 12], 10: [8, 9, 11, 12], 9: [8, 10],
+    12: [8, 10, 11, 13], 13: [7, 12, 14], 14: [5, 6, 13],
+    8: [7, 9, 10, 12], 7: [6, 8, 13], 6: [5, 7, 14],
+    5: [1, 2, 3, 4, 6, 14],
+    1: [2, 5], 2: [1, 3, 5], 3: [2, 4, 5], 4: [3, 5],
     61: [62], 62: [61, 63], 63: [62, 64], 64: [63, 65], 65: [64],
-    58: [57, 59], 57: [58, 56, 59, 54], 56: [57, 55, 54, 53],
-    55: [56, 54], 59: [58, 57, 60, 54], 54: [59, 57, 56, 55, 53],
-    60: [59, 53, 49, 50], 53: [60, 54, 56, 51, 52],
-    49: [60, 50], 50: [49, 51, 60, 53], 51: [50, 52, 53], 52: [51, 53],
-    40: [41, 39], 41: [40, 39], 39: [40, 41, 38], 38: [39, 36, 37],
-    36: [38, 37], 37: [38, 36],
-    42: [43, 35], 43: [42, 44, 34], 44: [43, 45, 33], 45: [44, 46, 32],
-    46: [45, 47, 31], 47: [46, 48, 30], 48: [47, 29],
-    35: [42, 34], 34: [43, 35, 33], 33: [44, 34, 32], 32: [45, 33, 31],
-    31: [46, 32, 30], 30: [47, 31, 29], 29: [48, 30],
-    24: [25], 25: [24, 26], 26: [25, 27], 27: [26, 28], 28: [27],
+    58: [57, 59], 57: [56, 58, 59], 56: [54, 55, 57],
+    55: [56, 54], 59: [58, 57, 60, 54], 54: [59, 56, 55, 53],
+    60: [49, 50, 53, 59], 53: [51, 52, 54, 60],
+    49: [50, 60], 50: [49, 51, 60], 51: [50, 52, 53], 52: [51, 53],
+    40: [39, 41], 41: [39, 40, 42], 39: [38, 40, 41, 42], 38: [35, 36, 37, 39],
+    36: [37, 38], 37: [35, 36, 38],
+    42: [35, 39, 41, 43], 43: [34, 42, 44], 44: [33, 43, 45], 45: [32, 44, 46],
+    46: [45, 47, 31], 47: [46, 48, 30], 48: [24, 25, 26, 29, 47],
+    35: [34, 37, 38, 42], 34: [33, 35, 43], 33: [32, 34, 44], 32: [31, 33, 45],
+    31: [46, 32, 30], 30: [47, 31, 29],
+    24: [25, 48], 25: [24, 26, 48], 26: [25, 27, 29, 48],
+    27: [26, 28, 29], 28: [27, 29], 29: [26, 27, 28, 30, 48],
+}
+
+
+SERVICIOS_NO_DISPONIBLES = {
+    # La mayoria de los lotes tiene servicios completos. Estas excepciones
+    # dejan casos visibles para probar filtros, edicion y adjudicacion.
+    'agua_potable': {65},
+    'agua_cruda': {1, 2, 3, 4, 24, 25, 26, 27, 28, 61, 62, 63, 64, 65},
+    'electricidad': {65},
+    'gas': {1, 2, 3, 4, 24, 25, 26, 27, 28, 40, 41, 65},
+    'internet': {22, 23, 61, 65},
 }
 
 
@@ -176,10 +189,10 @@ EMPRESAS_PRUEBA = [
     {
         'username': 'empresa_beta',
         'email': 'beta@test.local',
-        'razon_social': 'Beta Tech S.R.L.',
+        'razon_social': 'Beta Insumos Quimicos S.R.L.',
         'cuit': '30-22222222-2',
         'rubro': Empresa.Rubro.BIENES_Y_SERVICIOS,
-        'categoria_industrial': Empresa.CategoriaIndustrial.TECNOLOGICA,
+        'categoria_industrial': Empresa.CategoriaIndustrial.QUIMICA,
         'tipo_empresa': Empresa.TipoEmpresa.NUEVA,
         'necesidad_m2': '2000a5000',
         'estado': Empresa.Estado.PRE_APROBADO,
@@ -677,6 +690,29 @@ def _consumos_para(empresa, meses=6):
 
     hoy = timezone.now().date()
     consumos = []
+    factores = {
+        'agua_potable': [
+            Decimal('1.10'), Decimal('0.95'), Decimal('1.12'),
+            Decimal('0.90'), Decimal('1.03'), Decimal('0.88'),
+        ],
+        'agua_cruda': [
+            Decimal('1.04'), Decimal('0.98'), Decimal('1.09'),
+            Decimal('0.93'), Decimal('1.02'), Decimal('0.90'),
+        ],
+        'luz': [
+            Decimal('1.08'), Decimal('0.96'), Decimal('1.14'),
+            Decimal('0.92'), Decimal('1.05'), Decimal('0.89'),
+        ],
+        'gas': [
+            Decimal('1.06'), Decimal('0.97'), Decimal('1.10'),
+            Decimal('0.91'), Decimal('1.04'), Decimal('0.90'),
+        ],
+    }
+
+    def ajustar(valor, servicio, indice):
+        factor = factores[servicio][(indice - 1) % len(factores[servicio])]
+        return (valor * factor).quantize(Decimal('0.01'))
+
     for i in range(1, meses + 1):
         # retrocede aproximadamente un mes por iteracion
         anio = hoy.year
@@ -684,14 +720,19 @@ def _consumos_para(empresa, meses=6):
         while mes <= 0:
             mes += 12
             anio -= 1
+        nivel = Decimal(meses - i + 1)
         # radicada: solo agua, aun no opera maquinaria
         if empresa.estado == Empresa.Estado.RADICADA:
             consumos.append({
                 'periodo_mes': mes,
                 'periodo_anio': anio,
-                'consumo_agua_potable_m3': Decimal('8.50') + Decimal(i) * Decimal('0.5'),
+                'consumo_agua_potable_m3': ajustar(
+                    Decimal('8.50') + nivel * Decimal('0.5'), 'agua_potable', i,
+                ),
                 'consumo_agua_cruda_m3': None,
-                'consumo_luz_kwh': Decimal('120.00') + Decimal(i) * Decimal('10'),
+                'consumo_luz_kwh': ajustar(
+                    Decimal('120.00') + nivel * Decimal('10'), 'luz', i,
+                ),
                 'consumo_gas_m3': None,
             })
         # en construccion: agua + luz de obra, sin gas industrial
@@ -699,9 +740,15 @@ def _consumos_para(empresa, meses=6):
             consumos.append({
                 'periodo_mes': mes,
                 'periodo_anio': anio,
-                'consumo_agua_potable_m3': Decimal('25.00') + Decimal(i) * Decimal('2'),
-                'consumo_agua_cruda_m3': Decimal('15.00'),
-                'consumo_luz_kwh': Decimal('850.00') + Decimal(i) * Decimal('25'),
+                'consumo_agua_potable_m3': ajustar(
+                    Decimal('25.00') + nivel * Decimal('2'), 'agua_potable', i,
+                ),
+                'consumo_agua_cruda_m3': ajustar(
+                    Decimal('12.00') + nivel * Decimal('1.5'), 'agua_cruda', i,
+                ),
+                'consumo_luz_kwh': ajustar(
+                    Decimal('850.00') + nivel * Decimal('25'), 'luz', i,
+                ),
                 'consumo_gas_m3': None,
             })
         # finalizado/escriturado: operacion completa
@@ -709,10 +756,18 @@ def _consumos_para(empresa, meses=6):
             consumos.append({
                 'periodo_mes': mes,
                 'periodo_anio': anio,
-                'consumo_agua_potable_m3': Decimal('45.00') + Decimal(i) * Decimal('1.5'),
-                'consumo_agua_cruda_m3': Decimal('120.00'),
-                'consumo_luz_kwh': Decimal('3200.00') + Decimal(i) * Decimal('80'),
-                'consumo_gas_m3': Decimal('450.00') + Decimal(i) * Decimal('10'),
+                'consumo_agua_potable_m3': ajustar(
+                    Decimal('45.00') + nivel * Decimal('1.5'), 'agua_potable', i,
+                ),
+                'consumo_agua_cruda_m3': ajustar(
+                    Decimal('110.00') + nivel * Decimal('5'), 'agua_cruda', i,
+                ),
+                'consumo_luz_kwh': ajustar(
+                    Decimal('3200.00') + nivel * Decimal('80'), 'luz', i,
+                ),
+                'consumo_gas_m3': ajustar(
+                    Decimal('450.00') + nivel * Decimal('10'), 'gas', i,
+                ),
             })
     return consumos
 
@@ -754,6 +809,11 @@ class Command(BaseCommand):
                     'alto_m': Decimal(str(alto)),
                     'mapa_x': mx, 'mapa_y': my,
                     'mapa_w': mw, 'mapa_h': mh,
+                    'conexion_agua_potable': nro not in SERVICIOS_NO_DISPONIBLES['agua_potable'],
+                    'conexion_agua_cruda': nro not in SERVICIOS_NO_DISPONIBLES['agua_cruda'],
+                    'conexion_electrica': nro not in SERVICIOS_NO_DISPONIBLES['electricidad'],
+                    'conexion_gas': nro not in SERVICIOS_NO_DISPONIBLES['gas'],
+                    'internet_disponible': nro not in SERVICIOS_NO_DISPONIBLES['internet'],
                     'estado': estado,
                 },
             )

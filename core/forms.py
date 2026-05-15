@@ -34,6 +34,8 @@ class LoteForm(forms.ModelForm):
             'alto_m',
             'conexion_agua_potable',
             'conexion_agua_cruda',
+            'conexion_electrica',
+            'conexion_gas',
             'internet_disponible',
             'estado',
         ]
@@ -44,6 +46,8 @@ class LoteForm(forms.ModelForm):
             'alto_m': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
             'conexion_agua_potable': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'conexion_agua_cruda': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'conexion_electrica': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'conexion_gas': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'internet_disponible': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'estado': forms.Select(attrs={'class': 'form-select'}),
         }
