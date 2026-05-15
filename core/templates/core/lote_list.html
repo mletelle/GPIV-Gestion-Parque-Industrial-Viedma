@@ -152,6 +152,8 @@
                         <th>Superficie (m²)</th>
                         <th>Agua Potable</th>
                         <th>Agua Cruda</th>
+                        <th>Electricidad</th>
+                        <th>Gas</th>
                         <th>Internet</th>
                         <th>Estado</th>
                         <th>Empresa</th>
@@ -165,6 +167,8 @@
                         <td>{{ lote.superficie_m2|floatformat:2 }}</td>
                         <td>{% if lote.conexion_agua_potable %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
                         <td>{% if lote.conexion_agua_cruda %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
+                        <td>{% if lote.conexion_electrica %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
+                        <td>{% if lote.conexion_gas %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
                         <td>{% if lote.internet_disponible %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
                         <td>
                             {% if lote.estado == 'Disponible' %}
@@ -184,7 +188,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-3">No se encontraron lotes.</td>
+                        <td colspan="10" class="text-center text-muted py-3">No se encontraron lotes.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

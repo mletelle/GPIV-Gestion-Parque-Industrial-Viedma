@@ -98,7 +98,11 @@ class EmpresaAdmin(admin.ModelAdmin):
 
 @admin.register(Lote)
 class LoteAdmin(admin.ModelAdmin):
-    list_display = ('nro_parcela', 'superficie_m2', 'estado', 'empresa')
+    list_display = (
+        'nro_parcela', 'superficie_m2', 'estado', 'conexion_agua_potable',
+        'conexion_agua_cruda', 'conexion_electrica', 'conexion_gas',
+        'internet_disponible', 'empresa',
+    )
     list_filter = ('estado',)
     search_fields = ('nro_parcela',)
     autocomplete_fields = ('empresa',)

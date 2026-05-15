@@ -158,6 +158,17 @@ LINDANTES = {
 }
 
 
+SERVICIOS_NO_DISPONIBLES = {
+    # La mayoria de los lotes tiene servicios completos. Estas excepciones
+    # dejan casos visibles para probar filtros, edicion y adjudicacion.
+    'agua_potable': {65},
+    'agua_cruda': {1, 2, 3, 4, 24, 25, 26, 27, 28, 61, 62, 63, 64, 65},
+    'electricidad': {65},
+    'gas': {1, 2, 3, 4, 24, 25, 26, 27, 28, 40, 41, 65},
+    'internet': {22, 23, 61, 65},
+}
+
+
 # catalogo de empresas de prueba
 # los que estan con lote tienen parcela asignada (numero de parcela)
 # los consumos se generan automaticamente segun estado
@@ -799,6 +810,11 @@ class Command(BaseCommand):
                     'alto_m': Decimal(str(alto)),
                     'mapa_x': mx, 'mapa_y': my,
                     'mapa_w': mw, 'mapa_h': mh,
+                    'conexion_agua_potable': nro not in SERVICIOS_NO_DISPONIBLES['agua_potable'],
+                    'conexion_agua_cruda': nro not in SERVICIOS_NO_DISPONIBLES['agua_cruda'],
+                    'conexion_electrica': nro not in SERVICIOS_NO_DISPONIBLES['electricidad'],
+                    'conexion_gas': nro not in SERVICIOS_NO_DISPONIBLES['gas'],
+                    'internet_disponible': nro not in SERVICIOS_NO_DISPONIBLES['internet'],
                     'estado': estado,
                 },
             )

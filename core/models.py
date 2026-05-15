@@ -226,6 +226,8 @@ class Lote(models.Model):
     superficie_m2 = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     conexion_agua_potable = models.BooleanField(default=False)
     conexion_agua_cruda = models.BooleanField(default=False)
+    conexion_electrica = models.BooleanField(default=False)
+    conexion_gas = models.BooleanField(default=False)
     internet_disponible = models.BooleanField(default=False)
     estado = models.CharField(max_length=30, choices=Estado.choices, default=Estado.DISPONIBLE)
     empresa = models.ForeignKey(Empresa, on_delete=models.SET_NULL, null=True, blank=True, related_name='lotes')
@@ -810,4 +812,3 @@ class CaducidadRegistro(models.Model):
         self.is_active = False
         self.deleted_at = timezone.now()
         self.save(update_fields=['is_active', 'deleted_at'])
-

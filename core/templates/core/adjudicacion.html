@@ -144,6 +144,8 @@
                         <th>Superficie (m²)</th>
                         <th>Agua Potable</th>
                         <th>Agua Cruda</th>
+                        <th>Electricidad</th>
+                        <th>Gas</th>
                         <th>Internet</th>
                         <th>Cuidado Ambiental</th>
                         <th></th>
@@ -154,12 +156,11 @@
                     <tr data-lote-row="{{ lote.nro_parcela }}">
                         <td><strong>{{ lote.nro_parcela|stringformat:"03d" }}</strong></td>
                         <td>{{ lote.superficie_m2|floatformat:2 }}</td>
-                        <td>{% if lote.conexion_agua_potable %}<i class="bi bi-check-circle text-success"></i>{% else
-                            %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
-                        <td>{% if lote.conexion_agua_cruda %}<i class="bi bi-check-circle text-success"></i>{% else %}<i
-                                class="bi bi-x-circle text-muted"></i>{% endif %}</td>
-                        <td>{% if lote.internet_disponible %}<i class="bi bi-check-circle text-success"></i>{% else %}<i
-                                class="bi bi-x-circle text-muted"></i>{% endif %}</td>
+                        <td>{% if lote.conexion_agua_potable %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
+                        <td>{% if lote.conexion_agua_cruda %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
+                        <td>{% if lote.conexion_electrica %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
+                        <td>{% if lote.conexion_gas %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
+                        <td>{% if lote.internet_disponible %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
                         <td>
                             {% if lote.alertas_incompatibilidad %}
                             <div class="alerta-ambiental-inline">
