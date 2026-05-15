@@ -131,8 +131,7 @@ PARCELAS = {
 }
 
 # lindantes por lote (comparten borde fisico; no cuenta contacto por vertice
-# ni lotes separados por calles/servidumbre). Mantener sincronizado con
-# .context/lotes_catastro.md.
+# ni lotes separados por calles/servidumbre).
 LINDANTES = {
     22: [23], 23: [22],
     20: [19, 18], 19: [20, 18], 18: [20, 19, 17], 17: [18, 15, 16],
