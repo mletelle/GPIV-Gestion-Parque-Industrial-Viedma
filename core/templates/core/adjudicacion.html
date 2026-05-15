@@ -60,6 +60,11 @@
         background: var(--verde-claro);
     }
 
+    .tabla-lotes-adj tr.is-map-selected td {
+        background: #ECFDF5;
+        box-shadow: inset 3px 0 0 var(--verde);
+    }
+
     .btn-adjudicar-lote {
         font-size: 0.82rem;
         padding: 0.3rem 0.8rem;
@@ -83,6 +88,19 @@
         padding: 1rem;
         font-size: 0.88rem;
         margin-bottom: 1rem;
+    }
+
+    .alerta-ambiental-inline {
+        max-width: 340px;
+        color: #92400E;
+        font-size: 0.8rem;
+        line-height: 1.35;
+    }
+
+    .alerta-ambiental-inline strong {
+        display: block;
+        color: #78350F;
+        margin-bottom: 0.15rem;
     }
 </style>
 {% endblock %}
@@ -112,6 +130,10 @@
         {% endfor %}
         {% endif %}
 
+        {% if mapa_lotes %}
+        {% include 'core/_lotes_mapa.html' %}
+        {% endif %}
+
         {% if lotes %}
         <h4 style="font-size:1rem;font-weight:700;margin-bottom:1rem;">Lotes disponibles ({{ empresa.get_necesidad_m2_display }})</h4>
         <div style="overflow-x:auto;">
@@ -123,12 +145,13 @@
                         <th>Agua Potable</th>
                         <th>Agua Cruda</th>
                         <th>Internet</th>
+                        <th>Cuidado Ambiental</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for lote in lotes %}
-                    <tr>
+                    <tr data-lote-row="{{ lote.nro_parcela }}">
                         <td><strong>{{ lote.nro_parcela|stringformat:"03d" }}</strong></td>
                         <td>{{ lote.superficie_m2|floatformat:2 }}</td>
                         <td>{% if lote.conexion_agua_potable %}<i class="bi bi-check-circle text-success"></i>{% else
@@ -137,6 +160,19 @@
                                 class="bi bi-x-circle text-muted"></i>{% endif %}</td>
                         <td>{% if lote.internet_disponible %}<i class="bi bi-check-circle text-success"></i>{% else %}<i
                                 class="bi bi-x-circle text-muted"></i>{% endif %}</td>
+                        <td>
+                            {% if lote.alertas_incompatibilidad %}
+                            <div class="alerta-ambiental-inline">
+                                <strong><i class="bi bi-exclamation-triangle"></i> Vecino sensible</strong>
+                                {% for alerta in lote.alertas_incompatibilidad %}
+                                Parcela {{ alerta.lote_vecino.nro_parcela|stringformat:"03d" }}:
+                                {{ alerta.empresa_vecina.razon_social }}. {{ alerta.motivo }}.
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
                         <td>
                             <form method="post" style="display:inline;">
                                 {% csrf_token %}

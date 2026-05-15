@@ -30,5 +30,9 @@ def build_mapa_data(lotes_qs):
             'estado': lote.estado,
             'estado_label': lote.get_estado_display(),
             'superficie': float(lote.superficie_m2),
+            'empresa': lote.empresa.razon_social if lote.empresa_id else '',
+            'adjudicable': getattr(lote, 'adjudicable', False),
+            'alerta_ambiental': getattr(lote, 'alerta_ambiental', False),
+            'alerta_resumen': getattr(lote, 'alerta_resumen', ''),
         })
     return items

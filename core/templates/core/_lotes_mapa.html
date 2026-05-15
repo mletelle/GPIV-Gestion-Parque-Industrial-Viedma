@@ -23,26 +23,12 @@ la misma página sin colisión gracias a `data-mapa-root` único.
         --m-borde: #334155;
         --m-hover: #166534;
 
-        display: grid;
-        grid-template-columns: 1fr 0;
-        gap: 0;
+        display: block;
         background: #fff;
         border: 1px solid var(--borde);
         border-radius: var(--radio);
         padding: 1.5rem;
         margin-bottom: 2rem;
-        transition: grid-template-columns .2s ease, gap .2s ease;
-    }
-
-    .mapa-lotes-root.panel-visible {
-        grid-template-columns: 1fr 300px;
-        gap: 1.5rem;
-    }
-
-    @media (max-width: 992px) {
-        .mapa-lotes-root {
-            grid-template-columns: 1fr;
-        }
     }
 
     .mapa-lotes-svg-wrap {
@@ -92,6 +78,23 @@ la misma página sin colisión gracias a `data-mapa-root` único.
 
     .mapa-lotes-svg .lote--sin-datos {
         fill: var(--m-sin-datos-bg);
+    }
+
+    .mapa-lotes-root.is-adjudicacion .lote--candidato {
+        fill: #86EFAC;
+    }
+
+    .mapa-lotes-root.is-adjudicacion .lote--alerta-ambiental {
+        fill: #FDE68A;
+    }
+
+    .mapa-lotes-root.is-adjudicacion .lote--no-candidato {
+        fill: #E5E7EB;
+    }
+
+    .mapa-lotes-root.is-adjudicacion .lote--alerta-ambiental.is-selected,
+    .mapa-lotes-root.is-adjudicacion .lote--alerta-ambiental:hover {
+        stroke: #D97706;
     }
 
     .mapa-lotes-svg .lote:hover {
@@ -167,123 +170,23 @@ la misma página sin colisión gracias a `data-mapa-root` único.
         background: var(--m-reserva-bg);
     }
 
-    /* Panel lateral */
-    .mapa-panel {
-        background: var(--gris-fondo);
-        border: 1px solid var(--borde);
-        border-radius: 8px;
-        padding: 1.2rem;
-        align-self: start;
-        position: sticky;
-        top: 1rem;
+    .mapa-leyenda-chip.is-alerta {
+        background: #FDE68A;
     }
 
-    .mapa-panel.is-empty .mapa-panel-detail {
-        display: none;
+    .mapa-leyenda-chip.is-no-candidato {
+        background: #E5E7EB;
     }
 
-    .mapa-panel:not(.is-empty) .mapa-panel-empty {
-        display: none;
-    }
-
-    .mapa-panel-empty {
-        text-align: center;
-        color: var(--gris-suave);
-        font-size: 0.88rem;
-        padding: 1.2rem 0;
-    }
-
-    .mapa-panel-empty i {
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
-        display: block;
-        color: var(--verde);
-    }
-
-    .mapa-panel-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.8rem;
-        padding-bottom: 0.6rem;
-        border-bottom: 1px solid var(--borde);
-    }
-
-    .mapa-panel-header h4 {
-        margin: 0;
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: var(--verde);
-    }
-
-    .mapa-panel-close {
-        background: none;
-        border: none;
-        color: var(--gris-suave);
-        font-size: 1.2rem;
-        cursor: pointer;
-        padding: 0;
-        line-height: 1;
-    }
-
-    .mapa-panel-close:hover {
-        color: #1F2937;
-    }
-
-    .mapa-panel-row {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.88rem;
-        padding: 0.5rem 0;
-        border-bottom: 1px dashed var(--borde);
-    }
-
-    .mapa-panel-row:last-child {
-        border-bottom: none;
-    }
-
-    .mapa-panel-row .label {
-        color: var(--gris-suave);
-        font-weight: 600;
-    }
-
-    .mapa-panel-row .value {
-        font-weight: 600;
-        color: #1F2937;
-    }
-
-    .mapa-estado-chip {
-        display: inline-block;
-        padding: 0.15rem 0.6rem;
-        border-radius: 20px;
-        font-size: 0.78rem;
-        font-weight: 700;
-    }
-
-    .mapa-estado-chip.is-disponible {
-        background: var(--m-disponible-bg);
-        color: #166534;
-    }
-
-    .mapa-estado-chip.is-ocupado {
-        background: var(--m-ocupado-bg);
-        color: #334155;
-    }
-
-    .mapa-estado-chip.is-reserva {
-        background: var(--m-reserva-bg);
-        color: #92400E;
-    }
-
-    .mapa-estado-chip.is-sin-datos {
-        background: #F1F5F9;
-        color: #64748B;
-    }
 </style>
 
-<div class="mapa-lotes-root" data-mapa-root>
+<div class="mapa-lotes-root {% if mapa_adjudicacion %}is-adjudicacion{% endif %}" data-mapa-root
+    {% if mapa_adjudicacion %}data-mapa-adjudicacion="1"{% endif %}>
     <div class="mapa-lotes-svg-wrap">
         <h3><i class="bi bi-map"></i> Mapa del parque</h3>
+        {% if mapa_adjudicacion %}
+        <p class="mapa-sub">Seleccioná un lote para ubicarlo en la tabla. Amarillo indica advertencia ambiental.</p>
+        {% endif %}
 
         <svg class="mapa-lotes-svg" viewBox="0 0 {{ mapa_viewbox_w }} {{ mapa_viewbox_h }}"
             xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" role="img"
@@ -299,13 +202,24 @@ la misma página sin colisión gracias a `data-mapa-root` único.
             {% for lote in mapa_lotes %}
             <g class="lote-group {% if lote.estado == 'EnUso' %}lote-group--ocupado{% endif %}">
                 <rect class="lote
-                    {% if lote.estado == 'Disponible' %}lote--disponible
-                    {% elif lote.estado == 'EnUso' %}lote--ocupado
-                    {% elif lote.estado == 'ReservaFiscal' %}lote--reserva
-                    {% else %}lote--sin-datos{% endif %}" x="{{ lote.x }}" y="{{ lote.y }}" width="{{ lote.w }}"
+                    {% if mapa_adjudicacion %}
+                        {% if lote.estado == 'Disponible' and lote.adjudicable and lote.alerta_ambiental %}lote--alerta-ambiental
+                        {% elif lote.estado == 'Disponible' and lote.adjudicable %}lote--candidato
+                        {% elif lote.estado == 'Disponible' %}lote--no-candidato
+                        {% elif lote.estado == 'EnUso' %}lote--ocupado
+                        {% elif lote.estado == 'ReservaFiscal' %}lote--reserva
+                        {% else %}lote--sin-datos{% endif %}
+                    {% else %}
+                        {% if lote.estado == 'Disponible' %}lote--disponible
+                        {% elif lote.estado == 'EnUso' %}lote--ocupado
+                        {% elif lote.estado == 'ReservaFiscal' %}lote--reserva
+                        {% else %}lote--sin-datos{% endif %}
+                    {% endif %}" x="{{ lote.x }}" y="{{ lote.y }}" width="{{ lote.w }}"
                     height="{{ lote.h }}" rx="2" ry="2" data-nro="{{ lote.nro }}"
                     data-superficie="{{ lote.superficie|default_if_none:'' }}"
                     data-estado-label="{{ lote.estado_label }}"
+                    data-empresa="{{ lote.empresa|default_if_none:'' }}"
+                    data-alerta-resumen="{{ lote.alerta_resumen|default_if_none:'' }}"
                     data-estado-key="{% if lote.estado == 'Disponible' %}is-disponible{% elif lote.estado == 'EnUso' %}is-ocupado{% elif lote.estado == 'ReservaFiscal' %}is-reserva{% else %}is-sin-datos{% endif %}"
                     tabindex="0" role="button" aria-label="Lote {{ lote.nro }}, {{ lote.estado_label }}">
                 </rect>
@@ -324,9 +238,16 @@ la misma página sin colisión gracias a `data-mapa-root` único.
             <span class="mapa-leyenda-item">
                 <span class="mapa-leyenda-chip is-reserva"></span> Reserva fiscal
             </span>
+            {% if mapa_adjudicacion %}
+            <span class="mapa-leyenda-item">
+                <span class="mapa-leyenda-chip is-alerta"></span> Disponible con advertencia
+            </span>
+            <span class="mapa-leyenda-item">
+                <span class="mapa-leyenda-chip is-no-candidato"></span> No cumple superficie
+            </span>
+            {% endif %}
         </div>
     </div>
-
 
 </div>
 
@@ -338,22 +259,6 @@ la misma página sin colisión gracias a `data-mapa-root` único.
             root.dataset.mapaReady = '1';
 
             const svg = root.querySelector('.mapa-lotes-svg');
-            const panel = root.querySelector('[data-mapa-panel]');
-            const elNro = panel.querySelector('[data-panel-nro]');
-            const elParcela = panel.querySelector('[data-panel-parcela]');
-            const elSuperficie = panel.querySelector('[data-panel-superficie]');
-            const elEstado = panel.querySelector('[data-panel-estado-chip]');
-            const btnClose = panel.querySelector('[data-panel-close]');
-
-            function formatSuperficie(raw) {
-                if (!raw) return '—';
-                const n = parseFloat(raw);
-                if (isNaN(n)) return '—';
-                // formato es-AR: 1.234,56 m²
-                return n.toLocaleString('es-AR', {
-                    minimumFractionDigits: 2, maximumFractionDigits: 2
-                }) + ' m²';
-            }
 
             function clearSelected() {
                 svg.querySelectorAll('.lote.is-selected').forEach(function (n) {
@@ -366,24 +271,17 @@ la misma página sin colisión gracias a `data-mapa-root` único.
                 rect.classList.add('is-selected');
 
                 const nro = rect.dataset.nro;
-                const sup = rect.dataset.superficie;
-                const estadoLabel = rect.dataset.estadoLabel;
-                const estadoKey = rect.dataset.estadoKey;
 
-                elNro.textContent = nro;
-                elParcela.textContent = nro;
-                elSuperficie.textContent = formatSuperficie(sup);
-                elEstado.textContent = estadoLabel;
-                elEstado.className = 'mapa-estado-chip ' + (estadoKey || 'is-sin-datos');
-
-                panel.classList.remove('is-empty');
-                root.classList.add('panel-visible');
-            }
-
-            function clearPanel() {
-                clearSelected();
-                panel.classList.add('is-empty');
-                root.classList.remove('panel-visible');
+                if (root.dataset.mapaAdjudicacion === '1') {
+                    document.querySelectorAll('[data-lote-row].is-map-selected').forEach(function (row) {
+                        row.classList.remove('is-map-selected');
+                    });
+                    const row = document.querySelector('[data-lote-row="' + nro + '"]');
+                    if (row) {
+                        row.classList.add('is-map-selected');
+                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
             }
 
             svg.addEventListener('click', function (e) {
@@ -402,12 +300,10 @@ la misma página sin colisión gracias a `data-mapa-root` único.
                 }
             });
 
-            btnClose.addEventListener('click', clearPanel);
-
-            // Escape cierra el panel
+            // Escape limpia la seleccion del mapa.
             document.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape' && !panel.classList.contains('is-empty')) {
-                    clearPanel();
+                if (e.key === 'Escape') {
+                    clearSelected();
                 }
             });
         });
