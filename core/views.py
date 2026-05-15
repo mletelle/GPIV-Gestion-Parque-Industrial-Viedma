@@ -28,6 +28,7 @@ from .services import (
     SERVICIO_CAMPOS, SERVICIO_LABELS,
     notificar_ticket_mensaje,
 )
+from .lote_geometry import build_mapa_data, VIEWBOX_W, VIEWBOX_H, SERVIDUMBRE_Y
 from .forms import (
     LoginForm, LoteForm,
     SolicitudRadicacionForm, RechazarSolicitudForm,
@@ -171,6 +172,12 @@ class LoteListView(AdminEnrepaviMixin, ListView):
         ctx['filtro_estado'] = self.request.GET.get('estado', '')
         ctx['filtro_sup_min'] = self.request.GET.get('sup_min', '')
         ctx['filtro_sup_max'] = self.request.GET.get('sup_max', '')
+        # Mapa: siempre se renderiza con TODOS los lotes (no se ve afectado
+        # por los filtros de la tabla, para no romper el layout visual).
+        ctx['mapa_lotes'] = build_mapa_data(Lote.objects.all())
+        ctx['mapa_viewbox_w'] = VIEWBOX_W
+        ctx['mapa_viewbox_h'] = VIEWBOX_H
+        ctx['mapa_servidumbre_y'] = SERVIDUMBRE_Y
         return ctx
 
 
@@ -1202,8 +1209,54 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
             'prorrogas_pendientes': prorrogas_pendientes,
             'solicitudes_evaluacion': solicitudes_evaluacion,
             'proximos_vencer': proximos_vencer,
+            # Mapa interactivo de lotes (issue #52)
+            'mapa_lotes': build_mapa_data(Lote.objects.all()),
+            'mapa_viewbox_w': VIEWBOX_W,
+            'mapa_viewbox_h': VIEWBOX_H,
+            'mapa_servidumbre_y': SERVIDUMBRE_Y,
         })
         return ctx
+
+
+ # editor visual de mapa (admin)
+class MapaEditorView(AdminEnrepaviMixin, TemplateView):
+    """editor visual interactivo del mapa de lotes. solo admin."""
+    template_name = 'core/mapa_editor.html'
+
+    def get_context_data(self, **kwargs):
+        import json
+        ctx = super().get_context_data(**kwargs)
+        ctx['mapa_viewbox_w'] = VIEWBOX_W
+        ctx['mapa_viewbox_h'] = VIEWBOX_H
+        ctx['mapa_servidumbre_y'] = SERVIDUMBRE_Y
+        ctx['mapa_lotes_json'] = json.dumps(build_mapa_data(Lote.objects.all()))
+        return ctx
+
+
+class MapaEditorSaveView(AdminEnrepaviMixin, View):
+    """guarda posiciones svg de los lotes desde el editor visual (ajax post)."""
+    def post(self, request):
+        import json
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({'ok': False, 'error': 'json invalido'}, status=400)
+        lotes_data = data.get('lotes', [])
+        if not lotes_data:
+            return JsonResponse({'ok': False, 'error': 'sin datos'}, status=400)
+        count = 0
+        for item in lotes_data:
+            nro = item.get('nro')
+            if nro is None:
+                continue
+            updated = Lote.objects.filter(nro_parcela=nro).update(
+                mapa_x=item.get('x'),
+                mapa_y=item.get('y'),
+                mapa_w=item.get('w'),
+                mapa_h=item.get('h'),
+            )
+            count += updated
+        return JsonResponse({'ok': True, 'updated': count})
 
 
  # reportes pdf hu-15

@@ -1,0 +1,415 @@
+{% comment %}
+Mapa interactivo de lotes (issue #52).
+
+Variables esperadas en el contexto:
+- mapa_lotes: lista de dicts {nro, x, y, w, h, cx, cy, estado, estado_label, superficie}
+- mapa_viewbox_w: ancho del viewBox (int)
+- mapa_viewbox_h: alto del viewBox (int)
+- mapa_servidumbre_y: y de la línea de servidumbre acueducto (int)
+
+El partial encapsula su CSS y JS — se puede incluir múltiples veces en
+la misma página sin colisión gracias a `data-mapa-root` único.
+{% endcomment %}
+
+<style>
+    .mapa-lotes-root {
+        --m-disponible: #16A34A;
+        --m-disponible-bg: #4ADE80;
+        --m-ocupado: #1E293B;
+        --m-ocupado-bg: #64748B;
+        --m-reserva: #B45309;
+        --m-reserva-bg: #FBBF24;
+        --m-sin-datos-bg: #F1F5F9;
+        --m-borde: #334155;
+        --m-hover: #166534;
+
+        display: grid;
+        grid-template-columns: 1fr 0;
+        gap: 0;
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        transition: grid-template-columns .2s ease, gap .2s ease;
+    }
+
+    .mapa-lotes-root.panel-visible {
+        grid-template-columns: 1fr 300px;
+        gap: 1.5rem;
+    }
+
+    @media (max-width: 992px) {
+        .mapa-lotes-root {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .mapa-lotes-svg-wrap {
+        min-width: 0;
+    }
+
+    .mapa-lotes-svg-wrap h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--verde);
+        margin-bottom: 0.4rem;
+    }
+
+    .mapa-lotes-svg-wrap .mapa-sub {
+        font-size: 0.82rem;
+        color: var(--gris-suave);
+        margin-bottom: 1rem;
+    }
+
+    .mapa-lotes-svg {
+        width: 100%;
+        height: auto;
+        background: #FAFAF9;
+        border: 1px solid var(--borde);
+        border-radius: 8px;
+        user-select: none;
+    }
+
+    .mapa-lotes-svg .lote {
+        cursor: pointer;
+        stroke: var(--m-borde);
+        stroke-width: 1.2;
+        transition: stroke .15s ease, stroke-width .15s ease, filter .15s ease;
+    }
+
+    .mapa-lotes-svg .lote--disponible {
+        fill: var(--m-disponible-bg);
+    }
+
+    .mapa-lotes-svg .lote--ocupado {
+        fill: var(--m-ocupado-bg);
+    }
+
+    .mapa-lotes-svg .lote--reserva {
+        fill: var(--m-reserva-bg);
+    }
+
+    .mapa-lotes-svg .lote--sin-datos {
+        fill: var(--m-sin-datos-bg);
+    }
+
+    .mapa-lotes-svg .lote:hover {
+        stroke: var(--m-hover);
+        stroke-width: 3;
+        filter: brightness(1.05);
+    }
+
+    .mapa-lotes-svg .lote.is-selected {
+        stroke: var(--m-hover);
+        stroke-width: 3.5;
+    }
+
+    .mapa-lotes-svg .lote-num {
+        font-size: 13px;
+        font-weight: 700;
+        text-anchor: middle;
+        dominant-baseline: central;
+        pointer-events: none;
+        fill: #0F172A;
+    }
+
+    /* en lotes ocupados (gris oscuro) el numero va en blanco */
+    .mapa-lotes-svg .lote-group--ocupado .lote-num {
+        fill: #FFFFFF;
+    }
+
+    .mapa-lotes-svg .servidumbre {
+        stroke: #94A3B8;
+        stroke-width: 1.5;
+        stroke-dasharray: 4 4;
+    }
+
+    .mapa-lotes-svg .servidumbre-label {
+        font-size: 10px;
+        fill: #64748B;
+        font-style: italic;
+        text-anchor: middle;
+    }
+
+    /* Leyenda */
+    .mapa-leyenda {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.8rem;
+        margin-top: 0.8rem;
+        font-size: 0.82rem;
+    }
+
+    .mapa-leyenda-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: var(--gris-suave);
+    }
+
+    .mapa-leyenda-chip {
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+        border: 1px solid var(--m-borde);
+    }
+
+    .mapa-leyenda-chip.is-disponible {
+        background: var(--m-disponible-bg);
+    }
+
+    .mapa-leyenda-chip.is-ocupado {
+        background: var(--m-ocupado-bg);
+    }
+
+    .mapa-leyenda-chip.is-reserva {
+        background: var(--m-reserva-bg);
+    }
+
+    /* Panel lateral */
+    .mapa-panel {
+        background: var(--gris-fondo);
+        border: 1px solid var(--borde);
+        border-radius: 8px;
+        padding: 1.2rem;
+        align-self: start;
+        position: sticky;
+        top: 1rem;
+    }
+
+    .mapa-panel.is-empty .mapa-panel-detail {
+        display: none;
+    }
+
+    .mapa-panel:not(.is-empty) .mapa-panel-empty {
+        display: none;
+    }
+
+    .mapa-panel-empty {
+        text-align: center;
+        color: var(--gris-suave);
+        font-size: 0.88rem;
+        padding: 1.2rem 0;
+    }
+
+    .mapa-panel-empty i {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        display: block;
+        color: var(--verde);
+    }
+
+    .mapa-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.8rem;
+        padding-bottom: 0.6rem;
+        border-bottom: 1px solid var(--borde);
+    }
+
+    .mapa-panel-header h4 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--verde);
+    }
+
+    .mapa-panel-close {
+        background: none;
+        border: none;
+        color: var(--gris-suave);
+        font-size: 1.2rem;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+    }
+
+    .mapa-panel-close:hover {
+        color: #1F2937;
+    }
+
+    .mapa-panel-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.88rem;
+        padding: 0.5rem 0;
+        border-bottom: 1px dashed var(--borde);
+    }
+
+    .mapa-panel-row:last-child {
+        border-bottom: none;
+    }
+
+    .mapa-panel-row .label {
+        color: var(--gris-suave);
+        font-weight: 600;
+    }
+
+    .mapa-panel-row .value {
+        font-weight: 600;
+        color: #1F2937;
+    }
+
+    .mapa-estado-chip {
+        display: inline-block;
+        padding: 0.15rem 0.6rem;
+        border-radius: 20px;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .mapa-estado-chip.is-disponible {
+        background: var(--m-disponible-bg);
+        color: #166534;
+    }
+
+    .mapa-estado-chip.is-ocupado {
+        background: var(--m-ocupado-bg);
+        color: #334155;
+    }
+
+    .mapa-estado-chip.is-reserva {
+        background: var(--m-reserva-bg);
+        color: #92400E;
+    }
+
+    .mapa-estado-chip.is-sin-datos {
+        background: #F1F5F9;
+        color: #64748B;
+    }
+</style>
+
+<div class="mapa-lotes-root" data-mapa-root>
+    <div class="mapa-lotes-svg-wrap">
+        <h3><i class="bi bi-map"></i> Mapa del parque</h3>
+
+        <svg class="mapa-lotes-svg" viewBox="0 0 {{ mapa_viewbox_w }} {{ mapa_viewbox_h }}"
+            xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" role="img"
+            aria-label="Plano interactivo del Parque Industrial">
+
+            {# linea de servidumbre de acueducto #}
+            <line class="servidumbre" x1="15" y1="{{ mapa_servidumbre_y }}" x2="{{ mapa_viewbox_w|add:'-15' }}"
+                y2="{{ mapa_servidumbre_y }}" />
+            <text class="servidumbre-label" x="600" y="{{ mapa_servidumbre_y|add:'12' }}">
+                Servidumbre Acueducto
+            </text>
+
+            {% for lote in mapa_lotes %}
+            <g class="lote-group {% if lote.estado == 'EnUso' %}lote-group--ocupado{% endif %}">
+                <rect class="lote
+                    {% if lote.estado == 'Disponible' %}lote--disponible
+                    {% elif lote.estado == 'EnUso' %}lote--ocupado
+                    {% elif lote.estado == 'ReservaFiscal' %}lote--reserva
+                    {% else %}lote--sin-datos{% endif %}" x="{{ lote.x }}" y="{{ lote.y }}" width="{{ lote.w }}"
+                    height="{{ lote.h }}" rx="2" ry="2" data-nro="{{ lote.nro }}"
+                    data-superficie="{{ lote.superficie|default_if_none:'' }}"
+                    data-estado-label="{{ lote.estado_label }}"
+                    data-estado-key="{% if lote.estado == 'Disponible' %}is-disponible{% elif lote.estado == 'EnUso' %}is-ocupado{% elif lote.estado == 'ReservaFiscal' %}is-reserva{% else %}is-sin-datos{% endif %}"
+                    tabindex="0" role="button" aria-label="Lote {{ lote.nro }}, {{ lote.estado_label }}">
+                </rect>
+                <text class="lote-num" x="{{ lote.cx }}" y="{{ lote.cy }}">{{ lote.nro }}</text>
+            </g>
+            {% endfor %}
+        </svg>
+
+        <div class="mapa-leyenda">
+            <span class="mapa-leyenda-item">
+                <span class="mapa-leyenda-chip is-disponible"></span> Disponible
+            </span>
+            <span class="mapa-leyenda-item">
+                <span class="mapa-leyenda-chip is-ocupado"></span> En uso
+            </span>
+            <span class="mapa-leyenda-item">
+                <span class="mapa-leyenda-chip is-reserva"></span> Reserva fiscal
+            </span>
+        </div>
+    </div>
+
+
+</div>
+
+<script>
+    (function () {
+        // Init para cada instancia del mapa en la página (puede haber más de uno).
+        document.querySelectorAll('[data-mapa-root]').forEach(function (root) {
+            if (root.dataset.mapaReady) return;
+            root.dataset.mapaReady = '1';
+
+            const svg = root.querySelector('.mapa-lotes-svg');
+            const panel = root.querySelector('[data-mapa-panel]');
+            const elNro = panel.querySelector('[data-panel-nro]');
+            const elParcela = panel.querySelector('[data-panel-parcela]');
+            const elSuperficie = panel.querySelector('[data-panel-superficie]');
+            const elEstado = panel.querySelector('[data-panel-estado-chip]');
+            const btnClose = panel.querySelector('[data-panel-close]');
+
+            function formatSuperficie(raw) {
+                if (!raw) return '—';
+                const n = parseFloat(raw);
+                if (isNaN(n)) return '—';
+                // formato es-AR: 1.234,56 m²
+                return n.toLocaleString('es-AR', {
+                    minimumFractionDigits: 2, maximumFractionDigits: 2
+                }) + ' m²';
+            }
+
+            function clearSelected() {
+                svg.querySelectorAll('.lote.is-selected').forEach(function (n) {
+                    n.classList.remove('is-selected');
+                });
+            }
+
+            function selectLote(rect) {
+                clearSelected();
+                rect.classList.add('is-selected');
+
+                const nro = rect.dataset.nro;
+                const sup = rect.dataset.superficie;
+                const estadoLabel = rect.dataset.estadoLabel;
+                const estadoKey = rect.dataset.estadoKey;
+
+                elNro.textContent = nro;
+                elParcela.textContent = nro;
+                elSuperficie.textContent = formatSuperficie(sup);
+                elEstado.textContent = estadoLabel;
+                elEstado.className = 'mapa-estado-chip ' + (estadoKey || 'is-sin-datos');
+
+                panel.classList.remove('is-empty');
+                root.classList.add('panel-visible');
+            }
+
+            function clearPanel() {
+                clearSelected();
+                panel.classList.add('is-empty');
+                root.classList.remove('panel-visible');
+            }
+
+            svg.addEventListener('click', function (e) {
+                const rect = e.target.closest('.lote');
+                if (!rect) return;
+                selectLote(rect);
+            });
+
+            // Accesibilidad: Enter / Space sobre un lote enfocado
+            svg.addEventListener('keydown', function (e) {
+                const rect = e.target.closest('.lote');
+                if (!rect) return;
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    selectLote(rect);
+                }
+            });
+
+            btnClose.addEventListener('click', clearPanel);
+
+            // Escape cierra el panel
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && !panel.classList.contains('is-empty')) {
+                    clearPanel();
+                }
+            });
+        });
+    })();
+</script>
