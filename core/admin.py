@@ -5,6 +5,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
 from django.db import transaction
 from django.utils import timezone
+from simple_history.admin import SimpleHistoryAdmin
 from .models import (
     CustomUser, Empresa, Lote, TransicionEstado,
     AvanceConstructivo, SolicitudProrroga, ConsumoServicio,
@@ -28,7 +29,7 @@ class CustomUserAdmin(UserAdmin):
 
 
 @admin.register(Empresa)
-class EmpresaAdmin(admin.ModelAdmin):
+class EmpresaAdmin(SimpleHistoryAdmin):
     list_display = ('razon_social', 'cuit', 'estado', 'tipo_empresa', 'usuario')
     list_filter = ('estado', 'tipo_empresa', 'rubro')
     search_fields = ('razon_social', 'cuit', 'nombre_fantasia')
@@ -97,7 +98,7 @@ class EmpresaAdmin(admin.ModelAdmin):
 
 
 @admin.register(Lote)
-class LoteAdmin(admin.ModelAdmin):
+class LoteAdmin(SimpleHistoryAdmin):
     list_display = (
         'nro_parcela', 'superficie_m2', 'estado', 'conexion_agua_potable',
         'conexion_agua_cruda', 'conexion_electrica', 'conexion_gas',
@@ -109,28 +110,28 @@ class LoteAdmin(admin.ModelAdmin):
 
 
 @admin.register(TransicionEstado)
-class TransicionEstadoAdmin(admin.ModelAdmin):
+class TransicionEstadoAdmin(SimpleHistoryAdmin):
     list_display = ('empresa', 'estado_anterior', 'estado_nuevo', 'fecha_cambio', 'usuario')
     list_filter = ('estado_nuevo',)
     autocomplete_fields = ('empresa', 'usuario')
 
 
 @admin.register(AvanceConstructivo)
-class AvanceConstructivoAdmin(admin.ModelAdmin):
+class AvanceConstructivoAdmin(SimpleHistoryAdmin):
     list_display = ('empresa', 'porcentaje_declarado', 'fecha_presentacion', 'validado_admin')
     list_filter = ('validado_admin',)
     autocomplete_fields = ('empresa',)
 
 
 @admin.register(SolicitudProrroga)
-class SolicitudProrrogaAdmin(admin.ModelAdmin):
+class SolicitudProrrogaAdmin(SimpleHistoryAdmin):
     list_display = ('empresa', 'meses_solicitados', 'estado', 'fecha_solicitud')
     list_filter = ('estado',)
     autocomplete_fields = ('empresa',)
 
 
 @admin.register(ConsumoServicio)
-class ConsumoServicioAdmin(admin.ModelAdmin):
+class ConsumoServicioAdmin(SimpleHistoryAdmin):
     list_display = ('empresa', 'periodo_mes', 'periodo_anio', 'fecha_carga')
     list_filter = ('periodo_anio',)
     autocomplete_fields = ('empresa',)
@@ -144,7 +145,7 @@ class MensajeTicketInline(admin.TabularInline):
 
 
 @admin.register(Ticket)
-class TicketAdmin(admin.ModelAdmin):
+class TicketAdmin(SimpleHistoryAdmin):
     list_display = ('asunto', 'creador', 'estado', 'fecha_creacion', 'is_active')
     list_filter = ('estado', 'is_active', 'fecha_creacion')
     search_fields = ('asunto', 'creador__username', 'creador__email')
@@ -160,7 +161,7 @@ class TicketAdmin(admin.ModelAdmin):
 
 
 @admin.register(MensajeTicket)
-class MensajeTicketAdmin(admin.ModelAdmin):
+class MensajeTicketAdmin(SimpleHistoryAdmin):
     list_display = ('ticket', 'autor', 'fecha_creacion', 'is_active')
     list_filter = ('is_active', 'fecha_creacion')
     search_fields = ('ticket__asunto', 'autor__username', 'contenido')
@@ -168,7 +169,7 @@ class MensajeTicketAdmin(admin.ModelAdmin):
 
 
 @admin.register(ActivoInventario)
-class ActivoInventarioAdmin(admin.ModelAdmin):
+class ActivoInventarioAdmin(SimpleHistoryAdmin):
     list_display = (
         'codigo_inventario', 'nombre', 'categoria', 'estado', 'activo',
         'ubicacion', 'responsable', 'fecha_alta',
@@ -210,7 +211,7 @@ class ActivoInventarioAdmin(admin.ModelAdmin):
 
 
 @admin.register(SolicitudAcceso)
-class SolicitudAccesoAdmin(admin.ModelAdmin):
+class SolicitudAccesoAdmin(SimpleHistoryAdmin):
     """
     Bandeja de auditoría de solicitudes de acceso (Organismo / Proveedor).
     Las acciones de aprobar/rechazar activan o dejan inactivo el usuario
@@ -384,7 +385,7 @@ class SolicitudAccesoAdmin(admin.ModelAdmin):
 
 
 @admin.register(AvisoVencimiento)
-class AvisoVencimientoAdmin(admin.ModelAdmin):
+class AvisoVencimientoAdmin(SimpleHistoryAdmin):
     """Bandeja de auditoría de avisos automáticos de vencimiento."""
     list_display = (
         'empresa', 'nivel', 'dias_restantes', 'email_destino',
@@ -418,7 +419,7 @@ class AvisoVencimientoAdmin(admin.ModelAdmin):
 
 
 @admin.register(CaducidadRegistro)
-class CaducidadRegistroAdmin(admin.ModelAdmin):
+class CaducidadRegistroAdmin(SimpleHistoryAdmin):
     """Bandeja de auditoría de caducidades automáticas."""
     list_display = (
         'empresa', 'estado_anterior', 'fecha_limite_original',
