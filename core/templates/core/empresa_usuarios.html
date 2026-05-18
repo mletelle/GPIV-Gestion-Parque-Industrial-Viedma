@@ -56,16 +56,16 @@
             <td>{{ miembro.get_full_name|default:"—" }}</td>
             <td>
               {% if miembro.rol_interno == 'TITULAR' %}
-                <span class="badge badge-success"><i class="bi bi-star-fill"></i> Titular</span>
+                <span class="badge bg-success"><i class="bi bi-star-fill"></i> Titular</span>
               {% else %}
-                <span class="badge badge-secondary">Estándar</span>
+                <span class="badge bg-secondary">Estándar</span>
               {% endif %}
             </td>
             <td>
               {% if miembro.is_active %}
-                <span class="badge badge-success">Activo</span>
+                <span class="badge bg-success">Activo</span>
               {% else %}
-                <span class="badge badge-danger">Inactivo</span>
+                <span class="badge bg-danger">Inactivo</span>
               {% endif %}
             </td>
             <td class="text-right">
