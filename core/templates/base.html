@@ -101,6 +101,12 @@
                 class="sidebar-link {% if request.resolver_match.url_name == 'mi_solicitud' or request.resolver_match.url_name == 'solicitud_create' %}active{% endif %}">
                 <i class="bi bi-file-earmark-text"></i> Mi Solicitud
             </a>
+            {% if user.rol_interno == 'TITULAR' %}
+            <a href="{% url 'core:empresa_usuarios' %}"
+                class="sidebar-link {% if 'empresa_' in request.resolver_match.url_name %}active{% endif %}">
+                <i class="bi bi-people"></i> Mi Equipo
+            </a>
+            {% endif %}
             {% endif %}
 
             {% if 'PROVEEDOR_AGUA' in user_groups or 'PROVEEDOR_LUZ' in user_groups or 'PROVEEDOR_GAS' in user_groups %}

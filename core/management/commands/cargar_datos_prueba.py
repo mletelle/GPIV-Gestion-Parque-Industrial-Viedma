@@ -722,7 +722,6 @@ class Command(BaseCommand):
 
         empresa_defaults = dict(EMPRESA_DEFAULTS)
         empresa_defaults.update({
-            'usuario': usuario,
             'razon_social': spec['razon_social'],
             'rubro': spec['rubro'],
             'categoria_industrial': spec['categoria_industrial'],
@@ -737,6 +736,13 @@ class Command(BaseCommand):
             cuit=spec['cuit'],
             defaults=empresa_defaults,
         )
+
+        # Vincular el usuario a la empresa con rol TITULAR (FK ahora está en
+        # CustomUser, no en Empresa — ver migración 0002/0004).
+        if usuario is not None:
+            usuario.empresa = empresa
+            usuario.rol_interno = CustomUser.RolInterno.TITULAR
+            usuario.save(update_fields=['empresa', 'rol_interno'])
 
         # asignar lote si corresponde y liberar el anterior si hubiera
         if spec['parcela']:
