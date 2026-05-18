@@ -7,13 +7,13 @@
 <div class="page-header">
   <div class="page-header-content">
     <h1 class="page-title">
-      <span class="page-title-icon">➕</span>
+      <span class="page-title-icon"><i class="bi bi-plus-lg"></i></span>
       Invitar usuario
     </h1>
     <p class="page-subtitle">{{ empresa.razon_social }}</p>
   </div>
   <div class="page-header-actions">
-    <a href="{% url 'core:empresa_usuarios' %}" class="btn btn-ghost">← Volver al equipo</a>
+    <a href="{% url 'core:empresa_usuarios' %}" class="btn btn-ghost"><i class="bi bi-arrow-left"></i> Volver al equipo</a>
   </div>
 </div>
 
@@ -62,7 +62,7 @@
 
 <div class="card card-info mt-4" style="max-width:520px; margin:1.5rem auto 0;">
   <div class="card-body">
-    <h3 class="card-title">ℹ️ ¿Cómo agregar un nuevo miembro?</h3>
+    <h3 class="card-title"><i class="bi bi-info-circle"></i> ¿Cómo agregar un nuevo miembro?</h3>
     <ol style="margin: 0; padding-left: 1.25rem; line-height:1.8;">
       <li>La persona debe registrarse en el sistema como cuenta de tipo <em>Empresa</em>.</li>
       <li>Una vez registrada (sin empresa asignada aún), buscala aquí por su usuario o email.</li>
