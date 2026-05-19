@@ -13,6 +13,7 @@ from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.db.models import Sum, Q
 from django.db import transaction
+from django.core.exceptions import MultipleObjectsReturned
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 
@@ -617,10 +618,11 @@ class SolicitudCreateView(EmpresaMixin, CreateView):
     success_url = reverse_lazy('core:mi_solicitud')
 
     def test_func(self):
-        # empresa sin solicitud previa: ahora la relación es user.empresa (FK directa)
-        if not super().test_func():
-            return False
-        return self.request.user.empresa_id is None
+        # requiere ser usuario EMPRESA, pero sin empresa asociada todavía
+        return (
+            self.request.user.groups.filter(name='EMPRESA').exists()
+            and self.request.user.empresa_id is None
+        )
 
     def form_valid(self, form):
         form.instance.usuario = self.request.user
@@ -1858,19 +1860,25 @@ class EmpresaInvitarView(TitularEmpresaMixin, View):
             messages.error(request, 'Ingresá un nombre de usuario o email.')
             return render(request, self.template_name, {'empresa': empresa})
 
-        # Buscar por username o email (exacto, case-insensitive)
-        candidato = (
-            CustomUser.objects
-            .filter(
-                groups__name='EMPRESA',
-                empresa__isnull=True,
-            )
-            .filter(
-                Q(username__iexact=identificador)
-                | Q(email__iexact=identificador)
-            )
-            .first()
+        base_qs = CustomUser.objects.filter(
+            groups__name='EMPRESA',
+            empresa__isnull=True,
         )
+
+        # Priorizar username (único). Email puede no ser único.
+        candidato = base_qs.filter(username__iexact=identificador).first()
+        if candidato is None:
+            try:
+                candidato = base_qs.get(email__iexact=identificador)
+            except MultipleObjectsReturned:
+                messages.error(
+                    request,
+                    'Hay múltiples usuarios sin empresa con ese email. '
+                    'Usá el nombre de usuario para invitar correctamente.'
+                )
+                return render(request, self.template_name, {'empresa': empresa})
+            except CustomUser.DoesNotExist:
+                candidato = None
 
         if candidato is None:
             messages.error(
@@ -1964,4 +1972,3 @@ class EmpresaRemoverMiembroView(TitularEmpresaMixin, View):
             messages.error(request, str(exc))
 
         return redirect('core:empresa_usuarios')
-

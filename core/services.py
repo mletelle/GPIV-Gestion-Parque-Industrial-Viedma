@@ -34,7 +34,7 @@ class UsuarioNoEsMiembroError(RBACError):
     """El usuario no pertenece a esta empresa."""
 
 
-class NoSePuedeDegrardarTitularError(RBACError):
+class NoSePuedeDegradarTitularError(RBACError):
     """No se puede degradar / remover al titular sin asignar uno nuevo."""
 
 
@@ -169,7 +169,7 @@ def remover_miembro(empresa, titular, usuario_a_remover):
         raise UsuarioNoEsMiembroError("El usuario no pertenece a esta empresa.")
 
     if usuario_a_remover.rol_interno == CustomUser.RolInterno.TITULAR:
-        raise NoSePuedeDegrardarTitularError(
+        raise NoSePuedeDegradarTitularError(
             "No se puede remover al TITULAR directamente. "
             "Transferí la titularidad antes de remover este usuario."
         )
@@ -489,4 +489,3 @@ def notificar_solicitud_acceso_resuelta(solicitud):
     if solicitud.estado == SolicitudAcceso.Estado.APROBADA:
         return notificar_solicitud_acceso_aprobada(solicitud)
     return notificar_solicitud_acceso_rechazada(solicitud)
-

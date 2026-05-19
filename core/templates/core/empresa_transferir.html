@@ -352,9 +352,21 @@
     const label  = sel.closest('.candidate-item');
     const nombre = label.querySelector('.candidate-info strong').textContent.trim();
     const email  = label.querySelector('.candidate-info small').textContent.trim();
-    recipientEl.innerHTML =
-      'Nuevo Titular: <strong>' + nombre + '</strong>' +
-      (email ? '<br><span style="font-size:0.8rem;color:var(--gris-suave);">' + email + '</span>' : '');
+    recipientEl.textContent = '';
+    recipientEl.appendChild(document.createTextNode('Nuevo Titular: '));
+
+    const strongEl = document.createElement('strong');
+    strongEl.textContent = nombre;
+    recipientEl.appendChild(strongEl);
+
+    if (email) {
+      recipientEl.appendChild(document.createElement('br'));
+      const emailEl = document.createElement('span');
+      emailEl.style.fontSize = '0.8rem';
+      emailEl.style.color = 'var(--gris-suave)';
+      emailEl.textContent = email;
+      recipientEl.appendChild(emailEl);
+    }
     overlay.classList.add('show');
     btnConfirm.focus();
   });
