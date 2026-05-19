@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator, MaxValueValidator, FileExtensionValidator
 from django.utils import timezone
+from simple_history.models import HistoricalRecords
 
 class CustomUser(AbstractUser):
     """
@@ -194,6 +195,8 @@ class Empresa(models.Model):
     )
     escritura_pdf = models.FileField(upload_to='escrituras/', blank=True, null=True)
 
+    history = HistoricalRecords()
+
     class Meta:
         verbose_name = _("Empresa")
         verbose_name_plural = _("Empresas")
@@ -249,6 +252,8 @@ class Lote(models.Model):
     mapa_w = models.IntegerField(null=True, blank=True, verbose_name=_('Mapa: ancho'))
     mapa_h = models.IntegerField(null=True, blank=True, verbose_name=_('Mapa: alto'))
 
+    history = HistoricalRecords()
+
     class Meta:
         verbose_name = _("Lote")
         verbose_name_plural = _("Lotes")
@@ -266,6 +271,8 @@ class TransicionEstado(models.Model):
     usuario = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='transiciones_registradas')
     justificacion_resolucion = models.TextField(blank=True, null=True)
 
+    history = HistoricalRecords()
+
     class Meta:
         verbose_name = _("Transición de Estado")
         verbose_name_plural = _("Transiciones de Estado")
@@ -282,6 +289,8 @@ class AvanceConstructivo(models.Model):
     certificado_pdf = models.FileField(upload_to='certificados/')
     fecha_presentacion = models.DateField(auto_now_add=True)
     validado_admin = models.BooleanField(default=False)
+
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = _("Avance Constructivo")
@@ -308,6 +317,8 @@ class SolicitudProrroga(models.Model):
     fecha_respuesta = models.DateTimeField(blank=True, null=True)
     resuelta_por = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='prorrogas_resueltas')
 
+    history = HistoricalRecords()
+
     class Meta:
         verbose_name = _("Solicitud de Prórroga")
         verbose_name_plural = _("Solicitudes de Prórroga")
@@ -327,6 +338,8 @@ class ConsumoServicio(models.Model):
     consumo_gas_m3 = models.DecimalField(max_digits=14, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(0)])
     fecha_carga = models.DateTimeField(auto_now_add=True)
     cargado_por = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='consumos_cargados')
+
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = _("Consumo de Servicio")
@@ -369,6 +382,8 @@ class Ticket(models.Model):
     is_active = models.BooleanField(default=True, help_text=_('Indica si el ticket está activo. Desmarcar para baja lógica.'))
     deleted_at = models.DateTimeField(null=True, blank=True)
 
+    history = HistoricalRecords()
+
     class Meta:
         verbose_name = _("Ticket")
         verbose_name_plural = _("Tickets")
@@ -393,6 +408,8 @@ class MensajeTicket(models.Model):
     # Baja lógica
     is_active = models.BooleanField(default=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
+
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = _("Mensaje de Ticket")
@@ -512,6 +529,8 @@ class ActivoInventario(models.Model):
         related_name='activos_registrados',
         verbose_name=_('Registrado por'),
     )
+
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = _('Activo de Inventario')
@@ -654,6 +673,8 @@ class SolicitudAcceso(models.Model):
         verbose_name='Usuario creado',
     )
 
+    history = HistoricalRecords()
+
     class Meta:
         verbose_name = 'Solicitud de Acceso'
         verbose_name_plural = 'Solicitudes de Acceso'
@@ -722,6 +743,8 @@ class AvisoVencimiento(models.Model):
     )
     deleted_at = models.DateTimeField(null=True, blank=True)
 
+    history = HistoricalRecords()
+
     class Meta:
         verbose_name = _('Aviso de Vencimiento')
         verbose_name_plural = _('Avisos de Vencimiento')
@@ -789,6 +812,8 @@ class CaducidadRegistro(models.Model):
         help_text=_('Desmarcar para baja lógica del registro.'),
     )
     deleted_at = models.DateTimeField(null=True, blank=True)
+
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = _('Registro de Caducidad')
