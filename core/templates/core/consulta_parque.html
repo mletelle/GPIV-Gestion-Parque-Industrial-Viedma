@@ -9,33 +9,361 @@
         min-height: calc(100vh - 200px);
     }
 
-    .kpi-card {
+    .dash-grid {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 1rem;
+    }
+
+    .dash-card {
         background: #fff;
         border: 1px solid var(--borde);
         border-radius: var(--radio);
-        padding: 1.3rem 1.5rem;
+        padding: 1.25rem 1.4rem;
         height: 100%;
     }
 
-    .kpi-card h6 {
+    .dash-card h6 {
         font-size: 0.78rem;
         font-weight: 700;
         color: var(--gris-suave);
         text-transform: uppercase;
-        letter-spacing: 0.02em;
-        margin-bottom: 0.6rem;
+        letter-spacing: 0;
+        margin-bottom: 0.8rem;
     }
 
-    .kpi-valor {
-        font-size: 1.6rem;
-        font-weight: 700;
+    .span-3 { grid-column: span 3; }
+    .span-4 { grid-column: span 4; }
+    .span-5 { grid-column: span 5; }
+    .span-6 { grid-column: span 6; }
+    .span-7 { grid-column: span 7; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
+
+    @media (max-width: 1200px) {
+        .span-3, .span-4, .span-5, .span-6, .span-7, .span-8 {
+            grid-column: span 6;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .dash-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .span-3, .span-4, .span-5, .span-6, .span-7, .span-8, .span-12 {
+            grid-column: span 1;
+        }
+    }
+
+    .donut-wrap {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .donut {
+        width: 144px;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: #E5E7EB;
+        position: relative;
+    }
+
+    .donut::after {
+        content: "";
+        width: 84px;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background: #fff;
+        position: absolute;
+    }
+
+    .donut-center {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+    }
+
+    .donut-number {
+        display: block;
         color: var(--verde);
+        font-size: 1.35rem;
+        font-weight: 800;
+        line-height: 1;
     }
 
-    .kpi-detalle {
+    .donut-label {
+        color: var(--gris-suave);
+        font-size: 0.72rem;
+        font-weight: 700;
+    }
+
+    .ocupacion-card {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .ocupacion-card .donut-wrap {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        grid-template-columns: none;
+        min-height: 185px;
+    }
+
+    .legend-list {
+        display: grid;
+        gap: 0.5rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        font-size: 0.86rem;
+    }
+
+    .legend-list li {
+        display: grid;
+        grid-template-columns: 12px 1fr auto;
+        align-items: center;
+        gap: 0.45rem;
+    }
+
+    .legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+        background: var(--dot-color);
+    }
+
+    .occupancy-summary {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.55rem;
+    }
+
+    .occ-metric {
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        background: #F8FAFC;
+        padding: 0.65rem 0.6rem;
+        min-width: 0;
+    }
+
+    .occ-metric strong {
+        display: block;
+        color: #111827;
+        font-size: 1rem;
+        line-height: 1;
+        margin-bottom: 0.25rem;
+    }
+
+    .occ-metric span {
+        display: block;
+        color: var(--gris-suave);
+        font-size: 0.7rem;
+        line-height: 1.15;
+    }
+
+    .bar-row {
+        display: grid;
+        grid-template-columns: minmax(130px, 1fr) 3fr 28px;
+        gap: 0.8rem;
+        align-items: center;
+        font-size: 0.86rem;
+        margin-bottom: 0.65rem;
+    }
+
+    .bar-track {
+        height: 11px;
+        background: #EEF2F7;
+        border-radius: 999px;
+        overflow: hidden;
+    }
+
+    .bar-fill {
+        height: 100%;
+        width: var(--bar-width);
+        background: var(--bar-color);
+        border-radius: inherit;
+    }
+
+    .consumo-list {
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    .consumo-row {
+        display: grid;
+        grid-template-columns: 34px 1fr auto;
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    .consumo-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: color-mix(in srgb, var(--svc-color) 16%, white);
+        color: var(--svc-color);
+        font-size: 1rem;
+    }
+
+    .consumo-name {
+        font-size: 0.88rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .consumo-value {
+        font-size: 0.86rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .spark-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+    }
+
+    @media (max-width: 1200px) {
+        .spark-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .spark-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .spark-card {
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        padding: 0.9rem;
+        background: #FCFCFD;
+    }
+
+    .spark-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: start;
+        margin-bottom: 0.45rem;
+    }
+
+    .spark-title {
+        font-size: 0.85rem;
+        font-weight: 800;
+        color: #111827;
+    }
+
+    .spark-current {
         font-size: 0.82rem;
         color: var(--gris-suave);
-        margin: 0.2rem 0 0;
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .spark-delta {
+        font-size: 0.78rem;
+        font-weight: 800;
+        color: #16A34A;
+    }
+
+    .spark-chart {
+        width: 100%;
+        height: 86px;
+        display: block;
+    }
+
+    .period-labels {
+        display: flex;
+        justify-content: space-between;
+        color: var(--gris-suave);
+        font-size: 0.72rem;
+    }
+
+    .perfil-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    @media (max-width: 992px) {
+        .perfil-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .perfil-box {
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        padding: 0.95rem;
+    }
+
+    .perfil-title {
+        font-size: 0.82rem;
+        font-weight: 800;
+        color: #334155;
+        margin-bottom: 0.65rem;
+    }
+
+    .semaforo-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.8rem;
+    }
+
+    @media (max-width: 992px) {
+        .semaforo-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .obra-card {
+        border: 1px solid #E5E7EB;
+        border-left: 5px solid var(--semaforo-color);
+        border-radius: 8px;
+        padding: 0.9rem;
+        background: var(--semaforo-bg);
+    }
+
+    .obra-card.rojo {
+        --semaforo-color: #EF4444;
+        --semaforo-bg: #FEF2F2;
+    }
+
+    .obra-card.amarillo {
+        --semaforo-color: #F59E0B;
+        --semaforo-bg: #FFFBEB;
+    }
+
+    .obra-card.verde {
+        --semaforo-color: #22C55E;
+        --semaforo-bg: #F0FDF4;
+    }
+
+    .obra-card strong {
+        display: block;
+        font-size: 0.9rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .obra-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.8rem;
+        color: #475569;
+        font-size: 0.8rem;
     }
 
     .mini-table {
@@ -63,7 +391,7 @@
         color: var(--verde);
         margin: 1.5rem 0 0.8rem;
         text-transform: uppercase;
-        letter-spacing: 0.03em;
+        letter-spacing: 0;
     }
 
     .tabla-empresas {
@@ -137,175 +465,214 @@
         </p>
         <div class="sec-line"></div>
 
-        <!-- fila 1: kpis principales -->
-        <div class="row g-3 mb-3">
-            <div class="col-sm-6 col-lg-3">
-                <div class="kpi-card">
-                    <h6>Ocupación del parque</h6>
-                    <div class="kpi-valor">{{ pct_ocupacion }}%</div>
-                    <p class="kpi-detalle">{{ lotes_en_uso }} de {{ total_lotes }} lotes ocupados</p>
-                    <div style="height:8px;background:#E5E7EB;border-radius:4px;overflow:hidden;margin-top:0.5rem;">
-                        <div
-                            style="height:100%;width:{{ pct_ocupacion }}%;background-color:#6ac64f;transition:width .3s;">
+        <div class="dash-grid">
+            <section class="dash-card span-4 ocupacion-card">
+                <h6>Ocupación del parque</h6>
+                <div class="donut-wrap">
+                    <div class="donut" style="background: {{ ocupacion_gradient }};">
+                        <div class="donut-center">
+                            <span class="donut-number">{{ pct_ocupacion }}%</span>
+                            <span class="donut-label">ocupado</span>
                         </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="kpi-card">
-                    <h6>Lotes</h6>
-                    <table class="mini-table">
-                        <tr>
-                            <td>Disponibles</td>
-                            <td>{{ lotes_disponibles }}</td>
-                        </tr>
-                        <tr>
-                            <td>En uso</td>
-                            <td>{{ lotes_en_uso }}</td>
-                        </tr>
-                        <tr>
-                            <td>Reserva fiscal</td>
-                            <td>{{ lotes_reserva }}</td>
-                        </tr>
-                    </table>
+                <div class="occupancy-summary">
+                    <div class="occ-metric">
+                        <strong>{{ total_lotes }}</strong>
+                        <span>Total lotes</span>
+                    </div>
+                    <div class="occ-metric">
+                        <strong>{{ lotes_disponibles }}</strong>
+                        <span>Libres</span>
+                    </div>
+                    <div class="occ-metric">
+                        <strong>{{ lotes_en_uso }}</strong>
+                        <span>En uso</span>
+                    </div>
+                    <div class="occ-metric">
+                        <strong>{{ lotes_reserva }}</strong>
+                        <span>Reserva</span>
+                    </div>
                 </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="kpi-card">
-                    <h6>Empresas activas</h6>
-                    <div class="kpi-valor">{{ total_empresas }}</div>
-                    <p class="kpi-detalle">radicadas, en obra, finalizadas o escrituradas</p>
-                </div>
-            </div>
-            <div class="col-sm-6 col-lg-3">
-                <div class="kpi-card">
-                    <h6>Consumo último período</h6>
-                    {% if periodo_consumo %}
-                    <div class="kpi-valor" style="font-size:1.1rem;">{{ periodo_consumo }}</div>
-                    <table class="mini-table" style="margin-top:0.3rem;">
-                        <tr>
-                            <td>Agua potable</td>
-                            <td>{{ consumos_periodo.total_agua_potable|default:"0" }} m³</td>
-                        </tr>
-                        <tr>
-                            <td>Agua cruda</td>
-                            <td>{{ consumos_periodo.total_agua_cruda|default:"0" }} m³</td>
-                        </tr>
-                        <tr>
-                            <td>Electricidad</td>
-                            <td>{{ consumos_periodo.total_kwh|default:"0" }} kWh</td>
-                        </tr>
-                        <tr>
-                            <td>Gas</td>
-                            <td>{{ consumos_periodo.total_gas|default:"0" }} m³</td>
-                        </tr>
-                    </table>
-                    {% else %}
-                    <div class="kpi-valor" style="font-size:1.1rem;">Sin datos</div>
-                    <p class="kpi-detalle">No hay consumos cargados todavía</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
+            </section>
 
-        <!-- fila 2: distribuciones y tareas -->
-        <div class="row g-3 mb-3">
-            <div class="col-lg-4">
-                <div class="kpi-card">
-                    <h6>Empresas por estado</h6>
-                    {% if empresas_por_estado %}
-                    <table class="mini-table">
-                        {% for label, cant in empresas_por_estado %}
-                        <tr>
-                            <td>{{ label }}</td>
-                            <td>{{ cant }}</td>
-                        </tr>
-                        {% endfor %}
-                    </table>
-                    {% else %}
+            <section class="dash-card span-8">
+                <h6>Empresas por estado</h6>
+                {% if empresas_por_estado %}
+                    {% for item in empresas_por_estado %}
+                    <div class="bar-row">
+                        <span>{{ item.label }}</span>
+                        <div class="bar-track">
+                            <div class="bar-fill" style="--bar-width: {{ item.pct_barra_css }}%; --bar-color: {{ item.color }};"></div>
+                        </div>
+                        <strong>{{ item.cantidad }}</strong>
+                    </div>
+                    {% endfor %}
+                {% else %}
                     <p class="kpi-detalle">Aún no hay empresas registradas.</p>
-                    {% endif %}
+                {% endif %}
+            </section>
+
+            <section class="dash-card span-4">
+                <h6>Consumo último período</h6>
+                {% if periodo_consumo %}
+                <div class="donut-label" style="margin-bottom:0.8rem;">{{ periodo_consumo }}</div>
+                <div class="consumo-list">
+                    {% for item in consumo_barras %}
+                    <div class="consumo-row" style="--svc-color: {{ item.color }};">
+                        <span class="consumo-icon"><i class="bi {{ item.icono }}"></i></span>
+                        <div>
+                            <div class="consumo-name">{{ item.label }}</div>
+                            <div class="bar-track">
+                                <div class="bar-fill" style="--bar-width: {{ item.pct_css }}%; --bar-color: {{ item.color }};"></div>
+                            </div>
+                        </div>
+                        <span class="consumo-value">{{ item.valor|floatformat:0 }} {{ item.unidad }}</span>
+                    </div>
+                    {% endfor %}
                 </div>
-            </div>
-            <div class="col-lg-4">
-                <div class="kpi-card">
-                    <h6>Distribución por categoría industrial</h6>
-                    {% if categorias %}
-                    <table class="mini-table">
-                        {% for label, cant in categorias %}
-                        <tr>
-                            <td>{{ label }}</td>
-                            <td>{{ cant }}</td>
-                        </tr>
-                        {% endfor %}
-                    </table>
-                    {% else %}
-                    <p class="kpi-detalle">Sin datos.</p>
-                    {% endif %}
+                {% else %}
+                <p class="kpi-detalle">No hay consumos cargados todavía.</p>
+                {% endif %}
+            </section>
+
+            <section class="dash-card span-8">
+                <h6>Evolución de consumos últimos 4 meses</h6>
+                {% if consumo_evolucion %}
+                <div class="spark-grid">
+                    {% for serie in consumo_evolucion %}
+                    <article class="spark-card">
+                        <div class="spark-head">
+                            <div>
+                                <div class="spark-title" style="color:{{ serie.color }};">
+                                    <i class="bi {{ serie.icono }}"></i> {{ serie.label }}
+                                </div>
+                                <div class="spark-delta">
+                                    {% if serie.delta >= 0 %}+{% endif %}{{ serie.delta_pct|floatformat:1 }}%
+                                </div>
+                            </div>
+                            <div class="spark-current">
+                                {{ serie.valor_actual|floatformat:0 }} {{ serie.unidad }}
+                            </div>
+                        </div>
+                        <svg class="spark-chart" viewBox="0 0 220 80" preserveAspectRatio="none" aria-hidden="true">
+                            <line x1="12" y1="68" x2="208" y2="68" stroke="#E5E7EB" stroke-width="1" />
+                            <line x1="12" y1="40" x2="208" y2="40" stroke="#EEF2F7" stroke-width="1" />
+                            <polyline points="{{ serie.puntos }}" fill="none" stroke="{{ serie.color }}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <div class="period-labels">
+                            {% for label in periodos_consumo_labels %}
+                            <span>{{ label }}</span>
+                            {% endfor %}
+                        </div>
+                    </article>
+                    {% endfor %}
                 </div>
-            </div>
-            <div class="col-lg-4">
-                <div class="kpi-card">
-                    <h6>Distribución por rubro</h6>
-                    {% if rubros %}
-                    <table class="mini-table">
-                        {% for label, cant in rubros %}
-                        <tr>
-                            <td>{{ label }}</td>
-                            <td>{{ cant }}</td>
-                        </tr>
-                        {% endfor %}
-                    </table>
-                    {% else %}
-                    <p class="kpi-detalle">Sin datos.</p>
-                    {% endif %}
+                {% else %}
+                <p class="kpi-detalle">No hay consumos suficientes para graficar.</p>
+                {% endif %}
+            </section>
+
+            <section class="dash-card span-6">
+                <h6>Perfil productivo</h6>
+                <div class="perfil-grid">
+                    <div class="perfil-box">
+                        <div class="perfil-title">Categoría industrial</div>
+                        <div class="donut-wrap" style="grid-template-columns:120px 1fr;">
+                            <div class="donut" style="width:112px;background: {{ categorias_gradient }};">
+                                <div class="donut-center">
+                                    <span class="donut-number">{{ total_empresas }}</span>
+                                    <span class="donut-label">activas</span>
+                                </div>
+                            </div>
+                            <ul class="legend-list">
+                                {% for item in categorias %}
+                                <li>
+                                    <span class="legend-dot" style="--dot-color: {{ item.color }};"></span>
+                                    <span>{{ item.label }}</span>
+                                    <strong>{{ item.cantidad }}</strong>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="perfil-box">
+                        <div class="perfil-title">Rubro</div>
+                        <div class="donut-wrap" style="grid-template-columns:120px 1fr;">
+                            <div class="donut" style="width:112px;background: {{ rubros_gradient }};">
+                                <div class="donut-center">
+                                    <span class="donut-number">{{ total_empresas }}</span>
+                                    <span class="donut-label">activas</span>
+                                </div>
+                            </div>
+                            <ul class="legend-list">
+                                {% for item in rubros %}
+                                <li>
+                                    <span class="legend-dot" style="--dot-color: {{ item.color }};"></span>
+                                    <span>{{ item.label }}</span>
+                                    <strong>{{ item.cantidad }}</strong>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </section>
+
+            <section class="dash-card span-6">
+                <h6>Obras por vencer</h6>
+                {% if obras_semaforo %}
+                <div class="semaforo-grid">
+                    {% for obra in obras_semaforo %}
+                    <article class="obra-card {{ obra.nivel }}">
+                        <strong>{{ obra.empresa.razon_social }}</strong>
+                        <div class="obra-meta">
+                            <span>{{ obra.nivel_label }}</span>
+                            <span>
+                                {% if obra.dias < 0 %}
+                                vencida
+                                {% elif obra.dias == 0 %}
+                                vence hoy
+                                {% else %}
+                                {{ obra.dias }} días
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="obra-meta" style="margin-top:0.45rem;">
+                            <span>{{ obra.empresa.get_estado_display }}</span>
+                            <strong>{{ obra.empresa.fecha_limite_obra|date:"d/m/Y" }}</strong>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="kpi-detalle">No hay obras con fecha límite cargada.</p>
+                {% endif %}
+            </section>
+
+            <section class="dash-card span-12">
+                <h6>Tareas pendientes</h6>
+                <table class="mini-table">
+                    <tr>
+                        <td>Solicitudes en evaluación</td>
+                        <td>{{ solicitudes_evaluacion }}</td>
+                    </tr>
+                    <tr>
+                        <td>Avances por validar</td>
+                        <td>{{ avances_pendientes }}</td>
+                    </tr>
+                    <tr>
+                        <td>Prórrogas por resolver</td>
+                        <td>{{ prorrogas_pendientes }}</td>
+                    </tr>
+                    <tr>
+                        <td>Obras por vencer (30 días)</td>
+                        <td>{{ proximos_vencer|length }}</td>
+                    </tr>
+                </table>
+            </section>
         </div>
 
-        <!-- fila 3: tareas pendientes -->
-        <div class="row g-3 mb-4">
-            <div class="col-lg-6">
-                <div class="kpi-card">
-                    <h6>Tareas pendientes</h6>
-                    <table class="mini-table">
-                        <tr>
-                            <td>Solicitudes en evaluación</td>
-                            <td>{{ solicitudes_evaluacion }}</td>
-                        </tr>
-                        <tr>
-                            <td>Avances por validar</td>
-                            <td>{{ avances_pendientes }}</td>
-                        </tr>
-                        <tr>
-                            <td>Prórrogas por resolver</td>
-                            <td>{{ prorrogas_pendientes }}</td>
-                        </tr>
-                        <tr>
-                            <td>Obras por vencer (30 días)</td>
-                            <td>{{ proximos_vencer|length }}</td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
-            {% if proximos_vencer %}
-            <div class="col-lg-6">
-                <div class="kpi-card">
-                    <h6>Obras próximas a vencer</h6>
-                    <table class="mini-table">
-                        {% for e in proximos_vencer %}
-                        <tr>
-                            <td>{{ e.razon_social }}</td>
-                            <td>{{ e.fecha_limite_obra|date:"d/m/Y" }}</td>
-                        </tr>
-                        {% endfor %}
-                    </table>
-                </div>
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- tabla de empresas activas -->
         <h3 class="seccion-titulo">Empresas activas</h3>
         <div style="overflow-x:auto;">
             <table class="tabla-empresas">

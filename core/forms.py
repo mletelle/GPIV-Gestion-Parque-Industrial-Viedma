@@ -30,16 +30,24 @@ class LoteForm(forms.ModelForm):
         fields = [
             'nro_parcela',
             'superficie_m2',
+            'ancho_m',
+            'alto_m',
             'conexion_agua_potable',
             'conexion_agua_cruda',
+            'conexion_electrica',
+            'conexion_gas',
             'internet_disponible',
             'estado',
         ]
         widgets = {
             'nro_parcela': forms.NumberInput(attrs={'class': 'form-control'}),
             'superficie_m2': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'ancho_m': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'alto_m': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
             'conexion_agua_potable': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'conexion_agua_cruda': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'conexion_electrica': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'conexion_gas': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'internet_disponible': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'estado': forms.Select(attrs={'class': 'form-select'}),
         }
@@ -631,8 +639,19 @@ class SolicitudAccesoForm(forms.ModelForm):
 
     def clean_documentacion_pdf(self):
         archivo = self.cleaned_data.get('documentacion_pdf')
-        if archivo and not archivo.name.lower().endswith('.pdf'):
-            raise forms.ValidationError('Solo se aceptan archivos en formato PDF.')
+        if archivo:
+            # Validar extensión
+            if not archivo.name.lower().endswith('.pdf'):
+                raise forms.ValidationError('Solo se aceptan archivos en formato PDF.')
+            # Validar tamaño (máx. 5 MB)
+            max_size = 5 * 1024 * 1024
+            if archivo.size > max_size:
+                raise forms.ValidationError('El archivo no puede superar los 5 MB.')
+            # Validar magic header (%PDF-)
+            header = archivo.read(5)
+            archivo.seek(0)
+            if header != b'%PDF-':
+                raise forms.ValidationError('El archivo no es un PDF válido.')
         return archivo
 
     def clean(self):

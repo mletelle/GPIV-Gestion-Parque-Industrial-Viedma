@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.db.models import Sum, Q
 from django.db import transaction
 from django.core.exceptions import MultipleObjectsReturned
-from datetime import timedelta
+from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 
 from .models import (
@@ -30,7 +30,9 @@ from .services import (
     notificar_ticket_mensaje,
     transferir_titularidad, invitar_usuario, remover_miembro,
     RBACError,
+    evaluar_incompatibilidades_lote,
 )
+from .lote_geometry import build_mapa_data, VIEWBOX_W, VIEWBOX_H, SERVIDUMBRE_Y
 from .forms import (
     LoginForm, LoteForm,
     SolicitudRadicacionForm, RechazarSolicitudForm,
@@ -189,6 +191,12 @@ class LoteListView(AdminEnrepaviMixin, ListView):
         ctx['filtro_estado'] = self.request.GET.get('estado', '')
         ctx['filtro_sup_min'] = self.request.GET.get('sup_min', '')
         ctx['filtro_sup_max'] = self.request.GET.get('sup_max', '')
+        # Mapa: siempre se renderiza con TODOS los lotes (no se ve afectado
+        # por los filtros de la tabla, para no romper el layout visual).
+        ctx['mapa_lotes'] = build_mapa_data(Lote.objects.all())
+        ctx['mapa_viewbox_w'] = VIEWBOX_W
+        ctx['mapa_viewbox_h'] = VIEWBOX_H
+        ctx['mapa_servidumbre_y'] = SERVIDUMBRE_Y
         return ctx
 
 
@@ -534,23 +542,29 @@ class SolicitudAccesoAprobarView(AdminEnrepaviMixin, View):
         )
         observaciones = request.POST.get('observaciones_admin', '').strip()
 
-        with transaction.atomic():
-            # 1. Actualizar solicitud
-            solicitud.estado = SolicitudAcceso.Estado.APROBADA
-            solicitud.fecha_resolucion = timezone.now()
-            solicitud.resuelto_por = request.user
-            solicitud.motivo_resolucion = observaciones
-            solicitud.save(update_fields=[
-                'estado', 'fecha_resolucion', 'resuelto_por', 'motivo_resolucion',
-            ])
-            # 2. Activar usuario
-            usuario = solicitud.usuario
-            usuario.is_active = True
-            usuario.save(update_fields=['is_active'])
-            # 3. Asignar grupo correcto
-            nombre_grupo = solicitud.get_grupo_destino()
-            grupo, _ = Group.objects.get_or_create(name=nombre_grupo)
-            usuario.groups.add(grupo)
+        try:
+            with transaction.atomic():
+                # 1. Actualizar solicitud
+                solicitud.estado = SolicitudAcceso.Estado.APROBADA
+                solicitud.fecha_resolucion = timezone.now()
+                solicitud.resuelto_por = request.user
+                solicitud.motivo_resolucion = observaciones
+                solicitud.save(update_fields=[
+                    'estado', 'fecha_resolucion', 'resuelto_por', 'motivo_resolucion',
+                ])
+                # 2. Activar usuario
+                usuario = solicitud.usuario
+                if usuario is None:
+                    raise ValueError('La solicitud no tiene usuario asociado y no puede ser aprobada.')
+                usuario.is_active = True
+                usuario.save(update_fields=['is_active'])
+                # 3. Asignar grupo correcto
+                nombre_grupo = solicitud.get_grupo_destino()
+                grupo, _ = Group.objects.get_or_create(name=nombre_grupo)
+                usuario.groups.add(grupo)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect('core:solicitud_acceso_detail', pk=pk)
 
         # 4. Notificar al usuario por email (fuera del atomic)
         try:
@@ -783,13 +797,36 @@ class AdjudicacionView(AdminEnrepaviMixin, View):
     def get(self, request, pk):
         empresa = get_object_or_404(Empresa, pk=pk, estado=Empresa.Estado.PRE_APROBADO)
         m2_min = empresa.get_necesidad_m2_minimo()
-        lotes = Lote.objects.filter(
+        lotes = list(Lote.objects.filter(
             estado=Lote.Estado.DISPONIBLE,
             superficie_m2__gte=m2_min,
-        ).order_by('nro_parcela')
+        ).order_by('nro_parcela'))
+        alertas_por_lote = {}
+        for lote in lotes:
+            lote.alertas_incompatibilidad = evaluar_incompatibilidades_lote(
+                empresa, lote,
+            )
+            alertas_por_lote[lote.pk] = lote.alertas_incompatibilidad
+
+        lotes_mapa = list(Lote.objects.select_related('empresa').all())
+        lotes_candidatos = {lote.pk for lote in lotes}
+        for lote in lotes_mapa:
+            lote.adjudicable = lote.pk in lotes_candidatos
+            alertas = alertas_por_lote.get(lote.pk, [])
+            lote.alerta_ambiental = bool(alertas)
+            lote.alerta_resumen = '; '.join(
+                f'Parcela {a["lote_vecino"].nro_parcela}: '
+                f'{a["empresa_vecina"].razon_social}'
+                for a in alertas
+            )
         return render(request, 'core/adjudicacion.html', {
             'empresa': empresa,
             'lotes': lotes,
+            'mapa_lotes': build_mapa_data(lotes_mapa),
+            'mapa_viewbox_w': VIEWBOX_W,
+            'mapa_viewbox_h': VIEWBOX_H,
+            'mapa_servidumbre_y': SERVIDUMBRE_Y,
+            'mapa_adjudicacion': True,
         })
 
     def post(self, request, pk):
@@ -800,6 +837,7 @@ class AdjudicacionView(AdminEnrepaviMixin, View):
             Lote, pk=lote_id, estado=Lote.Estado.DISPONIBLE,
             superficie_m2__gte=m2_min,
         )
+        alertas = evaluar_incompatibilidades_lote(empresa, lote)
         with transaction.atomic():
             # asignar lote
             lote.estado = Lote.Estado.EN_USO
@@ -812,6 +850,17 @@ class AdjudicacionView(AdminEnrepaviMixin, View):
             empresa.save(update_fields=['fecha_limite_obra'])
             # transicion a radicada
             registrar_transicion(empresa, Empresa.Estado.RADICADA, request.user, f'Adjudicada en parcela {lote.nro_parcela}')
+        if alertas:
+            detalle = '; '.join(
+                f'Parcela {a["lote_vecino"].nro_parcela}: '
+                f'{a["empresa_vecina"].razon_social} ({a["motivo"]})'
+                for a in alertas
+            )
+            messages.warning(
+                request,
+                'Advertencia ambiental registrada: la adjudicación se realizó, '
+                f'pero el lote tiene vecinos sensibles. {detalle}'
+            )
         messages.success(request, f'{empresa.razon_social} radicada en Parcela {lote.nro_parcela}.')
         return redirect('core:solicitud_list')
 
@@ -1135,6 +1184,57 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
         Empresa.Estado.ESCRITURADO,
     ]
 
+    COLORES_ESTADO = [
+        '#F59E0B', '#38BDF8', '#EF4444', '#22C55E', '#6366F1',
+        '#14B8A6', '#06B6D4', '#F97316', '#94A3B8',
+    ]
+    COLORES_DONA = ['#22C55E', '#64748B', '#FBBF24', '#38BDF8', '#F97316', '#A855F7']
+
+    @staticmethod
+    def _conic_gradient(items):
+        total = sum(item['cantidad'] for item in items)
+        if not total:
+            return '#E5E7EB'
+        inicio = 0
+        partes = []
+        for item in items:
+            pct = item['cantidad'] / total * 100
+            fin = inicio + pct
+            item['pct'] = f'{pct:.1f}'
+            partes.append(f'{item["color"]} {inicio:.2f}% {fin:.2f}%')
+            inicio = fin
+        return f'conic-gradient({", ".join(partes)})'
+
+    @staticmethod
+    def _linea_svg(valores, ancho=220, alto=80, margen=12):
+        if not valores:
+            return ''
+        vals = [float(v or 0) for v in valores]
+        minimo = min(vals)
+        maximo = max(vals)
+        rango = maximo - minimo
+        puntos = []
+        paso = (ancho - margen * 2) / (len(vals) - 1 or 1)
+        for idx, valor in enumerate(vals):
+            x = margen + idx * paso
+            if rango:
+                y = alto - margen - ((valor - minimo) / rango) * (alto - margen * 2)
+            else:
+                y = alto / 2
+            puntos.append(f'{x:.1f},{y:.1f}')
+        return ' '.join(puntos)
+
+    @staticmethod
+    def _periodos_ultimos_meses(ultimo, cantidad=4):
+        if not ultimo:
+            return []
+        base = date(ultimo.periodo_anio, ultimo.periodo_mes, 1)
+        periodos = []
+        for offset in range(cantidad - 1, -1, -1):
+            periodo = base - relativedelta(months=offset)
+            periodos.append((periodo.year, periodo.month, f'{periodo.month:02d}/{str(periodo.year)[2:]}'))
+        return periodos
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         empresas = Empresa.objects.filter(
@@ -1151,27 +1251,53 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
         ).count()
         pct_num = (lotes_en_uso / total_lotes * 100) if total_lotes else 0
         pct_ocupacion = f'{pct_num:.1f}'
-
-        # empresas agrupadas por estado, solo estados con count>0
-        empresas_por_estado = [
-            (label, Empresa.objects.filter(estado=valor).count())
-            for valor, label in Empresa.Estado.choices
+        ocupacion_items = [
+            {'label': 'Disponibles', 'cantidad': lotes_disponibles, 'color': '#22C55E'},
+            {'label': 'En uso', 'cantidad': lotes_en_uso, 'color': '#64748B'},
+            {'label': 'Reserva fiscal', 'cantidad': lotes_reserva, 'color': '#FBBF24'},
         ]
-        empresas_por_estado = [(lbl, n) for lbl, n in empresas_por_estado if n > 0]
+        ocupacion_gradient = self._conic_gradient(ocupacion_items)
+
+        empresas_por_estado = []
+        for idx, (valor, label) in enumerate(Empresa.Estado.choices):
+            cant = Empresa.objects.filter(estado=valor).count()
+            if cant:
+                empresas_por_estado.append({
+                    'label': label,
+                    'cantidad': cant,
+                    'color': self.COLORES_ESTADO[idx % len(self.COLORES_ESTADO)],
+                })
+        max_empresas_estado = max(
+            [item['cantidad'] for item in empresas_por_estado] or [1]
+        )
+        for item in empresas_por_estado:
+            pct = item['cantidad'] / max_empresas_estado * 100
+            item['pct_barra'] = pct
+            item['pct_barra_css'] = f'{pct:.1f}'
 
         # distribucion por categoria industrial (solo activas)
         categorias = []
-        for valor, label in Empresa.CategoriaIndustrial.choices:
+        for idx, (valor, label) in enumerate(Empresa.CategoriaIndustrial.choices):
             cant = empresas.filter(categoria_industrial=valor).count()
             if cant:
-                categorias.append((label, cant))
+                categorias.append({
+                    'label': label,
+                    'cantidad': cant,
+                    'color': self.COLORES_DONA[idx % len(self.COLORES_DONA)],
+                })
+        categorias_gradient = self._conic_gradient(categorias)
 
         # distribucion por rubro (solo activas)
         rubros = []
-        for valor, label in Empresa.Rubro.choices:
+        for idx, (valor, label) in enumerate(Empresa.Rubro.choices):
             cant = empresas.filter(rubro=valor).count()
             if cant:
-                rubros.append((label, cant))
+                rubros.append({
+                    'label': label,
+                    'cantidad': cant,
+                    'color': self.COLORES_DONA[(idx + 2) % len(self.COLORES_DONA)],
+                })
+        rubros_gradient = self._conic_gradient(rubros)
 
         # consumos del ultimo periodo cargado
         ultimo = ConsumoServicio.objects.order_by(
@@ -1190,6 +1316,100 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
                 total_gas=Sum('consumo_gas_m3'),
             )
             periodo_consumo = f'{ultimo.periodo_mes:02d}/{ultimo.periodo_anio}'
+
+        servicios_consumo = [
+            {
+                'clave': 'agua_potable',
+                'label': 'Agua potable',
+                'icono': 'bi-droplet',
+                'campo': 'consumo_agua_potable_m3',
+                'total_key': 'total_agua_potable',
+                'unidad': 'm³',
+                'color': '#0EA5E9',
+            },
+            {
+                'clave': 'agua_cruda',
+                'label': 'Agua cruda',
+                'icono': 'bi-water',
+                'campo': 'consumo_agua_cruda_m3',
+                'total_key': 'total_agua_cruda',
+                'unidad': 'm³',
+                'color': '#14B8A6',
+            },
+            {
+                'clave': 'electricidad',
+                'label': 'Electricidad',
+                'icono': 'bi-lightning-charge',
+                'campo': 'consumo_luz_kwh',
+                'total_key': 'total_kwh',
+                'unidad': 'kWh',
+                'color': '#F59E0B',
+            },
+            {
+                'clave': 'gas',
+                'label': 'Gas',
+                'icono': 'bi-fire',
+                'campo': 'consumo_gas_m3',
+                'total_key': 'total_gas',
+                'unidad': 'm³',
+                'color': '#EF4444',
+            },
+        ]
+        consumo_barras = []
+        if consumos_periodo:
+            for servicio in servicios_consumo:
+                valor = float(consumos_periodo.get(servicio['total_key']) or 0)
+                consumo_barras.append({
+                    **servicio,
+                    'valor': valor,
+                    'pct': 0,
+                    'pct_css': '0',
+                })
+
+        periodos_consumo = self._periodos_ultimos_meses(ultimo)
+        consumo_evolucion = []
+        pct_actual_por_servicio = {}
+        if periodos_consumo:
+            agregados_periodo = {}
+            for anio, mes, _ in periodos_consumo:
+                agregados_periodo[(anio, mes)] = ConsumoServicio.objects.filter(
+                    periodo_anio=anio,
+                    periodo_mes=mes,
+                ).aggregate(
+                    total_agua_potable=Sum('consumo_agua_potable_m3'),
+                    total_agua_cruda=Sum('consumo_agua_cruda_m3'),
+                    total_kwh=Sum('consumo_luz_kwh'),
+                    total_gas=Sum('consumo_gas_m3'),
+                )
+            for servicio in servicios_consumo:
+                valores = [
+                    float(
+                        agregados_periodo[(anio, mes)].get(servicio['total_key'])
+                        or 0
+                    )
+                    for anio, mes, _ in periodos_consumo
+                ]
+                primero = valores[0] if valores else 0
+                ultimo_valor = valores[-1] if valores else 0
+                delta = ultimo_valor - primero
+                delta_pct = (delta / primero * 100) if primero else 0
+                max_servicio = max(valores or [1]) or 1
+                pct_actual_por_servicio[servicio['clave']] = ultimo_valor / max_servicio * 100
+                consumo_evolucion.append({
+                    **servicio,
+                    'valores': valores,
+                    'puntos': self._linea_svg(valores),
+                    'valor_actual': ultimo_valor,
+                    'delta': delta,
+                    'delta_pct': delta_pct,
+                })
+        for item in consumo_barras:
+            pct = pct_actual_por_servicio.get(
+                item['clave'],
+                100 if item['valor'] else 0,
+            )
+            item['pct'] = pct
+            item['pct_css'] = f'{pct:.1f}'
 
         # tareas pendientes
         avances_pendientes = AvanceConstructivo.objects.filter(
@@ -1210,6 +1430,28 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
             fecha_limite_obra__lte=limite,
             fecha_limite_obra__gte=hoy,
         ).prefetch_related('empleados')
+        obras_semaforo = []
+        obras_con_plazo = Empresa.objects.filter(
+            estado__in=[Empresa.Estado.RADICADA, Empresa.Estado.EN_CONSTRUCCION],
+            fecha_limite_obra__isnull=False,
+        ).order_by('fecha_limite_obra', 'razon_social')
+        for obra in obras_con_plazo:
+            dias = (obra.fecha_limite_obra - hoy).days
+            if dias <= 7:
+                nivel = 'rojo'
+                nivel_label = 'Urgente'
+            elif dias <= 30:
+                nivel = 'amarillo'
+                nivel_label = 'Próxima'
+            else:
+                nivel = 'verde'
+                nivel_label = 'Sin urgencia'
+            obras_semaforo.append({
+                'empresa': obra,
+                'dias': dias,
+                'nivel': nivel,
+                'nivel_label': nivel_label,
+            })
 
         ctx.update({
             'empresas': empresas,
@@ -1221,15 +1463,65 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
             'pct_ocupacion': pct_ocupacion,
             'empresas_por_estado': empresas_por_estado,
             'categorias': categorias,
+            'categorias_gradient': categorias_gradient,
             'rubros': rubros,
+            'rubros_gradient': rubros_gradient,
+            'ocupacion_items': ocupacion_items,
+            'ocupacion_gradient': ocupacion_gradient,
             'consumos_periodo': consumos_periodo,
             'periodo_consumo': periodo_consumo,
+            'consumo_barras': consumo_barras,
+            'periodos_consumo': periodos_consumo,
+            'periodos_consumo_labels': [label for _, _, label in periodos_consumo],
+            'consumo_evolucion': consumo_evolucion,
             'avances_pendientes': avances_pendientes,
             'prorrogas_pendientes': prorrogas_pendientes,
             'solicitudes_evaluacion': solicitudes_evaluacion,
             'proximos_vencer': proximos_vencer,
+            'obras_semaforo': obras_semaforo,
         })
         return ctx
+
+
+ # editor visual de mapa (admin)
+class MapaEditorView(AdminEnrepaviMixin, TemplateView):
+    """editor visual interactivo del mapa de lotes. solo admin."""
+    template_name = 'core/mapa_editor.html'
+
+    def get_context_data(self, **kwargs):
+        import json
+        ctx = super().get_context_data(**kwargs)
+        ctx['mapa_viewbox_w'] = VIEWBOX_W
+        ctx['mapa_viewbox_h'] = VIEWBOX_H
+        ctx['mapa_servidumbre_y'] = SERVIDUMBRE_Y
+        ctx['mapa_lotes_json'] = json.dumps(build_mapa_data(Lote.objects.all()))
+        return ctx
+
+
+class MapaEditorSaveView(AdminEnrepaviMixin, View):
+    """guarda posiciones svg de los lotes desde el editor visual (ajax post)."""
+    def post(self, request):
+        import json
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({'ok': False, 'error': 'json invalido'}, status=400)
+        lotes_data = data.get('lotes', [])
+        if not lotes_data:
+            return JsonResponse({'ok': False, 'error': 'sin datos'}, status=400)
+        count = 0
+        for item in lotes_data:
+            nro = item.get('nro')
+            if nro is None:
+                continue
+            updated = Lote.objects.filter(nro_parcela=nro).update(
+                mapa_x=item.get('x'),
+                mapa_y=item.get('y'),
+                mapa_w=item.get('w'),
+                mapa_h=item.get('h'),
+            )
+            count += updated
+        return JsonResponse({'ok': True, 'updated': count})
 
 
  # reportes pdf hu-15

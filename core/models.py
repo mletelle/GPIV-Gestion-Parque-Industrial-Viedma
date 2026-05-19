@@ -3,8 +3,9 @@ from django.db import models
 from django.db import IntegrityError
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator, FileExtensionValidator
 from django.utils import timezone
+from simple_history.models import HistoricalRecords
 
 class CustomUser(AbstractUser):
     """
@@ -215,6 +216,8 @@ class Empresa(models.Model):
     )
     escritura_pdf = models.FileField(upload_to='escrituras/', blank=True, null=True)
 
+    history = HistoricalRecords()
+
     class Meta:
         verbose_name = _("Empresa")
         verbose_name_plural = _("Empresas")
@@ -262,10 +265,30 @@ class Lote(models.Model):
     superficie_m2 = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     conexion_agua_potable = models.BooleanField(default=False)
     conexion_agua_cruda = models.BooleanField(default=False)
+    conexion_electrica = models.BooleanField(default=False)
+    conexion_gas = models.BooleanField(default=False)
     internet_disponible = models.BooleanField(default=False)
     estado = models.CharField(max_length=30, choices=Estado.choices, default=Estado.DISPONIBLE)
     empresa = models.ForeignKey(Empresa, on_delete=models.SET_NULL, null=True, blank=True, related_name='lotes')
     lotes_colindantes = models.ManyToManyField('self', blank=True, symmetrical=True)
+
+    # medidas referenciales del plano catastral (ancho x alto en metros)
+    ancho_m = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True,
+        verbose_name=_('Ancho (m)'), validators=[MinValueValidator(0)],
+    )
+    alto_m = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True,
+        verbose_name=_('Alto (m)'), validators=[MinValueValidator(0)],
+    )
+
+    # posicion en el mapa svg (coordenadas del viewBox, editables desde /lotes/editor/)
+    mapa_x = models.IntegerField(null=True, blank=True, verbose_name=_('Mapa: X'))
+    mapa_y = models.IntegerField(null=True, blank=True, verbose_name=_('Mapa: Y'))
+    mapa_w = models.IntegerField(null=True, blank=True, verbose_name=_('Mapa: ancho'))
+    mapa_h = models.IntegerField(null=True, blank=True, verbose_name=_('Mapa: alto'))
+
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = _("Lote")
@@ -284,6 +307,8 @@ class TransicionEstado(models.Model):
     usuario = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='transiciones_registradas')
     justificacion_resolucion = models.TextField(blank=True, null=True)
 
+    history = HistoricalRecords()
+
     class Meta:
         verbose_name = _("Transición de Estado")
         verbose_name_plural = _("Transiciones de Estado")
@@ -300,6 +325,8 @@ class AvanceConstructivo(models.Model):
     certificado_pdf = models.FileField(upload_to='certificados/')
     fecha_presentacion = models.DateField(auto_now_add=True)
     validado_admin = models.BooleanField(default=False)
+
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = _("Avance Constructivo")
@@ -326,6 +353,8 @@ class SolicitudProrroga(models.Model):
     fecha_respuesta = models.DateTimeField(blank=True, null=True)
     resuelta_por = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='prorrogas_resueltas')
 
+    history = HistoricalRecords()
+
     class Meta:
         verbose_name = _("Solicitud de Prórroga")
         verbose_name_plural = _("Solicitudes de Prórroga")
@@ -345,6 +374,8 @@ class ConsumoServicio(models.Model):
     consumo_gas_m3 = models.DecimalField(max_digits=14, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(0)])
     fecha_carga = models.DateTimeField(auto_now_add=True)
     cargado_por = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='consumos_cargados')
+
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = _("Consumo de Servicio")
@@ -387,6 +418,8 @@ class Ticket(models.Model):
     is_active = models.BooleanField(default=True, help_text=_('Indica si el ticket está activo. Desmarcar para baja lógica.'))
     deleted_at = models.DateTimeField(null=True, blank=True)
 
+    history = HistoricalRecords()
+
     class Meta:
         verbose_name = _("Ticket")
         verbose_name_plural = _("Tickets")
@@ -411,6 +444,8 @@ class MensajeTicket(models.Model):
     # Baja lógica
     is_active = models.BooleanField(default=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
+
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = _("Mensaje de Ticket")
@@ -531,6 +566,8 @@ class ActivoInventario(models.Model):
         verbose_name=_('Registrado por'),
     )
 
+    history = HistoricalRecords()
+
     class Meta:
         verbose_name = _('Activo de Inventario')
         verbose_name_plural = _('Inventario')
@@ -636,6 +673,7 @@ class SolicitudAcceso(models.Model):
         upload_to='solicitudes_acceso/',
         null=True,
         blank=True,
+        validators=[FileExtensionValidator(['pdf'])],
         verbose_name='Documentación acreditante (PDF)',
         help_text='Credencial, nota oficial, contrato u otro documento que acredite su rol. Solo formato PDF.',
     )
@@ -671,6 +709,8 @@ class SolicitudAcceso(models.Model):
         verbose_name='Usuario creado',
     )
 
+    history = HistoricalRecords()
+
     class Meta:
         verbose_name = 'Solicitud de Acceso'
         verbose_name_plural = 'Solicitudes de Acceso'
@@ -694,3 +734,142 @@ class SolicitudAcceso(models.Model):
         if self.tipo == self.Tipo.ORGANISMO:
             return self.GRUPO_ORGANISMO
         return self.GRUPO_POR_TIPO_ACCESO[self.tipo_acceso]
+
+
+class AvisoVencimiento(models.Model):
+    """
+    Log auditable de avisos de vencimiento de plazo de obra enviados
+    automáticamente por el command ``notificar_vencimientos``.
+
+    Baja lógica: ``is_active=False`` + ``deleted_at`` al desactivar.
+    El registro permanece para conservar la trazabilidad de las
+    notificaciones enviadas.
+    """
+
+    class Nivel(models.TextChoices):
+        URGENTE = 'Urgente', _('Urgente (≤ 7 días)')
+        PROXIMO = 'Proximo', _('Próximo (8 – 30 días)')
+
+    empresa = models.ForeignKey(
+        Empresa,
+        on_delete=models.CASCADE,
+        related_name='avisos_vencimiento',
+        verbose_name=_('Empresa'),
+    )
+    nivel = models.CharField(
+        max_length=10,
+        choices=Nivel.choices,
+        verbose_name=_('Nivel de urgencia'),
+    )
+    dias_restantes = models.IntegerField(
+        verbose_name=_('Días restantes al momento del envío'),
+    )
+    email_destino = models.EmailField(
+        verbose_name=_('Email destino'),
+    )
+    fecha_envio = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('Fecha de envío'),
+    )
+
+    # Baja lógica
+    is_active = models.BooleanField(
+        default=True,
+        help_text=_('Desmarcar para baja lógica del registro de aviso.'),
+    )
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = _('Aviso de Vencimiento')
+        verbose_name_plural = _('Avisos de Vencimiento')
+        ordering = ['-fecha_envio']
+        indexes = [
+            models.Index(
+                fields=['empresa', 'nivel', 'fecha_envio'],
+                name='idx_aviso_emp_nivel_fecha',
+            ),
+        ]
+
+    def __str__(self):
+        return f'Aviso {self.get_nivel_display()} → {self.empresa} ({self.dias_restantes}d)'
+
+    def soft_delete(self):
+        """Baja lógica: desactiva el registro sin eliminarlo de la BD."""
+        self.is_active = False
+        self.deleted_at = timezone.now()
+        self.save(update_fields=['is_active', 'deleted_at'])
+
+
+class CaducidadRegistro(models.Model):
+    """
+    Log auditable de caducidades automáticas ejecutadas por el command
+    ``verificar_caducidades``.
+
+    Cada registro representa una empresa cuyo plazo de obra venció y fue
+    marcada como Caducado automáticamente.  Baja lógica: ``is_active=False``
+    + ``deleted_at`` al desactivar.
+    """
+
+    empresa = models.ForeignKey(
+        Empresa,
+        on_delete=models.CASCADE,
+        related_name='caducidades',
+        verbose_name=_('Empresa'),
+    )
+    estado_anterior = models.CharField(
+        max_length=30,
+        choices=Empresa.Estado.choices,
+        verbose_name=_('Estado anterior'),
+    )
+    fecha_limite_original = models.DateField(
+        verbose_name=_('Fecha límite de obra al momento de caducar'),
+    )
+    justificacion = models.TextField(
+        verbose_name=_('Justificación'),
+    )
+    email_destino = models.EmailField(
+        verbose_name=_('Email notificado'),
+        blank=True,
+    )
+    notificacion_enviada = models.BooleanField(
+        default=False,
+        verbose_name=_('Notificación enviada a la empresa'),
+    )
+    fecha_ejecucion = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('Fecha de ejecución'),
+    )
+
+    # Baja lógica
+    is_active = models.BooleanField(
+        default=True,
+        help_text=_('Desmarcar para baja lógica del registro.'),
+    )
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = _('Registro de Caducidad')
+        verbose_name_plural = _('Registros de Caducidad')
+        ordering = ['-fecha_ejecucion']
+        indexes = [
+            models.Index(
+                fields=['empresa', 'fecha_ejecucion'],
+                name='idx_caducidad_emp_fecha',
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f'Caducidad → {self.empresa} '
+            f'(límite: {self.fecha_limite_original})'
+        )
+
+    def soft_delete(self):
+        """Baja lógica: desactiva el registro sin eliminarlo de la BD."""
+        self.is_active = False
+        self.deleted_at = timezone.now()
+        self.save(update_fields=['is_active', 'deleted_at'])

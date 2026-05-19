@@ -9,6 +9,8 @@ from .views import (
     LoteListView,
     LoteCreateView,
     LoteUpdateView,
+    MapaEditorView,
+    MapaEditorSaveView,
     RegistroSelectorView,
     RegistroEmpresaView,
     SolicitudAccesoCreateView,
@@ -146,6 +148,8 @@ urlpatterns = [
     # admin: gestion de lotes
     path('lotes/', LoteListView.as_view(), name='lote_list'),
     path('lotes/nuevo/', LoteCreateView.as_view(), name='lote_create'),
+    path('lotes/editor/', MapaEditorView.as_view(), name='mapa_editor'),
+    path('lotes/editor/guardar/', MapaEditorSaveView.as_view(), name='mapa_editor_save'),
     path('lotes/<int:pk>/editar/', LoteUpdateView.as_view(), name='lote_update'),
 
     # admin: evaluacion de solicitudes

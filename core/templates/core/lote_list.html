@@ -101,10 +101,17 @@
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h2 class="sec-title mb-0">Gestión de Lotes</h2>
-            <a href="{% url 'core:lote_create' %}" class="btn-verde">
-                <i class="bi bi-plus-lg"></i> Nuevo Lote
-            </a>
+            <div class="d-flex gap-2">
+                <a href="{% url 'core:mapa_editor' %}" class="btn-sm-gpiv d-flex align-items-center gap-1" style="padding:.45rem .9rem;">
+                    <i class="bi bi-pencil-square"></i> Editor de mapa
+                </a>
+                <a href="{% url 'core:lote_create' %}" class="btn-verde">
+                    <i class="bi bi-plus-lg"></i> Nuevo Lote
+                </a>
+            </div>
         </div>
+
+        {% include 'core/_lotes_mapa.html' %}
 
         <div class="filtros-card">
             <form method="get" class="row g-3 align-items-end">
@@ -145,6 +152,8 @@
                         <th>Superficie (m²)</th>
                         <th>Agua Potable</th>
                         <th>Agua Cruda</th>
+                        <th>Electricidad</th>
+                        <th>Gas</th>
                         <th>Internet</th>
                         <th>Estado</th>
                         <th>Empresa</th>
@@ -158,6 +167,8 @@
                         <td>{{ lote.superficie_m2|floatformat:2 }}</td>
                         <td>{% if lote.conexion_agua_potable %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
                         <td>{% if lote.conexion_agua_cruda %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
+                        <td>{% if lote.conexion_electrica %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
+                        <td>{% if lote.conexion_gas %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
                         <td>{% if lote.internet_disponible %}<i class="bi bi-check-circle text-success"></i>{% else %}<i class="bi bi-x-circle text-muted"></i>{% endif %}</td>
                         <td>
                             {% if lote.estado == 'Disponible' %}
@@ -177,7 +188,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-3">No se encontraron lotes.</td>
+                        <td colspan="10" class="text-center text-muted py-3">No se encontraron lotes.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

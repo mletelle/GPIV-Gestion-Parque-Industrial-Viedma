@@ -115,7 +115,7 @@ Contraseña por defecto para todos los usuarios: `gpiv1234`
 | `empresa_epsilon` | Epsilon Construcciones S.A.      | En Construcción | 029     | +18 dias    |
 | `empresa_zeta`    | Zeta Metalurgica S.A.            | En Construcción | 030     | +7 dias     |
 | `empresa_eta`     | Eta Logistica S.R.L.             | Finalizado      | 036     | +60 dias    |
-| `empresa_theta`   | Theta Alimentos del Sur S.A.     | Finalizado      | 006     | +90 dias    |
+| `empresa_pix`   | Pix Alimentos del Sur S.A.     | Finalizado      | 006     | +90 dias    |
 | _(sin usuario)_   | Fundidora del Atlantico S.A.     | Escriturado     | 015     | —           |
 | _(sin usuario)_   | Molinos Patagonicos S.R.L.       | Escriturado     | 007     | —           |
 

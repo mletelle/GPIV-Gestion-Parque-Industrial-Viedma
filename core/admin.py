@@ -5,12 +5,15 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
 from django.db import transaction
 from django.utils import timezone
+from simple_history.admin import SimpleHistoryAdmin
 from .models import (
     CustomUser, Empresa, Lote, TransicionEstado,
     AvanceConstructivo, SolicitudProrroga, ConsumoServicio,
     Ticket, MensajeTicket,
     ActivoInventario,
     SolicitudAcceso,
+    AvisoVencimiento,
+    CaducidadRegistro,
 )
 from .services import (
     notificar_solicitud_acceso_aprobada,
@@ -60,7 +63,7 @@ class EmpleadosInline(admin.TabularInline):
 
 
 @admin.register(Empresa)
-class EmpresaAdmin(admin.ModelAdmin):
+class EmpresaAdmin(SimpleHistoryAdmin):
     list_display = ('razon_social', 'cuit', 'estado', 'tipo_empresa', 'get_titular')
     list_filter = ('estado', 'tipo_empresa', 'rubro')
     search_fields = ('razon_social', 'cuit', 'nombre_fantasia')
@@ -134,36 +137,40 @@ class EmpresaAdmin(admin.ModelAdmin):
 
 
 @admin.register(Lote)
-class LoteAdmin(admin.ModelAdmin):
-    list_display = ('nro_parcela', 'superficie_m2', 'estado', 'empresa')
+class LoteAdmin(SimpleHistoryAdmin):
+    list_display = (
+        'nro_parcela', 'superficie_m2', 'estado', 'conexion_agua_potable',
+        'conexion_agua_cruda', 'conexion_electrica', 'conexion_gas',
+        'internet_disponible', 'empresa',
+    )
     list_filter = ('estado',)
     search_fields = ('nro_parcela',)
     autocomplete_fields = ('empresa',)
 
 
 @admin.register(TransicionEstado)
-class TransicionEstadoAdmin(admin.ModelAdmin):
+class TransicionEstadoAdmin(SimpleHistoryAdmin):
     list_display = ('empresa', 'estado_anterior', 'estado_nuevo', 'fecha_cambio', 'usuario')
     list_filter = ('estado_nuevo',)
     autocomplete_fields = ('empresa', 'usuario')
 
 
 @admin.register(AvanceConstructivo)
-class AvanceConstructivoAdmin(admin.ModelAdmin):
+class AvanceConstructivoAdmin(SimpleHistoryAdmin):
     list_display = ('empresa', 'porcentaje_declarado', 'fecha_presentacion', 'validado_admin')
     list_filter = ('validado_admin',)
     autocomplete_fields = ('empresa',)
 
 
 @admin.register(SolicitudProrroga)
-class SolicitudProrrogaAdmin(admin.ModelAdmin):
+class SolicitudProrrogaAdmin(SimpleHistoryAdmin):
     list_display = ('empresa', 'meses_solicitados', 'estado', 'fecha_solicitud')
     list_filter = ('estado',)
     autocomplete_fields = ('empresa',)
 
 
 @admin.register(ConsumoServicio)
-class ConsumoServicioAdmin(admin.ModelAdmin):
+class ConsumoServicioAdmin(SimpleHistoryAdmin):
     list_display = ('empresa', 'periodo_mes', 'periodo_anio', 'fecha_carga')
     list_filter = ('periodo_anio',)
     autocomplete_fields = ('empresa',)
@@ -177,7 +184,7 @@ class MensajeTicketInline(admin.TabularInline):
 
 
 @admin.register(Ticket)
-class TicketAdmin(admin.ModelAdmin):
+class TicketAdmin(SimpleHistoryAdmin):
     list_display = ('asunto', 'creador', 'estado', 'fecha_creacion', 'is_active')
     list_filter = ('estado', 'is_active', 'fecha_creacion')
     search_fields = ('asunto', 'creador__username', 'creador__email')
@@ -193,7 +200,7 @@ class TicketAdmin(admin.ModelAdmin):
 
 
 @admin.register(MensajeTicket)
-class MensajeTicketAdmin(admin.ModelAdmin):
+class MensajeTicketAdmin(SimpleHistoryAdmin):
     list_display = ('ticket', 'autor', 'fecha_creacion', 'is_active')
     list_filter = ('is_active', 'fecha_creacion')
     search_fields = ('ticket__asunto', 'autor__username', 'contenido')
@@ -201,7 +208,7 @@ class MensajeTicketAdmin(admin.ModelAdmin):
 
 
 @admin.register(ActivoInventario)
-class ActivoInventarioAdmin(admin.ModelAdmin):
+class ActivoInventarioAdmin(SimpleHistoryAdmin):
     list_display = (
         'codigo_inventario', 'nombre', 'categoria', 'estado', 'activo',
         'ubicacion', 'responsable', 'fecha_alta',
@@ -243,7 +250,7 @@ class ActivoInventarioAdmin(admin.ModelAdmin):
 
 
 @admin.register(SolicitudAcceso)
-class SolicitudAccesoAdmin(admin.ModelAdmin):
+class SolicitudAccesoAdmin(SimpleHistoryAdmin):
     """
     Bandeja de auditoría de solicitudes de acceso (Organismo / Proveedor).
     Las acciones de aprobar/rechazar activan o dejan inactivo el usuario
@@ -414,3 +421,72 @@ class SolicitudAccesoAdmin(admin.ModelAdmin):
             notificar_solicitud_acceso_rechazada(solicitud)
         except Exception:  # pylint: disable=broad-except
             logger.exception("Error al notificar rechazo de solicitud (pk=%s)", solicitud.pk)
+
+
+@admin.register(AvisoVencimiento)
+class AvisoVencimientoAdmin(SimpleHistoryAdmin):
+    """Bandeja de auditoría de avisos automáticos de vencimiento."""
+    list_display = (
+        'empresa', 'nivel', 'dias_restantes', 'email_destino',
+        'fecha_envio', 'is_active',
+    )
+    list_filter = ('nivel', 'is_active', 'fecha_envio')
+    search_fields = ('empresa__razon_social', 'empresa__cuit', 'email_destino')
+    readonly_fields = (
+        'empresa', 'nivel', 'dias_restantes', 'email_destino',
+        'fecha_envio', 'is_active', 'deleted_at',
+    )
+    date_hierarchy = 'fecha_envio'
+
+    def has_add_permission(self, request):
+        # Los avisos solo se crean desde el command automatizado.
+        return False
+
+    actions = ['soft_delete_avisos']
+
+    @admin.action(description='Dar de baja lógica los avisos seleccionados')
+    def soft_delete_avisos(self, request, queryset):
+        count = 0
+        for aviso in queryset.filter(is_active=True):
+            aviso.soft_delete()
+            count += 1
+        self.message_user(
+            request,
+            f'{count} aviso(s) dado(s) de baja lógica.',
+            level=messages.SUCCESS,
+        )
+
+
+@admin.register(CaducidadRegistro)
+class CaducidadRegistroAdmin(SimpleHistoryAdmin):
+    """Bandeja de auditoría de caducidades automáticas."""
+    list_display = (
+        'empresa', 'estado_anterior', 'fecha_limite_original',
+        'notificacion_enviada', 'fecha_ejecucion', 'is_active',
+    )
+    list_filter = ('is_active', 'notificacion_enviada', 'fecha_ejecucion')
+    search_fields = ('empresa__razon_social', 'empresa__cuit', 'email_destino')
+    readonly_fields = (
+        'empresa', 'estado_anterior', 'fecha_limite_original',
+        'justificacion', 'email_destino', 'notificacion_enviada',
+        'fecha_ejecucion', 'is_active', 'deleted_at',
+    )
+    date_hierarchy = 'fecha_ejecucion'
+
+    def has_add_permission(self, request):
+        # Los registros solo se crean desde el command automatizado.
+        return False
+
+    actions = ['soft_delete_registros']
+
+    @admin.action(description='Dar de baja lógica los registros seleccionados')
+    def soft_delete_registros(self, request, queryset):
+        count = 0
+        for registro in queryset.filter(is_active=True):
+            registro.soft_delete()
+            count += 1
+        self.message_user(
+            request,
+            f'{count} registro(s) dado(s) de baja lógica.',
+            level=messages.SUCCESS,
+        )

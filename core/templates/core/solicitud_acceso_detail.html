@@ -154,6 +154,7 @@
         <div class="detail-body">
             {% if solicitud.documentacion_pdf %}
             <a href="{{ solicitud.documentacion_pdf.url }}" target="_blank"
+               rel="noopener noreferrer"
                class="btn btn-outline-danger">
                 <i class="bi bi-file-earmark-pdf me-1"></i>
                 Ver documentación adjunta (PDF)

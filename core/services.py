@@ -11,7 +11,7 @@ from django.utils.html import escape
 
 from django.db import transaction
 
-from .models import TransicionEstado
+from .models import Empresa, Lote, TransicionEstado
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -198,6 +198,72 @@ SERVICIO_LABELS = {
     'LUZ': 'Electricidad',
     'GAS': 'Gas',
 }
+
+
+def _empresa_genera_residuos(empresa):
+    return bool(
+        empresa.genera_residuos
+        or (empresa.residuos_efluentes or '').strip()
+    )
+
+
+def evaluar_incompatibilidades_lote(empresa, lote):
+    """
+    Evalua incompatibilidades simples entre una empresa candidata y los
+    ocupantes de lotes colindantes.
+
+    Regla GPIV inicial: advertir cuando una actividad quimica o generadora de
+    residuos queda junto a actividad alimenticia. Devuelve una lista de alertas
+    informativas; la adjudicacion no se bloquea desde este servicio.
+    """
+    alertas = []
+    empresa_es_alimenticia = (
+        empresa.categoria_industrial == Empresa.CategoriaIndustrial.ALIMENTICIA
+    )
+    empresa_es_quimica = (
+        empresa.categoria_industrial == Empresa.CategoriaIndustrial.QUIMICA
+    )
+    empresa_tiene_residuos = _empresa_genera_residuos(empresa)
+
+    vecinos = lote.lotes_colindantes.filter(
+        estado=Lote.Estado.EN_USO,
+        empresa__isnull=False,
+    ).select_related('empresa').order_by('nro_parcela')
+
+    for lote_vecino in vecinos:
+        empresa_vecina = lote_vecino.empresa
+        vecino_es_alimenticia = (
+            empresa_vecina.categoria_industrial
+            == Empresa.CategoriaIndustrial.ALIMENTICIA
+        )
+        vecino_es_quimica = (
+            empresa_vecina.categoria_industrial
+            == Empresa.CategoriaIndustrial.QUIMICA
+        )
+        vecino_tiene_residuos = _empresa_genera_residuos(empresa_vecina)
+
+        motivos = []
+        if (
+            (empresa_es_quimica and vecino_es_alimenticia)
+            or (empresa_es_alimenticia and vecino_es_quimica)
+        ):
+            motivos.append('actividad química junto a actividad alimenticia')
+
+        if (
+            (empresa_tiene_residuos and vecino_es_alimenticia)
+            or (empresa_es_alimenticia and vecino_tiene_residuos)
+        ):
+            motivos.append('generación de residuos junto a actividad alimenticia')
+
+        if motivos:
+            alertas.append({
+                'lote_vecino': lote_vecino,
+                'empresa_vecina': empresa_vecina,
+                'motivo': '; '.join(motivos),
+                'severidad': 'alta',
+            })
+
+    return alertas
 
 
 def get_servicio_proveedor(user):
@@ -489,3 +555,219 @@ def notificar_solicitud_acceso_resuelta(solicitud):
     if solicitud.estado == SolicitudAcceso.Estado.APROBADA:
         return notificar_solicitud_acceso_aprobada(solicitud)
     return notificar_solicitud_acceso_rechazada(solicitud)
+
+
+
+def enviar_aviso_vencimiento(empresa, dias_restantes, nivel):
+    """
+    envia un email de recordatorio de vencimiento de obra y crea el
+    registro de auditoria ``AvisoVencimiento``.
+
+    parametros:
+        empresa: instancia de Empresa (debe tener correo_electronico).
+        dias_restantes: int con la cantidad de dias hasta la fecha limite.
+        nivel: str, uno de AvisoVencimiento.Nivel ('Urgente' o 'Proximo').
+
+    retorna:
+        AvisoVencimiento creado si el envio fue exitoso, None en caso contrario.
+    """
+    from django.template.loader import render_to_string
+    from .models import AvisoVencimiento
+
+    destino = empresa.correo_electronico
+    if not destino:
+        logger.warning(
+            "Empresa %s (pk=%s) sin correo_electronico. Aviso omitido.",
+            empresa.razon_social, empresa.pk,
+        )
+        return None
+
+    fecha_limite_str = (
+        empresa.fecha_limite_obra.strftime('%d/%m/%Y')
+        if empresa.fecha_limite_obra else '—'
+    )
+    site_url = getattr(settings, 'SITE_URL', 'http://localhost:8000')
+
+    es_urgente = nivel == AvisoVencimiento.Nivel.URGENTE
+    context = {
+        'razon_social': empresa.razon_social,
+        'cuit': empresa.cuit,
+        'fecha_limite': fecha_limite_str,
+        'dias_restantes': dias_restantes,
+        'nivel': nivel,
+        'site_url': site_url,
+        # colores precalculados para evitar {% if %} dentro de style=""
+        'header_bg': '#DC2626' if es_urgente else '#D97706',
+        'badge_bg': '#FEF2F2' if es_urgente else '#FFFBEB',
+        'badge_border': '#FECACA' if es_urgente else '#FDE68A',
+        'badge_text': '#991B1B' if es_urgente else '#92400E',
+        'dias_color': '#DC2626' if es_urgente else '#D97706',
+    }
+    html = render_to_string('core/emails/recordatorio_vencimiento.html', context)
+
+    subject = _sanitizar_subject(
+        f'[GPIV] {"Aviso urgente" if es_urgente else "Recordatorio"}: '
+        f'plazo de obra vence en {dias_restantes} día(s)'
+    )
+
+    resultado = enviar_email_resend(destino, subject, html)
+    if not resultado:
+        return None
+
+    aviso = AvisoVencimiento.objects.create(
+        empresa=empresa,
+        nivel=nivel,
+        dias_restantes=dias_restantes,
+        email_destino=destino,
+    )
+
+    logger.info(
+        "Aviso de vencimiento enviado: empresa=%s, nivel=%s, dias=%d, destino=%s",
+        empresa.razon_social, nivel, dias_restantes, destino,
+    )
+    return aviso
+
+
+def tiene_prorroga_vigente(empresa):
+    """
+    retorna True si la empresa tiene al menos una prorroga aprobada o
+    pendiente. una prorroga pendiente se considera vigente porque la
+    empresa ya solicito extension y aun no fue resuelta.
+    """
+    from .models import SolicitudProrroga
+    return empresa.prorrogas.filter(
+        estado__in=[
+            SolicitudProrroga.EstadoProrroga.APROBADA,
+            SolicitudProrroga.EstadoProrroga.PENDIENTE,
+        ],
+    ).exists()
+
+
+def ejecutar_caducidad(empresa):
+    """
+    ejecuta la caducidad de una empresa: transicion de estado, registro
+    auditable, y notificacion por email a la empresa.
+
+    parametros:
+        empresa: instancia de Empresa con fecha_limite_obra vencida.
+
+    retorna:
+        CaducidadRegistro creado, o None si la empresa tiene prorroga vigente.
+    """
+    from django.template.loader import render_to_string
+    from .models import CaducidadRegistro, Empresa
+
+    if tiene_prorroga_vigente(empresa):
+        logger.info(
+            "Empresa %s (pk=%s) tiene prorroga vigente. Caducidad omitida.",
+            empresa.razon_social, empresa.pk,
+        )
+        return None
+
+    estado_anterior = empresa.estado
+    justificacion = (
+        f'Vencimiento automático de plazo de obra '
+        f'(fecha límite: {empresa.fecha_limite_obra}). '
+        f'Sin prórroga aprobada ni pendiente.'
+    )
+
+    registrar_transicion(
+        empresa,
+        Empresa.Estado.CADUCADO,
+        usuario=None,
+        justificacion=justificacion,
+    )
+
+    # notificar a la empresa por email
+    destino = empresa.correo_electronico
+    notificacion_ok = False
+    if destino:
+        fecha_limite_str = (
+            empresa.fecha_limite_obra.strftime('%d/%m/%Y')
+            if empresa.fecha_limite_obra else '—'
+        )
+        site_url = getattr(settings, 'SITE_URL', 'http://localhost:8000')
+        context = {
+            'razon_social': empresa.razon_social,
+            'cuit': empresa.cuit,
+            'fecha_limite': fecha_limite_str,
+            'estado_anterior': dict(Empresa.Estado.choices).get(
+                estado_anterior, estado_anterior,
+            ),
+            'site_url': site_url,
+        }
+        html = render_to_string(
+            'core/emails/notificacion_caducidad.html', context,
+        )
+        subject = _sanitizar_subject(
+            f'[GPIV] Caducidad de adjudicación — {empresa.razon_social}'
+        )
+        resultado = enviar_email_resend(destino, subject, html)
+        notificacion_ok = bool(resultado)
+
+    registro = CaducidadRegistro.objects.create(
+        empresa=empresa,
+        estado_anterior=estado_anterior,
+        fecha_limite_original=empresa.fecha_limite_obra,
+        justificacion=justificacion,
+        email_destino=destino or '',
+        notificacion_enviada=notificacion_ok,
+    )
+
+    logger.info(
+        "Caducidad ejecutada: empresa=%s, estado_anterior=%s, email=%s",
+        empresa.razon_social, estado_anterior, 'OK' if notificacion_ok else 'NO',
+    )
+    return registro
+
+
+def notificar_admin_caducidades(registros):
+    """
+    envia un email resumen a SUPPORT_INBOX_EMAIL con la lista de empresas
+    que fueron marcadas como caducadas en la ejecucion del batch.
+
+    parametros:
+        registros: lista de CaducidadRegistro creados en el batch.
+
+    retorna:
+        resultado de enviar_email_resend o None si no hay registros.
+    """
+    if not registros:
+        return None
+
+    filas = ''.join(
+        f'<tr>'
+        f'<td style="padding:6px 12px; border-bottom:1px solid #E5E7EB;">'
+        f'{escape(r.empresa.razon_social)}</td>'
+        f'<td style="padding:6px 12px; border-bottom:1px solid #E5E7EB;">'
+        f'{escape(r.empresa.cuit)}</td>'
+        f'<td style="padding:6px 12px; border-bottom:1px solid #E5E7EB;">'
+        f'{r.fecha_limite_original.strftime("%d/%m/%Y")}</td>'
+        f'<td style="padding:6px 12px; border-bottom:1px solid #E5E7EB;">'
+        f'{"✅" if r.notificacion_enviada else "❌"}</td>'
+        f'</tr>'
+        for r in registros
+    )
+
+    html = (
+        '<h2>Resumen de caducidades automáticas — GPIV</h2>'
+        f'<p>Se ejecutaron <strong>{len(registros)}</strong> '
+        f'caducidad(es) automática(s).</p>'
+        '<table style="border-collapse:collapse; width:100%; font-size:14px;">'
+        '<thead><tr style="background-color:#F3F4F6;">'
+        '<th style="padding:8px 12px; text-align:left;">Empresa</th>'
+        '<th style="padding:8px 12px; text-align:left;">CUIT</th>'
+        '<th style="padding:8px 12px; text-align:left;">Fecha límite</th>'
+        '<th style="padding:8px 12px; text-align:left;">Email enviado</th>'
+        '</tr></thead>'
+        f'<tbody>{filas}</tbody></table>'
+        '<hr>'
+        '<p style="font-size:12px; color:#6B7280;">'
+        'Mensaje automático del Sistema de Gestión del Parque Industrial de'
+        ' Viedma.</p>'
+    )
+    subject = _sanitizar_subject(
+        f'[GPIV] {len(registros)} caducidad(es) automática(s) ejecutada(s)'
+    )
+    return enviar_email_resend(settings.SUPPORT_INBOX_EMAIL, subject, html)
+

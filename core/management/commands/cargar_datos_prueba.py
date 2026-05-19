@@ -49,21 +49,122 @@ GRUPOS = [
     'PROVEEDOR_GAS',
 ]
 
-# parcelas del parque, la 5 es reserva fiscal
+# parcelas del parque con medidas del plano catastral y posiciones svg.
+# formato: nro -> (superficie, ancho_m, alto_m, mapa_x, mapa_y, mapa_w, mapa_h)
+# la parcela 5 es reserva fiscal. la 21 no existe.
+# posiciones svg calculadas a escala ~2px/m, viewBox 1400x700, servidumbre y=355.
 PARCELAS = {
-    1: 1355.24, 2: 1346.54, 3: 1337.61, 4: 1339.86, 5: 5151.15,
-    6: 2575.58, 7: 2575.58, 8: 2575.58, 9: 2493.75, 10: 2507.11,
-    11: 2495.07, 12: 2575.58, 13: 2575.58, 14: 2575.58, 15: 5002.93,
-    16: 5011.01, 17: 5974.99, 18: 5968.95, 19: 5000.34, 20: 5002.67,
-    22: 7292.39, 23: 7255.56, 24: 1245.21, 25: 1250.83, 26: 1250.36,
-    27: 1250.23, 28: 1267.09, 29: 1815.00, 30: 1815.00, 31: 1815.00,
-    32: 1815.00, 33: 1815.00, 34: 1815.00, 35: 1815.00, 36: 1705.60,
-    37: 1713.60, 38: 1800.00, 39: 1800.00, 40: 1705.60, 41: 1713.60,
-    42: 1815.00, 43: 1815.00, 44: 1815.00, 45: 1815.00, 46: 1815.00,
-    47: 1815.00, 48: 1815.00, 49: 2496.70, 50: 2504.70, 51: 2504.70,
-    52: 2504.70, 53: 3339.62, 54: 3339.62, 55: 2496.70, 56: 2504.70,
-    57: 2504.70, 58: 2496.70, 59: 3339.62, 60: 3339.62, 61: 2927.25,
-    62: 2927.46, 63: 2919.67, 64: 2911.88, 65: 2921.15,
+    # manzana A (x=20 y=20 w=184 h=316)
+    22: (7292.39, 92.07, 79.35,   20,  20, 184, 158),
+    23: (7255.56, 91.36, 79.16,   20, 178, 184, 158),
+    # manzana B (x=254 y=20 w=460 h=278) todos tocan base y=298
+    20: (5002.67, 72.10, 69.39,  254,  20, 144, 139),
+    19: (5000.34, 68.10, 65.39,  254, 159, 144, 139),
+    18: (5968.95, 42.95, 139.02, 398,  20,  86, 278),
+    17: (5974.99, 42.95, 139.12, 484,  20,  86, 278),
+    15: (5002.93, 72.00, 69.49,  570,  20, 144, 139),
+    16: (5011.01, 68.00, 65.79,  570, 159, 144, 139),
+    # manzana C (x=764 y=40 right=1315) calle arriba 20px
+    11: (2495.07, 61.70, 34.16,  764,  40, 134,  76),
+    10: (2507.11, 65.70, 38.16,  764, 116, 134,  76),
+     9: (2493.75, 61.70, 34.01,  764, 192, 134,  76),
+    12: (2575.58, 45.00, 57.24,  898,  40,  90, 114),
+    13: (2575.58, 45.00, 57.24,  988,  40,  90, 114),
+    14: (2575.58, 45.00, 57.24, 1078,  40,  90, 114),
+     8: (2575.58, 45.00, 57.24,  898, 154,  90, 114),
+     7: (2575.58, 45.00, 57.24,  988, 154,  90, 114),
+     6: (2575.58, 45.00, 57.24, 1078, 154,  90, 114),
+     5: (5151.15, 45.00, 114.47, 1168,  40,  90, 228),
+     1: (1355.24, 28.62, 43.52, 1258,  40,  57,  57),
+     2: (1346.54, 28.62, 47.21, 1258,  97,  57,  57),
+     3: (1337.61, 28.62, 46.89, 1258, 154,  57,  57),
+     4: (1339.86, 29.11, 46.58, 1258, 211,  57,  57),
+    # manzana D (x=20 y=380 w=184 h=280) independiente
+    61: (2927.25, 86.45, 34.00,   20, 380, 184,  56),
+    62: (2927.46, 85.99, 34.00,   20, 436, 184,  56),
+    63: (2919.67, 85.76, 34.00,   20, 492, 184,  56),
+    64: (2911.88, 85.53, 34.00,   20, 548, 184,  56),
+    65: (2921.15, 85.30, 34.20,   20, 604, 184,  56),
+    # manzana E (x=254 y=380 w=460 h=280 right=714) rectangulo cerrado
+    # subcols: 135 + 95 + 95 + 135 = 460
+    58: (2496.70, 65.00, 32.30,  254, 380, 135,  70),
+    57: (2504.70, 69.00, 36.30,  254, 450, 135,  70),
+    56: (2504.70, 69.00, 36.30,  254, 520, 135,  70),
+    55: (2496.70, 65.00, 32.30,  254, 590, 135,  70),
+    59: (3339.62, 46.00, 72.60,  389, 380,  95, 140),
+    54: (3339.62, 46.00, 72.60,  389, 520,  95, 140),
+    60: (3339.62, 46.00, 72.60,  484, 380,  95, 140),
+    53: (3339.62, 46.00, 72.60,  484, 520,  95, 140),
+    49: (2496.70, 65.00, 32.30,  579, 380, 135,  70),
+    50: (2504.70, 69.00, 36.30,  579, 450, 135,  70),
+    51: (2504.70, 69.00, 36.30,  579, 520, 135,  70),
+    52: (2504.70, 65.00, 32.30,  579, 590, 135,  70),
+    # manzana F (x=764 y=380 right=1315 h=280) todo flush, sin gaps
+    # sub-bloque G (x=764 w=144): 92+48+48+92=280
+    40: (1705.60, 36.00, 47.60,  764, 380,  72,  92),
+    41: (1713.60, 36.00, 47.60,  836, 380,  72,  92),
+    39: (1800.00, 72.00, 25.00,  764, 472, 144,  48),
+    38: (1800.00, 72.00, 25.00,  764, 520, 144,  48),
+    36: (1705.60, 36.00, 47.60,  764, 568,  72,  92),
+    37: (1713.60, 36.00, 47.60,  836, 568,  72,  92),
+    # sub-bloque H (x=908 w=350) flush con G, 2 filas de 140
+    42: (1815.00, 25.00, 72.60,  908, 380,  50, 140),
+    43: (1815.00, 25.00, 72.60,  958, 380,  50, 140),
+    44: (1815.00, 25.00, 72.60, 1008, 380,  50, 140),
+    45: (1815.00, 25.00, 72.60, 1058, 380,  50, 140),
+    46: (1815.00, 25.00, 72.60, 1108, 380,  50, 140),
+    47: (1815.00, 25.00, 72.60, 1158, 380,  50, 140),
+    48: (1815.00, 25.00, 72.60, 1208, 380,  50, 140),
+    35: (1815.00, 25.00, 72.60,  908, 520,  50, 140),
+    34: (1815.00, 25.00, 72.60,  958, 520,  50, 140),
+    33: (1815.00, 25.00, 72.60, 1008, 520,  50, 140),
+    32: (1815.00, 25.00, 72.60, 1058, 520,  50, 140),
+    31: (1815.00, 25.00, 72.60, 1108, 520,  50, 140),
+    30: (1815.00, 25.00, 72.60, 1158, 520,  50, 140),
+    29: (1815.00, 25.00, 72.60, 1208, 520,  50, 140),
+    # columna I (x=1258 w=57) flush con H
+    24: (1245.21, 39.88, 28.64, 1258, 380,  57,  56),
+    25: (1250.83, 43.63, 28.75, 1258, 436,  57,  56),
+    26: (1250.36, 43.38, 28.97, 1258, 492,  57,  56),
+    27: (1250.23, 43.13, 29.07, 1258, 548,  57,  56),
+    28: (1267.09, 42.88, 29.83, 1258, 604,  57,  56),
+}
+
+# lindantes por lote (comparten borde fisico; no cuenta contacto por vertice
+# ni lotes separados por calles/servidumbre).
+LINDANTES = {
+    22: [23], 23: [22],
+    20: [19, 18], 19: [20, 18], 18: [20, 19, 17], 17: [18, 15, 16],
+    15: [17, 16], 16: [15, 17],
+    11: [10, 12], 10: [8, 9, 11, 12], 9: [8, 10],
+    12: [8, 10, 11, 13], 13: [7, 12, 14], 14: [5, 6, 13],
+    8: [7, 9, 10, 12], 7: [6, 8, 13], 6: [5, 7, 14],
+    5: [1, 2, 3, 4, 6, 14],
+    1: [2, 5], 2: [1, 3, 5], 3: [2, 4, 5], 4: [3, 5],
+    61: [62], 62: [61, 63], 63: [62, 64], 64: [63, 65], 65: [64],
+    58: [57, 59], 57: [56, 58, 59], 56: [54, 55, 57],
+    55: [56, 54], 59: [58, 57, 60, 54], 54: [59, 56, 55, 53],
+    60: [49, 50, 53, 59], 53: [51, 52, 54, 60],
+    49: [50, 60], 50: [49, 51, 60], 51: [50, 52, 53], 52: [51, 53],
+    40: [39, 41], 41: [39, 40, 42], 39: [38, 40, 41, 42], 38: [35, 36, 37, 39],
+    36: [37, 38], 37: [35, 36, 38],
+    42: [35, 39, 41, 43], 43: [34, 42, 44], 44: [33, 43, 45], 45: [32, 44, 46],
+    46: [45, 47, 31], 47: [46, 48, 30], 48: [24, 25, 26, 29, 47],
+    35: [34, 37, 38, 42], 34: [33, 35, 43], 33: [32, 34, 44], 32: [31, 33, 45],
+    31: [46, 32, 30], 30: [47, 31, 29],
+    24: [25, 48], 25: [24, 26, 48], 26: [25, 27, 29, 48],
+    27: [26, 28, 29], 28: [27, 29], 29: [26, 27, 28, 30, 48],
+}
+
+
+SERVICIOS_NO_DISPONIBLES = {
+    # La mayoria de los lotes tiene servicios completos. Estas excepciones
+    # dejan casos visibles para probar filtros, edicion y adjudicacion.
+    'agua_potable': {65},
+    'agua_cruda': {1, 2, 3, 4, 24, 25, 26, 27, 28, 61, 62, 63, 64, 65},
+    'electricidad': {65},
+    'gas': {1, 2, 3, 4, 24, 25, 26, 27, 28, 40, 41, 65},
+    'internet': {22, 23, 61, 65},
 }
 
 
@@ -88,10 +189,10 @@ EMPRESAS_PRUEBA = [
     {
         'username': 'empresa_beta',
         'email': 'beta@test.local',
-        'razon_social': 'Beta Tech S.R.L.',
+        'razon_social': 'Beta Insumos Quimicos S.R.L.',
         'cuit': '30-22222222-2',
         'rubro': Empresa.Rubro.BIENES_Y_SERVICIOS,
-        'categoria_industrial': Empresa.CategoriaIndustrial.TECNOLOGICA,
+        'categoria_industrial': Empresa.CategoriaIndustrial.QUIMICA,
         'tipo_empresa': Empresa.TipoEmpresa.NUEVA,
         'necesidad_m2': '2000a5000',
         'estado': Empresa.Estado.PRE_APROBADO,
@@ -172,9 +273,9 @@ EMPRESAS_PRUEBA = [
         'avances': [(40, True), (75, True), (100, True)],
     },
     {
-        'username': 'empresa_theta',
-        'email': 'theta@test.local',
-        'razon_social': 'Theta Alimentos del Sur S.A.',
+        'username': 'empresa_pix',
+        'email': 'pix@test.local',
+        'razon_social': 'Pix Alimentos del Sur S.A.',
         'cuit': '30-88888888-8',
         'rubro': Empresa.Rubro.BIENES,
         'categoria_industrial': Empresa.CategoriaIndustrial.ALIMENTICIA,
@@ -589,6 +690,29 @@ def _consumos_para(empresa, meses=6):
 
     hoy = timezone.now().date()
     consumos = []
+    factores = {
+        'agua_potable': [
+            Decimal('1.10'), Decimal('0.95'), Decimal('1.12'),
+            Decimal('0.90'), Decimal('1.03'), Decimal('0.88'),
+        ],
+        'agua_cruda': [
+            Decimal('1.04'), Decimal('0.98'), Decimal('1.09'),
+            Decimal('0.93'), Decimal('1.02'), Decimal('0.90'),
+        ],
+        'luz': [
+            Decimal('1.08'), Decimal('0.96'), Decimal('1.14'),
+            Decimal('0.92'), Decimal('1.05'), Decimal('0.89'),
+        ],
+        'gas': [
+            Decimal('1.06'), Decimal('0.97'), Decimal('1.10'),
+            Decimal('0.91'), Decimal('1.04'), Decimal('0.90'),
+        ],
+    }
+
+    def ajustar(valor, servicio, indice):
+        factor = factores[servicio][(indice - 1) % len(factores[servicio])]
+        return (valor * factor).quantize(Decimal('0.01'))
+
     for i in range(1, meses + 1):
         # retrocede aproximadamente un mes por iteracion
         anio = hoy.year
@@ -596,14 +720,19 @@ def _consumos_para(empresa, meses=6):
         while mes <= 0:
             mes += 12
             anio -= 1
+        nivel = Decimal(meses - i + 1)
         # radicada: solo agua, aun no opera maquinaria
         if empresa.estado == Empresa.Estado.RADICADA:
             consumos.append({
                 'periodo_mes': mes,
                 'periodo_anio': anio,
-                'consumo_agua_potable_m3': Decimal('8.50') + Decimal(i) * Decimal('0.5'),
+                'consumo_agua_potable_m3': ajustar(
+                    Decimal('8.50') + nivel * Decimal('0.5'), 'agua_potable', i,
+                ),
                 'consumo_agua_cruda_m3': None,
-                'consumo_luz_kwh': Decimal('120.00') + Decimal(i) * Decimal('10'),
+                'consumo_luz_kwh': ajustar(
+                    Decimal('120.00') + nivel * Decimal('10'), 'luz', i,
+                ),
                 'consumo_gas_m3': None,
             })
         # en construccion: agua + luz de obra, sin gas industrial
@@ -611,9 +740,15 @@ def _consumos_para(empresa, meses=6):
             consumos.append({
                 'periodo_mes': mes,
                 'periodo_anio': anio,
-                'consumo_agua_potable_m3': Decimal('25.00') + Decimal(i) * Decimal('2'),
-                'consumo_agua_cruda_m3': Decimal('15.00'),
-                'consumo_luz_kwh': Decimal('850.00') + Decimal(i) * Decimal('25'),
+                'consumo_agua_potable_m3': ajustar(
+                    Decimal('25.00') + nivel * Decimal('2'), 'agua_potable', i,
+                ),
+                'consumo_agua_cruda_m3': ajustar(
+                    Decimal('12.00') + nivel * Decimal('1.5'), 'agua_cruda', i,
+                ),
+                'consumo_luz_kwh': ajustar(
+                    Decimal('850.00') + nivel * Decimal('25'), 'luz', i,
+                ),
                 'consumo_gas_m3': None,
             })
         # finalizado/escriturado: operacion completa
@@ -621,10 +756,18 @@ def _consumos_para(empresa, meses=6):
             consumos.append({
                 'periodo_mes': mes,
                 'periodo_anio': anio,
-                'consumo_agua_potable_m3': Decimal('45.00') + Decimal(i) * Decimal('1.5'),
-                'consumo_agua_cruda_m3': Decimal('120.00'),
-                'consumo_luz_kwh': Decimal('3200.00') + Decimal(i) * Decimal('80'),
-                'consumo_gas_m3': Decimal('450.00') + Decimal(i) * Decimal('10'),
+                'consumo_agua_potable_m3': ajustar(
+                    Decimal('45.00') + nivel * Decimal('1.5'), 'agua_potable', i,
+                ),
+                'consumo_agua_cruda_m3': ajustar(
+                    Decimal('110.00') + nivel * Decimal('5'), 'agua_cruda', i,
+                ),
+                'consumo_luz_kwh': ajustar(
+                    Decimal('3200.00') + nivel * Decimal('80'), 'luz', i,
+                ),
+                'consumo_gas_m3': ajustar(
+                    Decimal('450.00') + nivel * Decimal('10'), 'gas', i,
+                ),
             })
     return consumos
 
@@ -655,11 +798,31 @@ class Command(BaseCommand):
         ).filter(is_superuser=False, is_staff=False).delete()
 
         self._log('-- Cargando parcelas...')
-        for nro, superficie in PARCELAS.items():
+        for nro, datos in PARCELAS.items():
+            superficie, ancho, alto, mx, my, mw, mh = datos
             estado = Lote.Estado.RESERVA_FISCAL if nro == 5 else Lote.Estado.DISPONIBLE
             Lote.objects.update_or_create(
                 nro_parcela=nro,
-                defaults={'superficie_m2': superficie, 'estado': estado},
+                defaults={
+                    'superficie_m2': superficie,
+                    'ancho_m': Decimal(str(ancho)),
+                    'alto_m': Decimal(str(alto)),
+                    'mapa_x': mx, 'mapa_y': my,
+                    'mapa_w': mw, 'mapa_h': mh,
+                    'conexion_agua_potable': nro not in SERVICIOS_NO_DISPONIBLES['agua_potable'],
+                    'conexion_agua_cruda': nro not in SERVICIOS_NO_DISPONIBLES['agua_cruda'],
+                    'conexion_electrica': nro not in SERVICIOS_NO_DISPONIBLES['electricidad'],
+                    'conexion_gas': nro not in SERVICIOS_NO_DISPONIBLES['gas'],
+                    'internet_disponible': nro not in SERVICIOS_NO_DISPONIBLES['internet'],
+                    'estado': estado,
+                },
+            )
+
+        self._log('-- Cargando lindantes...')
+        for nro, vecinos in LINDANTES.items():
+            lote = Lote.objects.get(nro_parcela=nro)
+            lote.lotes_colindantes.set(
+                Lote.objects.filter(nro_parcela__in=vecinos)
             )
 
         self._log('-- Cargando admins...')
