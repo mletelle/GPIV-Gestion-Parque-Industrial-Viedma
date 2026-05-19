@@ -212,3 +212,4 @@ core/migrations/*
 CLAUDE.md
 .claudignore
 .context/
+media/
