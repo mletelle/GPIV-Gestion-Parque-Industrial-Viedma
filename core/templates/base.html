@@ -97,7 +97,7 @@
             </a>
             {% endif %}
 
-            {% if 'EMPRESA' in user_groups %}
+            {% if 'EMPRESA' in user_groups and user.empresa_id %}
             <a href="{% url 'core:mi_solicitud' %}"
                 class="sidebar-link {% if request.resolver_match.url_name == 'mi_solicitud' or request.resolver_match.url_name == 'solicitud_create' %}active{% endif %}">
                 <i class="bi bi-file-earmark-text"></i> Mi Solicitud
