@@ -91,7 +91,7 @@
                 class="sidebar-link {% if 'ticket' in request.resolver_match.url_name %}active{% endif %}">
                 <i class="bi bi-envelope"></i> Bandeja de Mensajes
             </a>
-            <a href="{% url 'core:solicitud_acceso_list' %}"
+            <a href="{% url 'core:admin_gestion_usuarios' %}"
                 class="sidebar-link {% if 'solicitud_acceso' in request.resolver_match.url_name or request.resolver_match.url_name == 'admin_crear_usuario' or request.resolver_match.url_name == 'admin_gestion_usuarios' %}active{% endif %}">
                 <i class="bi bi-people"></i> Gestión de usuarios
             </a>

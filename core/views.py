@@ -12,7 +12,7 @@ from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.db.models import Sum, Q
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.core.exceptions import MultipleObjectsReturned
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
@@ -410,7 +410,7 @@ class AdminGestionUsuariosView(LoginRequiredMixin, UserPassesTestMixin, View):
     def get(self, request):
         form = AdminCrearUsuarioForm()
         pendientes = CustomUser.objects.filter(
-            groups__name='EMPRESA', empresa__isnull=True
+            groups__name='EMPRESA', empresa__isnull=True, is_active=True
         ).order_by('username')
         pendientes_con_form = [
             (u, AdminAsignarColaboradorForm(prefix=f'assign_{u.pk}'))
@@ -427,7 +427,7 @@ class AdminGestionUsuariosView(LoginRequiredMixin, UserPassesTestMixin, View):
         if action == 'crear_usuario':
             form = AdminCrearUsuarioForm(request.POST)
             pendientes = CustomUser.objects.filter(
-                groups__name='EMPRESA', empresa__isnull=True
+                groups__name='EMPRESA', empresa__isnull=True, is_active=True
             ).order_by('username')
             pendientes_con_form = [
                 (u, AdminAsignarColaboradorForm(prefix=f'assign_{u.pk}'))
@@ -453,13 +453,16 @@ class AdminGestionUsuariosView(LoginRequiredMixin, UserPassesTestMixin, View):
             )
             assign_form = AdminAsignarColaboradorForm(request.POST, prefix=f'assign_{user_pk}')
             if assign_form.is_valid():
-                usuario.empresa = assign_form.cleaned_data['empresa']
-                usuario.rol_interno = assign_form.cleaned_data['rol_interno']
-                usuario.save(update_fields=['empresa', 'rol_interno'])
-                messages.success(
-                    request,
-                    f'«{usuario.username}» asignado a {usuario.empresa.razon_social} como {usuario.get_rol_interno_display()}.'
-                )
+                try:
+                    usuario.empresa = assign_form.cleaned_data['empresa']
+                    usuario.rol_interno = assign_form.cleaned_data['rol_interno']
+                    usuario.save(update_fields=['empresa', 'rol_interno'])
+                    messages.success(
+                        request,
+                        f'«{usuario.username}» asignado a {usuario.empresa.razon_social} como {usuario.get_rol_interno_display()}.'
+                    )
+                except IntegrityError:
+                    messages.error(request, 'No se pudo asignar: la empresa ya tiene un Titular activo.')
             else:
                 messages.error(request, 'Error al asignar. Verificá los datos.')
             return redirect('core:admin_gestion_usuarios')

@@ -1112,3 +1112,16 @@ class AdminAsignarColaboradorForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['empresa'].queryset = Empresa.objects.order_by('razon_social')
+
+    def clean(self):
+        cleaned = super().clean()
+        empresa = cleaned.get('empresa')
+        rol_interno = cleaned.get('rol_interno')
+        if empresa and rol_interno == CustomUser.RolInterno.TITULAR:
+            if CustomUser.objects.filter(
+                empresa=empresa,
+                rol_interno=CustomUser.RolInterno.TITULAR,
+                is_active=True,
+            ).exists():
+                self.add_error('rol_interno', 'La empresa seleccionada ya tiene un Titular activo.')
+        return cleaned
