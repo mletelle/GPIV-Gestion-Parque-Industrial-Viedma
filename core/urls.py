@@ -13,6 +13,10 @@ from .views import (
     MapaEditorSaveView,
     RegistroSelectorView,
     RegistroEmpresaView,
+    RegistroColaboradorView,
+    RegistroColaboradorExitosoView,
+    AdminGestionUsuariosView,
+    AdminCrearUsuarioView,
     SolicitudAccesoCreateView,
     SolicitudAccesoEnviadaView,
     SolicitudCreateView,
@@ -59,6 +63,11 @@ from .views import (
     InventarioCreateView,
     InventarioUpdateView,
     InventarioBajaView,
+    # rbac: gestión de equipo de empresa
+    EmpresaUsuariosView,
+    EmpresaInvitarView,
+    EmpresaTransferirView,
+    EmpresaRemoverMiembroView,
 )
 
 app_name = 'core'
@@ -74,6 +83,10 @@ urlpatterns = [
     # registro: selector de tipo de cuenta
     path('registro/', RegistroSelectorView.as_view(), name='registro'),
     path('registro/empresa/', RegistroEmpresaView.as_view(), name='registro_empresa'),
+    path('registro/colaborador/', RegistroColaboradorView.as_view(), name='registro_colaborador'),
+    path('registro/colaborador/exitoso/', RegistroColaboradorExitosoView.as_view(), name='registro_colaborador_exitoso'),
+    path('panel/usuarios/', AdminGestionUsuariosView.as_view(), name='admin_gestion_usuarios'),
+    path('panel/usuarios/crear/', AdminCrearUsuarioView.as_view(), name='admin_crear_usuario'),
     path(
         'registro/<slug:tipo_slug>/solicitud/',
         SolicitudAccesoCreateView.as_view(),
@@ -133,6 +146,12 @@ urlpatterns = [
 
     # empresa: prorroga
     path('prorroga/nueva/', ProrrogaCreateView.as_view(), name='prorroga_create'),
+
+    # empresa: gestión de equipo (solo TITULAR)
+    path('empresa/usuarios/', EmpresaUsuariosView.as_view(), name='empresa_usuarios'),
+    path('empresa/usuarios/invitar/', EmpresaInvitarView.as_view(), name='empresa_invitar'),
+    path('empresa/usuarios/transferir/', EmpresaTransferirView.as_view(), name='empresa_transferir'),
+    path('empresa/usuarios/<int:pk>/remover/', EmpresaRemoverMiembroView.as_view(), name='empresa_remover_miembro'),
 
     # admin: gestion de lotes
     path('lotes/', LoteListView.as_view(), name='lote_list'),

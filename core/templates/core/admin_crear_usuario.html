@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+
+{% block title %}Crear usuario — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .crear-wrap { padding: 2rem 0; }
+    .crear-card {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        overflow: hidden;
+        max-width: 760px;
+    }
+    .crear-header {
+        background: var(--verde);
+        color: #fff;
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+    .crear-header h2 { margin: 0; font-size: 1.2rem; font-weight: 700; }
+    .crear-body { padding: 1.75rem 1.5rem; }
+    .field-label {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--gris-suave);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        margin-bottom: 0.4rem;
+    }
+    .grupos-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+        gap: 0.5rem;
+        margin-top: 0.4rem;
+    }
+    .grupo-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.55rem 0.75rem;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+    .grupo-item:has(input:checked) {
+        border-color: var(--verde);
+        background: #F0FDF4;
+    }
+    .section-sep {
+        border: none;
+        border-top: 1px solid var(--borde);
+        margin: 1.5rem 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="crear-wrap container-fluid px-4">
+
+    <div class="d-flex align-items-center gap-3 mb-3">
+        <a href="{% url 'core:solicitud_acceso_list' %}" class="btn-sm-gpiv" style="background:#fff;color:var(--verde);border:1px solid var(--borde);">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+        <h1 class="sec-title mb-0" style="font-size:1.5rem;">
+            <i class="bi bi-person-plus"></i> Crear usuario
+        </h1>
+    </div>
+
+    <div class="crear-card">
+        <div class="crear-header">
+            <h2><i class="bi bi-person-plus me-2"></i>Nuevo usuario del sistema</h2>
+        </div>
+        <div class="crear-body">
+            <form method="post" novalidate>
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger py-2 mb-3" style="font-size:0.9rem;">
+                    {{ form.non_field_errors }}
+                </div>
+                {% endif %}
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="field-label">{{ form.first_name.label }}</label>
+                        {{ form.first_name }}
+                        {% if form.first_name.errors %}<div class="text-danger" style="font-size:0.82rem;">{{ form.first_name.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label">{{ form.last_name.label }}</label>
+                        {{ form.last_name }}
+                        {% if form.last_name.errors %}<div class="text-danger" style="font-size:0.82rem;">{{ form.last_name.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label">{{ form.username.label }}</label>
+                        {{ form.username }}
+                        {% if form.username.errors %}<div class="text-danger" style="font-size:0.82rem;">{{ form.username.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label">{{ form.email.label }}</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}<div class="text-danger" style="font-size:0.82rem;">{{ form.email.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label">{{ form.password1.label }}</label>
+                        {{ form.password1 }}
+                        {% if form.password1.errors %}<div class="text-danger" style="font-size:0.82rem;">{{ form.password1.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="field-label">{{ form.password2.label }}</label>
+                        {{ form.password2 }}
+                        {% if form.password2.errors %}<div class="text-danger" style="font-size:0.82rem;">{{ form.password2.errors.0 }}</div>{% endif %}
+                    </div>
+                </div>
+
+                <hr class="section-sep">
+
+                <div class="mb-3">
+                    <label class="field-label">{{ form.grupo.label }}</label>
+                    {% if form.grupo.errors %}<div class="text-danger mb-1" style="font-size:0.82rem;">{{ form.grupo.errors.0 }}</div>{% endif %}
+                    <div class="grupos-grid">
+                        {% for radio in form.grupo %}
+                        <label class="grupo-item">
+                            {{ radio.tag }} {{ radio.choice_label }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <hr class="section-sep">
+
+                <div id="empresa-section" class="row g-3" style="display:none!important;">
+                    <div class="col-md-8">
+                        <label class="field-label">{{ form.empresa.label }}</label>
+                        {{ form.empresa }}
+                        {% if form.empresa.errors %}<div class="text-danger" style="font-size:0.82rem;">{{ form.empresa.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="field-label">{{ form.rol_interno.label }}</label>
+                        {{ form.rol_interno }}
+                        {% if form.rol_interno.errors %}<div class="text-danger" style="font-size:0.82rem;">{{ form.rol_interno.errors.0 }}</div>{% endif %}
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-4">
+                    <button type="submit" class="btn-verde">
+                        <i class="bi bi-check-lg"></i> Crear usuario
+                    </button>
+                    <a href="{% url 'core:solicitud_acceso_list' %}" class="btn-sm-gpiv" style="background:#fff;color:var(--gris-texto);border:1px solid var(--borde);">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<script>
+(function () {
+    const section = document.getElementById('empresa-section');
+    const radios = document.querySelectorAll('input[name="grupo"]');
+
+    function toggle() {
+        const val = document.querySelector('input[name="grupo"]:checked')?.value;
+        if (val === 'EMPRESA') {
+            section.style.removeProperty('display');
+        } else {
+            section.style.setProperty('display', 'none', 'important');
+            document.getElementById('id_empresa').value = '';
+            document.getElementById('id_rol_interno').value = '';
+        }
+    }
+
+    radios.forEach(r => r.addEventListener('change', toggle));
+
+    // si el form volvió con error y EMPRESA estaba seleccionado
+    toggle();
+})();
+</script>
+{% endblock %}

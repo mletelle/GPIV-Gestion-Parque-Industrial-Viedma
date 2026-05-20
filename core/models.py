@@ -10,9 +10,47 @@ from simple_history.models import HistoricalRecords
 class CustomUser(AbstractUser):
     """
     Usuario del SGPIV extendido de AbstractUser.
-    Los roles (ADMIN_ENREPAVI, EMPRESA) se manejan por instancias de Group.
+    Los roles de sistema (ADMIN_ENREPAVI, EMPRESA, etc.) se manejan por instancias de Group.
+    El rol_interno es exclusivo del dominio de la Empresa asociada:
+      - TITULAR: administrador de la empresa, puede gestionar miembros y transferir mando.
+      - ESTANDAR: usuario restringido, sin acceso a gestión interna.
     """
-    pass
+
+    class RolInterno(models.TextChoices):
+        TITULAR  = 'TITULAR',  _('Titular')
+        ESTANDAR = 'ESTANDAR', _('Estándar')
+
+    # FK 1:N — varios usuarios pueden pertenecer a la misma Empresa.
+    # SET_NULL: desvincular al usuario no elimina la empresa ni su historial.
+    empresa = models.ForeignKey(
+        'Empresa',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='empleados',
+        verbose_name=_('Empresa asociada'),
+    )
+
+    rol_interno = models.CharField(
+        max_length=10,
+        choices=RolInterno.choices,
+        null=True,
+        blank=True,
+        verbose_name=_('Rol interno'),
+        help_text=_(
+            'Solo aplica a usuarios del grupo EMPRESA. '
+            'TITULAR administra la empresa; ESTÁNDAR tiene acceso restringido.'
+        ),
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['empresa'],
+                condition=Q(rol_interno='TITULAR', is_active=True),
+                name='unique_titular_activo_por_empresa',
+            )
+        ]
 
 class Empresa(models.Model):
     # Enums de estado y clasificaciones
@@ -100,14 +138,6 @@ class Empresa(models.Model):
         MONOTRIBUTISTA = 'Monotributista', _('Monotributista')
         OTRO = 'Otro', _('Otro')
 
-    # Relación 1:1 con Usuario — SET_NULL: borrar el usuario no elimina la empresa ni su historial
-    usuario = models.OneToOneField(
-        CustomUser,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='empresa'
-    )
 
     # Información Fiscal
     razon_social = models.CharField(max_length=150)
@@ -204,6 +234,21 @@ class Empresa(models.Model):
 
     def __str__(self):
         return f"{self.razon_social} ({self.cuit})"
+
+    @property
+    def titular(self):
+        """Retorna el primer usuario con rol TITULAR de esta empresa, o None."""
+        return self.empleados.filter(
+            rol_interno=CustomUser.RolInterno.TITULAR,
+            is_active=True,
+        ).first()
+
+    def tiene_titular(self):
+        """Devuelve True si la empresa tiene al menos un usuario TITULAR activo."""
+        return self.empleados.filter(
+            rol_interno=CustomUser.RolInterno.TITULAR,
+            is_active=True,
+        ).exists()
 
     # mapeo de rango a minimo de m2 para filtrar lotes en adjudicacion
     _RANGO_M2_MINIMO = {

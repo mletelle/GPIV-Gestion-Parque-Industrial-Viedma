@@ -1,0 +1,371 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Transferir titularidad — {{ empresa.razon_social }} | GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+  .transferir-wrap {
+    padding: 2rem 0;
+  }
+
+  .candidate-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 1.25rem 0;
+  }
+
+  .candidate-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    border: 1.5px solid var(--borde);
+    border-radius: var(--radio);
+    cursor: pointer;
+    transition: border-color 0.18s, background 0.18s;
+    background: #fff;
+  }
+
+  .candidate-item:hover {
+    border-color: var(--verde);
+    background: var(--verde-claro);
+  }
+
+  .candidate-item input[type="radio"] {
+    accent-color: var(--verde);
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  .candidate-item input[type="radio"]:checked + .candidate-info {
+    color: var(--verde);
+  }
+
+  .candidate-item:has(input[type="radio"]:checked) {
+    border-color: var(--verde);
+    background: var(--verde-claro);
+  }
+
+  .candidate-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--borde);
+    color: var(--gris-suave);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  .candidate-info strong {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 700;
+  }
+
+  .candidate-info small {
+    color: var(--gris-suave);
+    font-size: 0.82rem;
+  }
+
+  /* modal de confirmación inline */
+  .confirm-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1040;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .confirm-overlay.show {
+    display: flex;
+  }
+
+  .confirm-modal {
+    background: #fff;
+    border-radius: var(--radio);
+    padding: 2rem;
+    max-width: 440px;
+    width: 90%;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    animation: modal-in 0.18s ease;
+  }
+
+  @keyframes modal-in {
+    from { transform: scale(0.95); opacity: 0; }
+    to   { transform: scale(1);    opacity: 1; }
+  }
+
+  .confirm-modal-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #FEF3C7;
+    color: #D97706;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+  }
+
+  .confirm-modal h4 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .confirm-modal p {
+    font-size: 0.9rem;
+    color: var(--gris-suave);
+    text-align: center;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+  }
+
+  .confirm-modal-recipient {
+    font-size: 0.88rem;
+    background: var(--gris-fondo);
+    border-radius: 7px;
+    padding: 0.6rem 0.85rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--borde);
+  }
+
+  .confirm-modal-recipient strong {
+    color: var(--verde);
+  }
+
+  .confirm-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+  }
+
+  .btn-sm-gpiv {
+    font-size: 0.82rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 5px;
+    text-decoration: none;
+    border: 1px solid var(--borde);
+    color: var(--gris-texto);
+    background: #fff;
+    transition: border-color 0.2s, color 0.2s;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .btn-sm-gpiv:hover { border-color: var(--verde); color: var(--verde); }
+
+  .alerta-irreversible {
+    background: #FEF9EC;
+    border: 1px solid #F59E0B;
+    border-left: 4px solid #F59E0B;
+    border-radius: var(--radio);
+    padding: 0.9rem 1.1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: 0.88rem;
+    color: #78350F;
+    margin-bottom: 1.5rem;
+  }
+
+  .alerta-irreversible i {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: #D97706;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="transferir-wrap">
+  <div class="container" style="max-width: 640px;">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="sec-title mb-0"><i class="bi bi-arrow-left-right"></i> Transferir titularidad</h2>
+      <a href="{% url 'core:empresa_usuarios' %}" class="btn-sm-gpiv" style="padding:0.5rem 1.2rem;">
+        ← Volver al equipo
+      </a>
+    </div>
+    <div class="sec-line"></div>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" role="alert" style="font-size:0.88rem;">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    {% if estandares %}
+
+      <div class="alerta-irreversible">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div>
+          <strong>Acción irreversible.</strong>
+          Al confirmar, perdés el rol de Titular de forma inmediata. Solo el nuevo Titular podrá devolverte el acceso.
+        </div>
+      </div>
+
+      <form method="post" id="form-transferir">
+        {% csrf_token %}
+
+        <div class="gpiv-card mb-4">
+          <h5 style="color:var(--verde);font-weight:700;margin-bottom:0.25rem;">Seleccioná el nuevo Titular</h5>
+          <p style="color:var(--gris-suave);font-size:0.88rem;margin-bottom:0;">
+            {{ empresa.razon_social }} — elegí uno de los usuarios Estándar activos.
+          </p>
+
+          <div class="candidate-list">
+            {% for usuario in estandares %}
+            <label class="candidate-item" for="candidato_{{ usuario.pk }}">
+              <input
+                type="radio"
+                id="candidato_{{ usuario.pk }}"
+                name="nuevo_titular_pk"
+                value="{{ usuario.pk }}"
+                required
+              >
+              <div class="candidate-avatar">
+                <i class="bi bi-person"></i>
+              </div>
+              <div class="candidate-info">
+                <strong>{{ usuario.username }}</strong>
+                <small>
+                  {{ usuario.get_full_name|default:"Sin nombre registrado" }}
+                  {% if usuario.email %}&nbsp;·&nbsp;{{ usuario.email }}{% endif %}
+                </small>
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 align-items-center">
+          <button type="button" class="btn-verde" id="btn-abrir-modal" style="background:#DC2626;" disabled>
+            <i class="bi bi-arrow-left-right"></i> Transferir titularidad
+          </button>
+          <a href="{% url 'core:empresa_usuarios' %}" class="btn-sm-gpiv" style="padding:0.5rem 1.2rem;">Cancelar</a>
+        </div>
+
+      </form>
+
+      {# ── Modal de confirmación ── #}
+      <div class="confirm-overlay" id="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+        <div class="confirm-modal">
+          <div class="confirm-modal-icon">
+            <i class="bi bi-arrow-left-right"></i>
+          </div>
+          <h4 id="confirm-title">¿Confirmás la transferencia?</h4>
+          <p>
+            Esta acción no se puede deshacer sin la intervención del nuevo Titular.
+            Tu cuenta pasará a rol <strong>Estándar</strong> de forma inmediata.
+          </p>
+          <div class="confirm-modal-recipient" id="confirm-recipient">
+            {# texto inyectado por JS #}
+          </div>
+          <div class="confirm-actions">
+            <button type="button" class="btn-sm-gpiv" style="padding:0.5rem 1.2rem;" id="btn-cancelar-modal">
+              Cancelar
+            </button>
+            <button type="button" class="btn-verde" style="background:#DC2626;" id="btn-confirmar-transfer">
+              <i class="bi bi-check-lg"></i> Sí, transferir
+            </button>
+          </div>
+        </div>
+      </div>
+
+    {% else %}
+      <div class="gpiv-card text-center py-5">
+        <i class="bi bi-people" style="font-size:2.5rem;color:var(--gris-suave);"></i>
+        <h3 class="mt-3" style="font-size:1.1rem;">Sin usuarios Estándar disponibles</h3>
+        <p style="color:var(--gris-suave);font-size:0.9rem;">
+          Primero invitá a un usuario como Estándar para poder transferirle la titularidad.
+        </p>
+        <a href="{% url 'core:empresa_invitar' %}" class="btn-verde" style="margin-top:1rem;">
+          <i class="bi bi-plus-lg"></i> Invitar usuario
+        </a>
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const form        = document.getElementById('form-transferir');
+  const btnAbrir    = document.getElementById('btn-abrir-modal');
+  const overlay     = document.getElementById('confirm-overlay');
+  const recipientEl = document.getElementById('confirm-recipient');
+  const btnCancelar = document.getElementById('btn-cancelar-modal');
+  const btnConfirm  = document.getElementById('btn-confirmar-transfer');
+
+  if (!form) return;   // pantalla "sin estándar"
+
+  // habilitar el botón principal solo cuando se elige un candidato
+  form.addEventListener('change', function () {
+    const sel = form.querySelector('input[name="nuevo_titular_pk"]:checked');
+    btnAbrir.disabled = !sel;
+  });
+
+  // abrir modal y mostrar el nombre del candidato elegido
+  btnAbrir.addEventListener('click', function () {
+    const sel = form.querySelector('input[name="nuevo_titular_pk"]:checked');
+    if (!sel) return;
+    const label  = sel.closest('.candidate-item');
+    const nombre = label.querySelector('.candidate-info strong').textContent.trim();
+    const email  = label.querySelector('.candidate-info small').textContent.trim();
+    recipientEl.textContent = '';
+    recipientEl.appendChild(document.createTextNode('Nuevo Titular: '));
+
+    const strongEl = document.createElement('strong');
+    strongEl.textContent = nombre;
+    recipientEl.appendChild(strongEl);
+
+    if (email) {
+      recipientEl.appendChild(document.createElement('br'));
+      const emailEl = document.createElement('span');
+      emailEl.style.fontSize = '0.8rem';
+      emailEl.style.color = 'var(--gris-suave)';
+      emailEl.textContent = email;
+      recipientEl.appendChild(emailEl);
+    }
+    overlay.classList.add('show');
+    btnConfirm.focus();
+  });
+
+  // cerrar modal sin hacer nada
+  function cerrarModal() {
+    overlay.classList.remove('show');
+  }
+  btnCancelar.addEventListener('click', cerrarModal);
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) cerrarModal();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') cerrarModal();
+  });
+
+  // confirmar: submit del formulario
+  btnConfirm.addEventListener('click', function () {
+    btnConfirm.disabled   = true;
+    btnConfirm.innerHTML  = '<i class="bi bi-hourglass-split"></i> Transfiriendo…';
+    form.submit();
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Invitar usuario — {{ empresa.razon_social }} | GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .invitar-wrap { padding: 2rem 0; }
+
+    .invitar-card {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 2rem;
+        max-width: 560px;
+        margin: 0 auto 1.5rem;
+    }
+
+    .btn-sm-gpiv {
+        font-size: 0.82rem;
+        padding: 0.3rem 0.7rem;
+        border-radius: 5px;
+        text-decoration: none;
+        border: 1px solid var(--borde);
+        color: var(--gris-texto);
+        background: #fff;
+        transition: border-color 0.2s, color 0.2s;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .btn-sm-gpiv:hover { border-color: var(--verde); color: var(--verde); }
+
+    .info-box {
+        background: var(--gris-fondo);
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 1.25rem 1.5rem;
+        font-size: 0.88rem;
+        max-width: 560px;
+        margin: 0 auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="invitar-wrap">
+    <div class="container">
+
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            <div>
+                <h1 class="sec-title mb-0"><i class="bi bi-plus-lg"></i> Invitar usuario</h1>
+                <p style="color:var(--gris-suave);font-size:0.9rem;margin:0;">{{ empresa.razon_social }}</p>
+            </div>
+            <a href="{% url 'core:empresa_usuarios' %}" class="btn-sm-gpiv" style="padding:0.5rem 1.2rem;">
+                <i class="bi bi-arrow-left"></i> Volver al equipo
+            </a>
+        </div>
+        <div class="sec-line"></div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} mb-3">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="invitar-card">
+            <h2 style="font-size:1rem;font-weight:700;margin-bottom:1rem;">Buscar y asociar usuario</h2>
+            <p style="color:var(--gris-suave);font-size:0.88rem;margin-bottom:1.5rem;">
+                Ingresá el <strong>nombre de usuario</strong> o <strong>email</strong> de una cuenta
+                ya registrada como colaborador de empresa y sin empresa asignada.
+            </p>
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="id_identificador" class="form-label" style="font-size:0.9rem;font-weight:600;">Usuario o email</label>
+                    <input
+                        type="text"
+                        id="id_identificador"
+                        name="identificador"
+                        class="form-control"
+                        placeholder="ej. juanperez o juan@empresa.com"
+                        required
+                        autofocus
+                    >
+                    <small style="color:var(--gris-suave);font-size:0.82rem;display:block;margin-top:0.35rem;">
+                        El usuario quedará asociado como <strong>Estándar</strong>.
+                        Podés transferirle la titularidad después.
+                    </small>
+                </div>
+
+                <div class="d-flex gap-2 mt-3">
+                    <button type="submit" class="btn-verde">
+                        <i class="bi bi-send"></i> Invitar
+                    </button>
+                    <a href="{% url 'core:empresa_usuarios' %}" class="btn-sm-gpiv" style="padding:0.5rem 1.2rem;">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <div class="info-box">
+            <p style="font-weight:600;margin-bottom:0.5rem;">
+                <i class="bi bi-info-circle" style="color:var(--verde);"></i> ¿Cómo agregar un nuevo miembro?
+            </p>
+            <ol style="margin:0;padding-left:1.2rem;line-height:1.9;font-size:0.88rem;">
+                <li>
+                    La persona debe registrarse en
+                    <a href="{% url 'core:registro_colaborador' %}" style="color:var(--verde);">Registro &rarr; Colaborador de empresa</a>
+                    (formulario simple, sin documentación requerida).
+                </li>
+                <li>Una vez registrada, buscarla aquí por usuario o email.</li>
+                <li>Al invitarla queda asociada a tu empresa con rol <em>Estándar</em>.</li>
+            </ol>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

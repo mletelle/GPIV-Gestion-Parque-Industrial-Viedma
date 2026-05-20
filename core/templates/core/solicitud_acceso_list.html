@@ -84,6 +84,9 @@
             {{ pendientes_count }} pendiente{{ pendientes_count|pluralize }}
         </span>
         {% endif %}
+        <a href="{% url 'core:admin_crear_usuario' %}" class="btn-verde ms-auto" style="font-size:0.88rem;">
+            <i class="bi bi-person-plus"></i> Crear usuario
+        </a>
     </div>
 
     <div class="acceso-card">

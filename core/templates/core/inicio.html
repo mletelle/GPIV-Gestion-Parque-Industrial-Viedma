@@ -147,8 +147,7 @@
                         </tr>
                     </table>
                     {% if not avances_pendientes and not prorrogas_pendientes %}
-                    <p style="font-size:0.82rem;color:var(--gris-suave);margin-top:0.6rem;margin-bottom:0;">Sin tareas
-                        pendientes.</p>
+                    <p style="font-size:0.82rem;color:var(--gris-suave);margin-top:0.6rem;margin-bottom:0;">Sin tareas pendientes.</p>
                     {% endif %}
                 </div>
             </div>
@@ -180,10 +179,7 @@
         </div>
 
         <h3 class="seccion-titulo">Accesos rápidos</h3>
-        {% endif %}
-
         <div class="row g-4">
-            {% if 'ADMIN_ENREPAVI' in user_groups or user.is_superuser %}
             <div class="col-sm-6 col-lg-4">
                 <a href="{% url 'core:solicitud_list' %}" class="dash-card">
                     <div class="card-icon"><i class="bi bi-file-earmark-text"></i></div>
@@ -215,22 +211,92 @@
             <div class="col-sm-6 col-lg-4">
                 <a href="{% url 'core:consulta_parque' %}" class="dash-card">
                     <div class="card-icon"><i class="bi bi-speedometer2"></i></div>
-                    <h5>Dashboard</h5>
+                    <h5>Dashboard del parque</h5>
                     <p>Indicadores y estado general del parque.</p>
                 </a>
             </div>
-            {% endif %}
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:admin_gestion_usuarios' %}" class="dash-card">
+                    <div class="card-icon"><i class="bi bi-person-gear"></i></div>
+                    <h5>Gestión de usuarios</h5>
+                    <p>Crear usuarios y asignar colaboradores pendientes.</p>
+                </a>
+            </div>
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:admin_ticket_list' %}" class="dash-card">
+                    <div class="card-icon"><i class="bi bi-headset"></i></div>
+                    <h5>Soporte</h5>
+                    <p>Gestionar tickets de soporte del sistema.</p>
+                </a>
+            </div>
+        </div>
+        {% endif %}
 
-            {% if 'EMPRESA' in user_groups %}
+        {% if 'EMPRESA' in user_groups %}
+        {% if user.empresa_id %}
+        <h3 class="seccion-titulo">Mi empresa — {{ user.empresa.razon_social }}</h3>
+        <div class="row g-4">
             <div class="col-sm-6 col-lg-4">
                 <a href="{% url 'core:mi_solicitud' %}" class="dash-card">
                     <div class="card-icon"><i class="bi bi-file-earmark-text"></i></div>
-                    <h5>Mi Solicitud</h5>
-                    <p>Ver el estado de tu solicitud de radicación.</p>
+                    <h5>Mi solicitud</h5>
+                    <p>Estado de la solicitud de radicación, lote asignado y documentación.</p>
+                </a>
+            </div>
+            {% if user.rol_interno == 'TITULAR' %}
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:empresa_usuarios' %}" class="dash-card">
+                    <div class="card-icon"><i class="bi bi-people"></i></div>
+                    <h5>Mi equipo</h5>
+                    <p>Invitar colaboradores, gestionar roles y transferir titularidad.</p>
                 </a>
             </div>
             {% endif %}
         </div>
+        {% else %}
+        <div class="row g-4 mt-1">
+            <div class="col-12">
+                <div style="background:#FEF9EC;border:1px solid #F59E0B;border-left:4px solid #F59E0B;border-radius:var(--radio);padding:1.25rem 1.5rem;">
+                    <p style="font-weight:700;margin-bottom:0.4rem;color:#78350F;">
+                        <i class="bi bi-hourglass-split"></i> Tu cuenta está pendiente de asignación
+                    </p>
+                    <p style="font-size:0.9rem;color:#78350F;margin:0;">
+                        Compartí tu nombre de usuario (<strong>{{ user.username }}</strong>) con el Titular de la empresa
+                        para que te invite desde <em>Mi Equipo → Invitar usuario</em>.
+                        También podés contactar a la Administración del Parque para que te asignen manualmente.
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        {% if 'PROVEEDOR_AGUA' in user_groups or 'PROVEEDOR_LUZ' in user_groups or 'PROVEEDOR_GAS' in user_groups %}
+        <h3 class="seccion-titulo">Proveedor de {{ proveedor_label }}</h3>
+        <div class="row g-4">
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:consumo_list' %}" class="dash-card">
+                    <div class="card-icon"><i class="bi {{ proveedor_icon }}"></i></div>
+                    <h5>Consumos de {{ proveedor_label }}</h5>
+                    <p>Registrar y consultar el historial de consumos declarados.</p>
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if 'ORGANISMO_PUBLICO' in user_groups %}
+        <h3 class="seccion-titulo">Consulta del parque</h3>
+        <div class="row g-4">
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:consulta_parque' %}" class="dash-card">
+                    <div class="card-icon"><i class="bi bi-speedometer2"></i></div>
+                    <h5>Panel de consulta</h5>
+                    <p>Empresas radicadas, ocupación de lotes e indicadores del parque.</p>
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
     </div>
 </div>
 {% endblock %}

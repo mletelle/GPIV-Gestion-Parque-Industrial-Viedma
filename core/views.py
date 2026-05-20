@@ -12,7 +12,8 @@ from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.db.models import Sum, Q
-from django.db import transaction
+from django.db import transaction, IntegrityError
+from django.core.exceptions import MultipleObjectsReturned
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 
@@ -27,6 +28,8 @@ from .services import (
     registrar_transicion, get_servicio_proveedor,
     SERVICIO_CAMPOS, SERVICIO_LABELS,
     notificar_ticket_mensaje,
+    transferir_titularidad, invitar_usuario, remover_miembro,
+    RBACError,
     evaluar_incompatibilidades_lote,
 )
 from .lote_geometry import build_mapa_data, VIEWBOX_W, VIEWBOX_H, SERVIDUMBRE_Y
@@ -38,6 +41,8 @@ from .forms import (
     ConsumoServicioForm, TicketCreateForm, MensajeTicketForm,
     TicketExternoForm, ActivoInventarioForm, BajaActivoForm,
     SolicitudAccesoForm, RegistroEmpresaWizardForm,
+    RegistroColaboradorForm,
+    AdminCrearUsuarioForm, AdminAsignarColaboradorForm,
 )
 from django import forms as django_forms
 
@@ -79,9 +84,24 @@ class AdminEnrepaviMixin(LoginRequiredMixin, UserPassesTestMixin):
 
 
 class EmpresaMixin(LoginRequiredMixin, UserPassesTestMixin):
-    """restringe acceso a usuarios del grupo EMPRESA"""
+    """Restringe acceso a usuarios del grupo EMPRESA que tengan una empresa asociada."""
     def test_func(self):
-        return self.request.user.groups.filter(name='EMPRESA').exists()
+        return (
+            self.request.user.groups.filter(name='EMPRESA').exists()
+            and self.request.user.empresa_id is not None
+        )
+
+
+class TitularEmpresaMixin(EmpresaMixin):
+    """
+    Restringe acceso a usuarios TITULAR de su empresa.
+    Usar en vistas de gestión de miembros y transferencia de titularidad.
+    """
+    def test_func(self):
+        return (
+            super().test_func()
+            and self.request.user.rol_interno == CustomUser.RolInterno.TITULAR
+        )
 
 
 class ProveedorServiciosMixin(LoginRequiredMixin, UserPassesTestMixin):
@@ -113,18 +133,6 @@ class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = 'core/inicio.html'
 
     def get(self, request, *args, **kwargs):
-        user = request.user
-        # redireccion por rol, admin ve el inicio con accesos rapidos
-        if user.is_superuser or user.groups.filter(name='ADMIN_ENREPAVI').exists():
-            return super().get(request, *args, **kwargs)
-        if user.groups.filter(name='EMPRESA').exists():
-            return redirect('core:mi_solicitud')
-        if user.groups.filter(
-            name__in=['PROVEEDOR_AGUA', 'PROVEEDOR_LUZ', 'PROVEEDOR_GAS'],
-        ).exists():
-            return redirect('core:consumo_list')
-        if user.groups.filter(name='ORGANISMO_PUBLICO').exists():
-            return redirect('core:consulta_parque')
         return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -143,7 +151,19 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             estado=Empresa.Estado.EN_CONSTRUCCION,
             fecha_limite_obra__lte=limite,
             fecha_limite_obra__gte=hoy,
-        ).select_related('usuario')
+        ).prefetch_related('empleados')
+        # datos para proveedores
+        user = self.request.user
+        PROVEEDOR_INFO = {
+            'PROVEEDOR_AGUA': ('Agua', 'bi-droplet-fill'),
+            'PROVEEDOR_LUZ': ('Electricidad', 'bi-lightning-fill'),
+            'PROVEEDOR_GAS': ('Gas', 'bi-fire'),
+        }
+        for group, (label, icon) in PROVEEDOR_INFO.items():
+            if user.groups.filter(name=group).exists():
+                ctx['proveedor_label'] = label
+                ctx['proveedor_icon'] = icon
+                break
         return ctx
 
 
@@ -270,7 +290,6 @@ class RegistroEmpresaView(View):
             #    para los campos NOT NULL no capturados (el admin los completa
             #    desde el back-office si hace falta).
             empresa = Empresa.objects.create(
-                usuario=usuario,
                 # ── paso 1: empresa ──────────────────────────────────────────
                 razon_social=cd['razon_social'],
                 nombre_fantasia=cd.get('nombre_fantasia') or None,
@@ -337,12 +356,138 @@ class RegistroEmpresaView(View):
                 justificacion_resolucion='Creada desde el wizard de registro.',
             )
 
+            # 4. Asignar empresa y rol TITULAR al usuario que registró.
+            usuario.empresa = empresa
+            usuario.rol_interno = CustomUser.RolInterno.TITULAR
+            usuario.save(update_fields=['empresa', 'rol_interno'])
+
         messages.success(
             request,
             f'Tu solicitud para "{empresa.razon_social}" fue enviada. '
             'Iniciá sesión para hacer seguimiento.',
         )
         return redirect('core:login')
+
+
+class RegistroColaboradorView(View):
+    """Registro liviano para colaboradores de empresa. No crea Empresa."""
+
+    def get(self, request):
+        if request.user.is_authenticated:
+            return redirect('core:inicio')
+        return render(request, 'core/registro_colaborador.html', {'form': RegistroColaboradorForm()})
+
+    def post(self, request):
+        if request.user.is_authenticated:
+            return redirect('core:inicio')
+        form = RegistroColaboradorForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            request.session['collab_username'] = user.username
+            return redirect('core:registro_colaborador_exitoso')
+        return render(request, 'core/registro_colaborador.html', {'form': form})
+
+
+class RegistroColaboradorExitosoView(TemplateView):
+    template_name = 'core/registro_colaborador_exitoso.html'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['username'] = self.request.session.pop('collab_username', None)
+        return ctx
+
+
+def _es_admin(user):
+    return user.is_superuser or user.groups.filter(name='ADMIN_ENREPAVI').exists()
+
+
+class AdminGestionUsuariosView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Crea usuarios de cualquier tipo y gestiona colaboradores pendientes."""
+
+    def test_func(self):
+        return _es_admin(self.request.user)
+
+    def get(self, request):
+        form = AdminCrearUsuarioForm()
+        pendientes = CustomUser.objects.filter(
+            groups__name='EMPRESA', empresa__isnull=True, is_active=True
+        ).order_by('username')
+        pendientes_con_form = [
+            (u, AdminAsignarColaboradorForm(prefix=f'assign_{u.pk}'))
+            for u in pendientes
+        ]
+        return render(request, 'core/admin_gestion_usuarios.html', {
+            'form': form,
+            'pendientes_con_form': pendientes_con_form,
+        })
+
+    def post(self, request):
+        action = request.POST.get('action')
+
+        if action == 'crear_usuario':
+            form = AdminCrearUsuarioForm(request.POST)
+            pendientes = CustomUser.objects.filter(
+                groups__name='EMPRESA', empresa__isnull=True, is_active=True
+            ).order_by('username')
+            pendientes_con_form = [
+                (u, AdminAsignarColaboradorForm(prefix=f'assign_{u.pk}'))
+                for u in pendientes
+            ]
+            if form.is_valid():
+                user = form.save()
+                messages.success(request, f'Usuario \u00ab{user.username}\u00bb creado correctamente.')
+                return redirect('core:admin_gestion_usuarios')
+            return render(request, 'core/admin_gestion_usuarios.html', {
+                'form': form,
+                'pendientes_con_form': pendientes_con_form,
+            })
+
+        elif action == 'asignar_empresa':
+            user_pk = request.POST.get('user_pk')
+            usuario = get_object_or_404(
+                CustomUser,
+                pk=user_pk,
+                groups__name='EMPRESA',
+                empresa__isnull=True,
+                is_active=True,
+            )
+            assign_form = AdminAsignarColaboradorForm(request.POST, prefix=f'assign_{user_pk}')
+            if assign_form.is_valid():
+                try:
+                    usuario.empresa = assign_form.cleaned_data['empresa']
+                    usuario.rol_interno = assign_form.cleaned_data['rol_interno']
+                    usuario.save(update_fields=['empresa', 'rol_interno'])
+                    messages.success(
+                        request,
+                        f'«{usuario.username}» asignado a {usuario.empresa.razon_social} como {usuario.get_rol_interno_display()}.'
+                    )
+                except IntegrityError:
+                    messages.error(request, 'No se pudo asignar: la empresa ya tiene un Titular activo.')
+            else:
+                messages.error(request, 'Error al asignar. Verificá los datos.')
+            return redirect('core:admin_gestion_usuarios')
+
+        return redirect('core:admin_gestion_usuarios')
+
+
+class AdminCrearUsuarioView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Crea un usuario de cualquier tipo desde el panel de administración."""
+
+    def test_func(self):
+        return _es_admin(self.request.user)
+
+    def get(self, request):
+        return render(request, 'core/admin_crear_usuario.html', {
+            'form': AdminCrearUsuarioForm(),
+        })
+
+    def post(self, request):
+        form = AdminCrearUsuarioForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, f'Usuario «{user.username}» creado correctamente.')
+            return redirect('core:solicitud_acceso_list')
+        return render(request, 'core/admin_crear_usuario.html', {'form': form})
 
 
 class SolicitudAccesoCreateView(CreateView):
@@ -610,10 +755,11 @@ class SolicitudCreateView(EmpresaMixin, CreateView):
     success_url = reverse_lazy('core:mi_solicitud')
 
     def test_func(self):
-        # empresa sin solicitud previa
-        if not super().test_func():
-            return False
-        return not hasattr(self.request.user, 'empresa')
+        # requiere ser usuario EMPRESA, pero sin empresa asociada todavía
+        return (
+            self.request.user.groups.filter(name='EMPRESA').exists()
+            and self.request.user.empresa_id is None
+        )
 
     def form_valid(self, form):
         form.instance.usuario = self.request.user
@@ -642,8 +788,12 @@ class MiSolicitudView(EmpresaMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        empresa = getattr(self.request.user, 'empresa', None)
+        # La relación ahora es FK directa en user.empresa (no reverse 1:1)
+        empresa = self.request.user.empresa
         ctx['empresa'] = empresa
+        ctx['es_titular'] = (
+            self.request.user.rol_interno == CustomUser.RolInterno.TITULAR
+        )
         if empresa:
             ctx['historial'] = empresa.historial_estados.select_related('usuario').all()
             ctx['lote'] = empresa.lotes.first()
@@ -659,6 +809,11 @@ class MiSolicitudView(EmpresaMixin, TemplateView):
             ctx['consumos'] = empresa.consumos.order_by(
                 '-periodo_anio', '-periodo_mes'
             )[:12]
+            # miembros de la empresa (solo para titular)
+            if ctx['es_titular']:
+                ctx['miembros'] = empresa.empleados.select_related().order_by(
+                    'rol_interno', 'username'
+                )
         return ctx
 
 
@@ -672,7 +827,7 @@ class SolicitudListView(AdminEnrepaviMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        qs = Empresa.objects.select_related('usuario').order_by('-pk')
+        qs = Empresa.objects.prefetch_related('empleados').order_by('-pk')
         estado = self.request.GET.get('estado')
         if estado and estado in dict(Empresa.Estado.choices):
             qs = qs.filter(estado=estado)
@@ -846,7 +1001,7 @@ class AvanceCreateView(EmpresaMixin, CreateView):
     def test_func(self):
         if not super().test_func():
             return False
-        empresa = getattr(self.request.user, 'empresa', None)
+        empresa = self.request.user.empresa
         if not empresa:
             return False
         return empresa.estado in [Empresa.Estado.RADICADA, Empresa.Estado.EN_CONSTRUCCION]
@@ -904,7 +1059,7 @@ class ProrrogaCreateView(EmpresaMixin, CreateView):
     def test_func(self):
         if not super().test_func():
             return False
-        empresa = getattr(self.request.user, 'empresa', None)
+        empresa = self.request.user.empresa
         if not empresa:
             return False
         return empresa.estado == Empresa.Estado.EN_CONSTRUCCION
@@ -1397,7 +1552,7 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
             estado=Empresa.Estado.EN_CONSTRUCCION,
             fecha_limite_obra__lte=limite,
             fecha_limite_obra__gte=hoy,
-        ).select_related('usuario')
+        ).prefetch_related('empleados')
         obras_semaforo = []
         obras_con_plazo = Empresa.objects.filter(
             estado__in=[Empresa.Estado.RADICADA, Empresa.Estado.EN_CONSTRUCCION],
@@ -2076,3 +2231,159 @@ class InventarioBajaView(AdminEnrepaviMixin, View):
             'activo': activo,
             'form': form,
         })
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# RBAC: Gestión de equipo de empresa (solo TITULAR)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class EmpresaUsuariosView(TitularEmpresaMixin, TemplateView):
+    """
+    Panel del TITULAR: lista todos los miembros de su empresa.
+    Desde aquí puede invitar, remover o iniciar la transferencia de titularidad.
+    """
+    template_name = 'core/empresa_usuarios.html'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        empresa = self.request.user.empresa
+        ctx['empresa'] = empresa
+        ctx['miembros'] = empresa.empleados.order_by('rol_interno', 'username')
+        ctx['RolInterno'] = CustomUser.RolInterno
+        return ctx
+
+
+class EmpresaInvitarView(TitularEmpresaMixin, View):
+    """
+    TITULAR: busca un usuario existente del grupo EMPRESA (sin empresa asignada)
+    por username o email y lo asocia a la empresa como ESTÁNDAR.
+    GET  → formulario de búsqueda
+    POST → ejecuta la invitación
+    """
+    template_name = 'core/empresa_invitar.html'
+
+    def get(self, request):
+        return render(request, self.template_name, {
+            'empresa': request.user.empresa,
+        })
+
+    def post(self, request):
+        empresa = request.user.empresa
+        identificador = request.POST.get('identificador', '').strip()
+
+        if not identificador:
+            messages.error(request, 'Ingresá un nombre de usuario o email.')
+            return render(request, self.template_name, {'empresa': empresa})
+
+        base_qs = CustomUser.objects.filter(
+            groups__name='EMPRESA',
+            empresa__isnull=True,
+        )
+
+        # Priorizar username (único). Email puede no ser único.
+        candidato = base_qs.filter(username__iexact=identificador).first()
+        if candidato is None:
+            try:
+                candidato = base_qs.get(email__iexact=identificador)
+            except MultipleObjectsReturned:
+                messages.error(
+                    request,
+                    'Hay múltiples usuarios sin empresa con ese email. '
+                    'Usá el nombre de usuario para invitar correctamente.'
+                )
+                return render(request, self.template_name, {'empresa': empresa})
+            except CustomUser.DoesNotExist:
+                candidato = None
+
+        if candidato is None:
+            messages.error(
+                request,
+                f'No se encontró un usuario EMPRESA sin empresa asignada '
+                f'con el identificador «{identificador}».'
+            )
+            return render(request, self.template_name, {'empresa': empresa})
+
+        try:
+            invitar_usuario(empresa, request.user, candidato)
+            messages.success(
+                request,
+                f'Usuario «{candidato.username}» invitado como Estándar correctamente.'
+            )
+        except RBACError as exc:
+            messages.error(request, str(exc))
+
+        return redirect('core:empresa_usuarios')
+
+
+class EmpresaTransferirView(TitularEmpresaMixin, View):
+    """
+    TITULAR: transfiere su rol a un usuario ESTÁNDAR de la misma empresa.
+    GET  → formulario de selección
+    POST → ejecuta la transferencia atómica
+    """
+    template_name = 'core/empresa_transferir.html'
+
+    def get(self, request):
+        empresa = request.user.empresa
+        estandares = empresa.empleados.filter(
+            rol_interno=CustomUser.RolInterno.ESTANDAR,
+            is_active=True,
+        ).order_by('username')
+        return render(request, self.template_name, {
+            'empresa': empresa,
+            'estandares': estandares,
+        })
+
+    def post(self, request):
+        empresa = request.user.empresa
+        nuevo_titular_pk = request.POST.get('nuevo_titular_pk')
+
+        if not nuevo_titular_pk:
+            messages.error(request, 'Seleccioná el usuario al que querés transferir la titularidad.')
+            return redirect('core:empresa_transferir')
+
+        nuevo_titular = get_object_or_404(
+            CustomUser,
+            pk=nuevo_titular_pk,
+            empresa=empresa,
+            rol_interno=CustomUser.RolInterno.ESTANDAR,
+            is_active=True,
+        )
+
+        try:
+            transferir_titularidad(empresa, request.user, nuevo_titular)
+            messages.success(
+                request,
+                f'Titularidad transferida a «{nuevo_titular.username}». '
+                'Ahora sos usuario Estándar.'
+            )
+        except RBACError as exc:
+            messages.error(request, str(exc))
+
+        # Redirigir al panel de la empresa (ya no tiene acceso al panel de titulares)
+        return redirect('core:mi_solicitud')
+
+
+class EmpresaRemoverMiembroView(TitularEmpresaMixin, View):
+    """
+    TITULAR: remueve (desvincula) a un usuario ESTÁNDAR de la empresa.
+    Solo acepta POST (no hay vista GET propia; el botón está en empresa_usuarios).
+    """
+    def post(self, request, pk):
+        empresa = request.user.empresa
+        usuario_a_remover = get_object_or_404(
+            CustomUser,
+            pk=pk,
+            empresa=empresa,
+        )
+
+        try:
+            remover_miembro(empresa, request.user, usuario_a_remover)
+            messages.success(
+                request,
+                f'Usuario «{usuario_a_remover.username}» removido de la empresa.'
+            )
+        except RBACError as exc:
+            messages.error(request, str(exc))
+
+        return redirect('core:empresa_usuarios')
