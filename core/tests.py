@@ -34,6 +34,9 @@ from core.services import (
     notificar_admin_caducidades,
     tiene_prorroga_vigente,
     evaluar_incompatibilidades_lote,
+    transferir_titularidad, invitar_usuario, remover_miembro,
+    RBACError, UsuarioYaVinculadoError, UsuarioNoEsMiembroError,
+    NoSePuedeDegradarTitularError,
 )
 
 User = get_user_model()
@@ -1353,7 +1356,6 @@ def empresa(
         "telefono": "2920123456",
         "direccion": "Parque Industrial",
         "estado": estado,
-        "usuario": usuario,
         "tipo_societario": Empresa.TipoSocietario.SRL,
         "tipo_empresa": Empresa.TipoEmpresa.NUEVA,
         "rubro": Empresa.Rubro.SERVICIOS,
@@ -1386,7 +1388,12 @@ def empresa(
         "representante_telefono": "2920654321",
     }
     datos.update(overrides)
-    return Empresa.objects.create(**datos)
+    emp = Empresa.objects.create(**datos)
+    if usuario is not None:
+        usuario.empresa = emp
+        usuario.rol_interno = CustomUser.RolInterno.TITULAR
+        usuario.save(update_fields=['empresa', 'rol_interno'])
+    return emp
 
 
 def lote(
@@ -1488,7 +1495,9 @@ class RegistroEmpresaTests(TestCase):
         self.assertTrue(usuario.groups.filter(name="EMPRESA").exists())
 
         nueva_empresa = Empresa.objects.get(cuit="30-12345678-9")
-        self.assertEqual(nueva_empresa.usuario, usuario)
+        usuario.refresh_from_db()
+        self.assertEqual(usuario.empresa, nueva_empresa)
+        self.assertEqual(usuario.rol_interno, CustomUser.RolInterno.TITULAR)
         self.assertEqual(nueva_empresa.estado, Empresa.Estado.EN_EVALUACION)
         self.assertEqual(nueva_empresa.correo_electronico, "nueva@example.com")
         self.assertTrue(
@@ -1931,3 +1940,45 @@ class ConsumosConsultaDashboardYReportesTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response["Content-Type"], "application/pdf")
             self.assertTrue(response.content.startswith(b"%PDF"))
+
+
+class RBACServicesTests(TestCase):
+    """Tests unitarios para los servicios RBAC de equipo de empresa."""
+
+    def setUp(self):
+        self.emp = empresa('RBAC SA', '30-99887766-5', Empresa.Estado.RADICADA)
+        self.titular = user('titular_rbac_test', 'EMPRESA')
+        self.titular.empresa = self.emp
+        self.titular.rol_interno = CustomUser.RolInterno.TITULAR
+        self.titular.save(update_fields=['empresa', 'rol_interno'])
+        self.libre = user('libre_rbac_test', 'EMPRESA')
+
+    def test_invitar_vincula_como_estandar(self):
+        invitar_usuario(self.emp, self.titular, self.libre)
+        self.libre.refresh_from_db()
+        self.assertEqual(self.libre.empresa, self.emp)
+        self.assertEqual(self.libre.rol_interno, CustomUser.RolInterno.ESTANDAR)
+
+    def test_invitar_ya_vinculado_lanza_excepcion(self):
+        invitar_usuario(self.emp, self.titular, self.libre)
+        with self.assertRaises(UsuarioYaVinculadoError):
+            invitar_usuario(self.emp, self.titular, self.libre)
+
+    def test_transferir_cambia_ambos_roles(self):
+        invitar_usuario(self.emp, self.titular, self.libre)
+        transferir_titularidad(self.emp, self.titular, self.libre)
+        self.titular.refresh_from_db()
+        self.libre.refresh_from_db()
+        self.assertEqual(self.libre.rol_interno, CustomUser.RolInterno.TITULAR)
+        self.assertEqual(self.titular.rol_interno, CustomUser.RolInterno.ESTANDAR)
+
+    def test_remover_desvincula_usuario(self):
+        invitar_usuario(self.emp, self.titular, self.libre)
+        remover_miembro(self.emp, self.titular, self.libre)
+        self.libre.refresh_from_db()
+        self.assertIsNone(self.libre.empresa)
+        self.assertIsNone(self.libre.rol_interno)
+
+    def test_remover_titular_lanza_excepcion(self):
+        with self.assertRaises(NoSePuedeDegradarTitularError):
+            remover_miembro(self.emp, self.titular, self.titular)

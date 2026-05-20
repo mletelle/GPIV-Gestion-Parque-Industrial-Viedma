@@ -186,6 +186,7 @@ EMPRESAS_PRUEBA = [
         'parcela': None,
         'fecha_limite_offset_dias': None,
         'avances': [],
+        'miembros_estandar': [],
     },
     {
         'username': 'empresa_beta',
@@ -200,6 +201,7 @@ EMPRESAS_PRUEBA = [
         'parcela': None,
         'fecha_limite_offset_dias': None,
         'avances': [],
+        'miembros_estandar': [],
     },
     {
         'username': 'empresa_gamma',
@@ -214,6 +216,7 @@ EMPRESAS_PRUEBA = [
         'parcela': None,
         'fecha_limite_offset_dias': None,
         'avances': [],
+        'miembros_estandar': [],
     },
     {
         'username': 'empresa_delta',
@@ -228,6 +231,10 @@ EMPRESAS_PRUEBA = [
         'parcela': 24,
         'fecha_limite_offset_dias': 180,
         'avances': [],
+        # equipo con 1 miembro: ejercita vista Mi Equipo y flujo de remocion
+        'miembros_estandar': [
+            ('miembro_delta_1', 'miembro1.delta@test.local', 'Laura Castillo'),
+        ],
     },
     {
         'username': 'empresa_epsilon',
@@ -243,6 +250,11 @@ EMPRESAS_PRUEBA = [
         'parcela': 29,
         'fecha_limite_offset_dias': 18,
         'avances': [(25, True), (55, True)],
+        # equipo con 2 miembros: ejercita flujo de transferencia de titularidad
+        'miembros_estandar': [
+            ('miembro_epsilon_1', 'miembro1.epsilon@test.local', 'Rodrigo Perez'),
+            ('miembro_epsilon_2', 'miembro2.epsilon@test.local', 'Sofia Vera'),
+        ],
     },
     {
         'username': 'empresa_zeta',
@@ -258,6 +270,7 @@ EMPRESAS_PRUEBA = [
         'parcela': 30,
         'fecha_limite_offset_dias': 7,
         'avances': [(30, True), (60, False)],
+        'miembros_estandar': [],
     },
     {
         'username': 'empresa_eta',
@@ -272,6 +285,7 @@ EMPRESAS_PRUEBA = [
         'parcela': 36,
         'fecha_limite_offset_dias': 60,
         'avances': [(40, True), (75, True), (100, True)],
+        'miembros_estandar': [],
     },
     {
         'username': 'empresa_pix',
@@ -286,6 +300,7 @@ EMPRESAS_PRUEBA = [
         'parcela': 6,
         'fecha_limite_offset_dias': 90,
         'avances': [(50, True), (100, True)],
+        'miembros_estandar': [],
     },
     # empresas "viejas" sin usuario asignado, ya escrituradas
     {
@@ -301,6 +316,7 @@ EMPRESAS_PRUEBA = [
         'parcela': 15,
         'fecha_limite_offset_dias': None,
         'avances': [(100, True)],
+        'miembros_estandar': [],
     },
     {
         'username': None,
@@ -315,6 +331,7 @@ EMPRESAS_PRUEBA = [
         'parcela': 7,
         'fecha_limite_offset_dias': None,
         'avances': [(100, True)],
+        'miembros_estandar': [],
     },
     # caducada: vencio el plazo de obra, todavia sin baja
     {
@@ -330,6 +347,7 @@ EMPRESAS_PRUEBA = [
         'parcela': 31,
         'fecha_limite_offset_dias': -45,
         'avances': [(15, True), (30, False)],
+        'miembros_estandar': [],
     },
     # baja historica: lote liberado, registro conservado por trazabilidad
     {
@@ -345,7 +363,17 @@ EMPRESAS_PRUEBA = [
         'parcela': None,
         'fecha_limite_offset_dias': None,
         'avances': [(20, True)],
+        'miembros_estandar': [],
     },
+]
+
+
+# usuarios en grupo EMPRESA sin empresa asignada.
+# representan cuentas listas para ser invitadas por un TITULAR
+# (flujo: Mi Equipo → Invitar → POST /empresa/equipo/invitar/).
+USUARIOS_LIBRES_EMPRESA = [
+    ('empresa_libre_1', 'libre1@test.local', 'Pedro Martinez'),
+    ('empresa_libre_2', 'libre2@test.local', 'Ana Rodriguez'),
 ]
 
 
@@ -822,6 +850,11 @@ class Command(BaseCommand):
         usernames_validos.update(
             spec['username'] for spec in EMPRESAS_PRUEBA if spec['username']
         )
+        for spec in EMPRESAS_PRUEBA:
+            usernames_validos.update(
+                uname for uname, *_ in spec.get('miembros_estandar', [])
+            )
+        usernames_validos.update(u for u, *_ in USUARIOS_LIBRES_EMPRESA)
         CustomUser.objects.exclude(
             username__in=usernames_validos,
         ).filter(is_superuser=False, is_staff=False).delete()
@@ -888,6 +921,16 @@ class Command(BaseCommand):
         for spec in EMPRESAS_PRUEBA:
             self._crear_empresa(spec)
 
+        self._log('-- Cargando usuarios libres (EMPRESA sin empresa)...')
+        for username, email, nombre in USUARIOS_LIBRES_EMPRESA:
+            u, creado = _crear_user(username, email, nombre, PASSWORD_DEFAULT, grupos=['EMPRESA'])
+            # garantizar que queden desvinculados en re-ejecuciones
+            u.empresa = None
+            u.rol_interno = None
+            u.save(update_fields=['empresa', 'rol_interno'])
+            marca = '+' if creado else '='
+            self._log(f'   {marca} {username} (libre — puede ser invitado)')
+
         self._log('-- Cargando inventario de activos...')
         self._cargar_inventario()
 
@@ -938,6 +981,15 @@ class Command(BaseCommand):
             usuario.empresa = empresa
             usuario.rol_interno = CustomUser.RolInterno.TITULAR
             usuario.save(update_fields=['empresa', 'rol_interno'])
+
+        # crear y vincular miembros ESTANDAR
+        for uname, uemail, unombre in spec.get('miembros_estandar', []):
+            miembro, _ = _crear_user(
+                uname, uemail, unombre, PASSWORD_DEFAULT, grupos=['EMPRESA'],
+            )
+            miembro.empresa = empresa
+            miembro.rol_interno = CustomUser.RolInterno.ESTANDAR
+            miembro.save(update_fields=['empresa', 'rol_interno'])
 
         # asignar lote si corresponde y liberar el anterior si hubiera
         if spec['parcela']:
@@ -1015,6 +1067,8 @@ class Command(BaseCommand):
 
         marca = '+' if creada else '='
         self._log(f'   {marca} {empresa.razon_social} [{empresa.estado}]')
+        for uname, *_ in spec.get('miembros_estandar', []):
+            self._log(f'      └─ {uname} [ESTANDAR]')
 
     def _cargar_inventario(self):
         """Carga el catálogo de activos de inventario del ENREPAVI.
@@ -1159,6 +1213,12 @@ class Command(BaseCommand):
                 f'  {user:22s} {spec["estado"]:15s} '
                 f'{parcela:13s} {spec["razon_social"]}'
             )
+            for uname, *_ in spec.get('miembros_estandar', []):
+                self.stdout.write(f'    └─ {uname:20s} [ESTANDAR]')
+
+        self.stdout.write(self.style.MIGRATE_HEADING('\nUSUARIOS LIBRES (invitables por cualquier TITULAR)'))
+        for u, _, n in USUARIOS_LIBRES_EMPRESA:
+            self.stdout.write(f'  {u:22s} {n}')
         self.stdout.write('=' * 70)
 
         total_activos = ActivoInventario.objects.count()

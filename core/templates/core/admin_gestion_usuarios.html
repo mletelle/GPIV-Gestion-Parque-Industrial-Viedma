@@ -1,0 +1,253 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Gestión de usuarios | GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .gestion-usuarios-wrap { padding: 2rem 0; }
+
+    .gu-card {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    .gu-header {
+        background: var(--verde);
+        color: #fff;
+        padding: 1rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    .gu-body { padding: 1.5rem; }
+
+    .grupo-check-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.5rem;
+        margin-top: 0.4rem;
+    }
+
+    .grupo-check-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--borde);
+        border-radius: 6px;
+        font-size: 0.88rem;
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s;
+    }
+
+    .grupo-check-item:has(input:checked) {
+        border-color: var(--verde);
+        background: var(--verde-claro);
+    }
+
+    .grupo-check-item input[type="checkbox"] {
+        accent-color: var(--verde);
+    }
+
+    .tabla-pendientes { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+
+    .tabla-pendientes th {
+        font-size: 0.78rem;
+        color: var(--gris-suave);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-bottom: 2px solid var(--borde);
+        padding: 0.65rem 1rem;
+        background: #fafafa;
+    }
+
+    .tabla-pendientes td {
+        padding: 0.75rem 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid var(--borde);
+    }
+
+    .tabla-pendientes tr:last-child td { border-bottom: none; }
+
+    .btn-sm-gpiv {
+        font-size: 0.82rem;
+        padding: 0.3rem 0.7rem;
+        border-radius: 5px;
+        text-decoration: none;
+        border: 1px solid var(--borde);
+        color: var(--gris-texto);
+        background: #fff;
+        transition: border-color 0.2s, color 0.2s;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .btn-sm-gpiv:hover { border-color: var(--verde); color: var(--verde); }
+
+    .form-label-sm { font-size: 0.82rem; font-weight: 600; margin-bottom: 0.2rem; display: block; }
+
+    .errorlist {
+        list-style: none; padding: 0; margin: 0.25rem 0 0;
+        font-size: 0.82rem; color: #DC2626;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="gestion-usuarios-wrap">
+    <div class="container">
+
+        <div class="mb-3">
+            <h1 class="sec-title mb-0"><i class="bi bi-person-gear"></i> Gestión de usuarios</h1>
+        </div>
+        <div class="sec-line"></div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} mb-3">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        {# ── Colaboradores pendientes ── #}
+        {% if pendientes_con_form %}
+        <div class="gu-card">
+            <div class="gu-header" style="background:#D97706;">
+                <i class="bi bi-person-exclamation"></i>
+                Colaboradores pendientes de asignación ({{ pendientes_con_form|length }})
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="tabla-pendientes">
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Nombre</th>
+                            <th>Email</th>
+                            <th>Asignar empresa</th>
+                            <th>Rol</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u, af in pendientes_con_form %}
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="asignar_empresa">
+                            <input type="hidden" name="user_pk" value="{{ u.pk }}">
+                            <tr>
+                                <td><strong>{{ u.username }}</strong></td>
+                                <td>{{ u.get_full_name|default:"—" }}</td>
+                                <td style="font-size:0.82rem;">{{ u.email|default:"—" }}</td>
+                                <td>
+                                    {{ af.empresa }}
+                                    {{ af.empresa.errors }}
+                                </td>
+                                <td>{{ af.rol_interno }}</td>
+                                <td>
+                                    <button type="submit" class="btn-sm-gpiv" style="border-color:var(--verde);color:var(--verde);">
+                                        <i class="bi bi-check-lg"></i> Asignar
+                                    </button>
+                                </td>
+                            </tr>
+                        </form>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Crear nuevo usuario ── #}
+        <div class="gu-card">
+            <div class="gu-header">
+                <i class="bi bi-person-plus"></i> Crear nuevo usuario
+            </div>
+            <div class="gu-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="crear_usuario">
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label-sm">{{ form.first_name.label }}</label>
+                            {{ form.first_name }}
+                            {{ form.first_name.errors }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label-sm">{{ form.last_name.label }}</label>
+                            {{ form.last_name }}
+                            {{ form.last_name.errors }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label-sm">{{ form.username.label }}</label>
+                            {{ form.username }}
+                            {{ form.username.errors }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label-sm">{{ form.email.label }}</label>
+                            {{ form.email }}
+                            {{ form.email.errors }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label-sm">{{ form.password1.label }}</label>
+                            {{ form.password1 }}
+                            {{ form.password1.errors }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label-sm">{{ form.password2.label }}</label>
+                            {{ form.password2 }}
+                            {{ form.password2.errors }}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label-sm">Grupo(s) *</label>
+                        <div class="grupo-check-grid">
+                            {% for value, display in form.grupos.field.choices %}
+                            <label class="grupo-check-item">
+                                <input type="checkbox" name="grupos" value="{{ value }}"
+                                    {% if value in form.grupos.value %}checked{% endif %}>
+                                {{ display }}
+                            </label>
+                            {% endfor %}
+                        </div>
+                        {{ form.grupos.errors }}
+                    </div>
+
+                    <div class="row g-3 mb-3" id="empresa-fields">
+                        <div class="col-md-6">
+                            <label class="form-label-sm">{{ form.empresa.label }}</label>
+                            {{ form.empresa }}
+                            {{ form.empresa.errors }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label-sm">{{ form.rol_interno.label }}</label>
+                            {{ form.rol_interno }}
+                            {{ form.rol_interno.errors }}
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-2">
+                        <button type="submit" class="btn-verde">
+                            <i class="bi bi-person-plus"></i> Crear usuario
+                        </button>
+                        <a href="{% url 'core:inicio' %}" class="btn-sm-gpiv" style="padding:0.5rem 1.2rem;">
+                            Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

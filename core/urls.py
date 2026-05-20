@@ -13,6 +13,9 @@ from .views import (
     MapaEditorSaveView,
     RegistroSelectorView,
     RegistroEmpresaView,
+    RegistroColaboradorView,
+    RegistroColaboradorExitosoView,
+    AdminGestionUsuariosView,
     SolicitudAccesoCreateView,
     SolicitudAccesoEnviadaView,
     SolicitudCreateView,
@@ -79,6 +82,9 @@ urlpatterns = [
     # registro: selector de tipo de cuenta
     path('registro/', RegistroSelectorView.as_view(), name='registro'),
     path('registro/empresa/', RegistroEmpresaView.as_view(), name='registro_empresa'),
+    path('registro/colaborador/', RegistroColaboradorView.as_view(), name='registro_colaborador'),
+    path('registro/colaborador/exitoso/', RegistroColaboradorExitosoView.as_view(), name='registro_colaborador_exitoso'),
+    path('admin/usuarios/', AdminGestionUsuariosView.as_view(), name='admin_gestion_usuarios'),
     path(
         'registro/<slug:tipo_slug>/solicitud/',
         SolicitudAccesoCreateView.as_view(),

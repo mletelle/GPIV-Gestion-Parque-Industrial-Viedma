@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Registro exitoso | GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .exitoso-wrap { padding: 3rem 0; }
+    .exitoso-card {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 2.5rem 2rem;
+        max-width: 520px;
+        margin: 0 auto;
+        text-align: center;
+    }
+    .exitoso-icon {
+        width: 64px; height: 64px;
+        background: #DCFCE7;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.8rem; color: #166534;
+        margin: 0 auto 1.25rem;
+    }
+    .username-box {
+        background: var(--gris-fondo);
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 0.9rem 1.2rem;
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--verde);
+        letter-spacing: 0.03em;
+        margin: 1rem 0 1.5rem;
+    }
+    .pasos-box {
+        background: var(--gris-fondo);
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 1.1rem 1.4rem;
+        text-align: left;
+        font-size: 0.88rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="exitoso-wrap">
+    <div class="container">
+        <div class="exitoso-card">
+
+            <div class="exitoso-icon">
+                <i class="bi bi-check-lg"></i>
+            </div>
+
+            <h1 class="sec-title mb-1" style="font-size:1.3rem;">Cuenta creada con éxito!</h1>
+            <p style="color:var(--gris-suave);font-size:0.9rem;">
+                Tu cuenta de colaborador está lista.
+            </p>
+
+            {% if username %}
+                <p style="font-size:0.88rem;color:var(--gris-suave);margin-bottom:0.3rem;">Tu nombre de usuario es:</p>
+                <div class="username-box">{{ username }}</div>
+            {% endif %}
+
+            <div class="pasos-box">
+                <p style="font-weight:600;margin-bottom:0.5rem;">
+                    <i class="bi bi-info-circle" style="color:var(--verde);"></i> Próximos pasos
+                </p>
+                <ol style="margin:0;padding-left:1.2rem;line-height:1.9;">
+                    <li>Compartí tu nombre de usuario con el <strong>Titular de la empresa</strong>.</li>
+                    <li>El Titular te invita desde <em>Mi Equipo &rarr; Invitar usuario</em>.</li>
+                    <li>Una vez invitado, iniciá sesión para operar.</li>
+                </ol>
+            </div>
+
+            <a href="{% url 'core:login' %}" class="btn-verde" style="margin-top:1.5rem;display:inline-flex;gap:0.4rem;align-items:center;">
+                <i class="bi bi-box-arrow-in-right"></i> Ir a iniciar sesión
+            </a>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

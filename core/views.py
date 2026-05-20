@@ -41,6 +41,8 @@ from .forms import (
     ConsumoServicioForm, TicketCreateForm, MensajeTicketForm,
     TicketExternoForm, ActivoInventarioForm, BajaActivoForm,
     SolicitudAccesoForm, RegistroEmpresaWizardForm,
+    RegistroColaboradorForm,
+    AdminCrearUsuarioForm, AdminAsignarColaboradorForm,
 )
 from django import forms as django_forms
 
@@ -131,18 +133,6 @@ class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = 'core/inicio.html'
 
     def get(self, request, *args, **kwargs):
-        user = request.user
-        # redireccion por rol, admin ve el inicio con accesos rapidos
-        if user.is_superuser or user.groups.filter(name='ADMIN_ENREPAVI').exists():
-            return super().get(request, *args, **kwargs)
-        if user.groups.filter(name='EMPRESA').exists():
-            return redirect('core:mi_solicitud')
-        if user.groups.filter(
-            name__in=['PROVEEDOR_AGUA', 'PROVEEDOR_LUZ', 'PROVEEDOR_GAS'],
-        ).exists():
-            return redirect('core:consumo_list')
-        if user.groups.filter(name='ORGANISMO_PUBLICO').exists():
-            return redirect('core:consulta_parque')
         return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -162,6 +152,18 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             fecha_limite_obra__lte=limite,
             fecha_limite_obra__gte=hoy,
         ).prefetch_related('empleados')
+        # datos para proveedores
+        user = self.request.user
+        PROVEEDOR_INFO = {
+            'PROVEEDOR_AGUA': ('Agua', 'bi-droplet-fill'),
+            'PROVEEDOR_LUZ': ('Electricidad', 'bi-lightning-fill'),
+            'PROVEEDOR_GAS': ('Gas', 'bi-fire'),
+        }
+        for group, (label, icon) in PROVEEDOR_INFO.items():
+            if user.groups.filter(name=group).exists():
+                ctx['proveedor_label'] = label
+                ctx['proveedor_icon'] = icon
+                break
         return ctx
 
 
@@ -365,6 +367,98 @@ class RegistroEmpresaView(View):
             'Iniciá sesión para hacer seguimiento.',
         )
         return redirect('core:login')
+
+
+class RegistroColaboradorView(View):
+    """Registro liviano para colaboradores de empresa. No crea Empresa."""
+
+    def get(self, request):
+        if request.user.is_authenticated:
+            return redirect('core:inicio')
+        return render(request, 'core/registro_colaborador.html', {'form': RegistroColaboradorForm()})
+
+    def post(self, request):
+        if request.user.is_authenticated:
+            return redirect('core:inicio')
+        form = RegistroColaboradorForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            request.session['collab_username'] = user.username
+            return redirect('core:registro_colaborador_exitoso')
+        return render(request, 'core/registro_colaborador.html', {'form': form})
+
+
+class RegistroColaboradorExitosoView(TemplateView):
+    template_name = 'core/registro_colaborador_exitoso.html'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['username'] = self.request.session.pop('collab_username', None)
+        return ctx
+
+
+def _es_admin(user):
+    return user.is_superuser or user.groups.filter(name='ADMIN_ENREPAVI').exists()
+
+
+class AdminGestionUsuariosView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Crea usuarios de cualquier tipo y gestiona colaboradores pendientes."""
+
+    def test_func(self):
+        return _es_admin(self.request.user)
+
+    def get(self, request):
+        form = AdminCrearUsuarioForm()
+        pendientes = CustomUser.objects.filter(
+            groups__name='EMPRESA', empresa__isnull=True
+        ).order_by('username')
+        pendientes_con_form = [
+            (u, AdminAsignarColaboradorForm(prefix=f'assign_{u.pk}'))
+            for u in pendientes
+        ]
+        return render(request, 'core/admin_gestion_usuarios.html', {
+            'form': form,
+            'pendientes_con_form': pendientes_con_form,
+        })
+
+    def post(self, request):
+        action = request.POST.get('action')
+
+        if action == 'crear_usuario':
+            form = AdminCrearUsuarioForm(request.POST)
+            pendientes = CustomUser.objects.filter(
+                groups__name='EMPRESA', empresa__isnull=True
+            ).order_by('username')
+            pendientes_con_form = [
+                (u, AdminAsignarColaboradorForm(prefix=f'assign_{u.pk}'))
+                for u in pendientes
+            ]
+            if form.is_valid():
+                user = form.save()
+                messages.success(request, f'Usuario \u00ab{user.username}\u00bb creado correctamente.')
+                return redirect('core:admin_gestion_usuarios')
+            return render(request, 'core/admin_gestion_usuarios.html', {
+                'form': form,
+                'pendientes_con_form': pendientes_con_form,
+            })
+
+        elif action == 'asignar_empresa':
+            user_pk = request.POST.get('user_pk')
+            usuario = get_object_or_404(CustomUser, pk=user_pk)
+            assign_form = AdminAsignarColaboradorForm(request.POST, prefix=f'assign_{user_pk}')
+            if assign_form.is_valid():
+                usuario.empresa = assign_form.cleaned_data['empresa']
+                usuario.rol_interno = assign_form.cleaned_data['rol_interno']
+                usuario.save(update_fields=['empresa', 'rol_interno'])
+                messages.success(
+                    request,
+                    f'«{usuario.username}» asignado a {usuario.empresa.razon_social} como {usuario.get_rol_interno_display()}.'
+                )
+            else:
+                messages.error(request, 'Error al asignar. Verificá los datos.')
+            return redirect('core:admin_gestion_usuarios')
+
+        return redirect('core:admin_gestion_usuarios')
 
 
 class SolicitudAccesoCreateView(CreateView):

@@ -49,7 +49,7 @@ El sistema reemplaza el seguimiento manual por planillas y comunicacion informal
 | Grupo | Acceso |
 | :--- | :--- |
 | `ADMIN_ENREPAVI` | Gestion completa: evaluar solicitudes, adjudicar lotes, validar avances, aprobar prorrogas, emitir bajas, escriturar |
-| `EMPRESA` | Panel propio: estado de solicitud, lote asignado, carga de avances, solicitud de prorrogas |
+| `EMPRESA` | Panel propio: estado de solicitud, lote asignado, carga de avances, solicitud de prorrogas. Usuarios pueden ser **Titular** (gestiona equipo) o **Estándar** (operación sin gestión de equipo) |
 | `PROVEEDOR_AGUA`, `PROVEEDOR_LUZ`, `PROVEEDOR_GAS` | Carga mensual de consumos del servicio asignado por empresa |
 | `ORGANISMO_PUBLICO` | Solo lectura: nomina de empresas radicadas e indicadores generales del parque |
 
@@ -112,7 +112,10 @@ Contraseña por defecto para todos los usuarios: `gpiv1234`
 | `empresa_beta`    | Beta Tech S.R.L.                 | Pre-Aprobado    | —       | —           |
 | `empresa_gamma`   | Gamma Quimica S.A.               | Rechazado       | —       | —           |
 | `empresa_delta`   | Delta Servicios S.R.L.           | Radicada        | 024     | +180 dias   |
+| `miembro_delta_1` | _(equipo de Delta)_              | —               | —       | — |
 | `empresa_epsilon` | Epsilon Construcciones S.A.      | En Construcción | 029     | +18 dias    |
+| `miembro_epsilon_1` | _(equipo de Epsilon)_          | —               | —       | — |
+| `miembro_epsilon_2` | _(equipo de Epsilon)_          | —               | —       | — |
 | `empresa_zeta`    | Zeta Metalurgica S.A.            | En Construcción | 030     | +7 dias     |
 | `empresa_eta`     | Eta Logistica S.R.L.             | Finalizado      | 036     | +60 dias    |
 | `empresa_pix`   | Pix Alimentos del Sur S.A.     | Finalizado      | 006     | +90 dias    |
@@ -121,6 +124,15 @@ Contraseña por defecto para todos los usuarios: `gpiv1234`
 
 Las dos empresas "historicas" (ya escrituradas hace años) no traen
 usuario de portal.
+
+#### Colaboradores libres (para probar el flujo de invitación Mi Equipo)
+
+| Usuario             | Empresa asignada | Notas                                  |
+| :---                | :---             | :---                                   |
+| `empresa_libre_1`   | ninguna          | Pedro Martínez; invitable por cualquier Titular |
+| `empresa_libre_2`   | ninguna          | Ana Rodríguez; invitable por cualquier Titular  |
+
+Para registrar un colaborador nuevo sin usar estas cuentas, acceder a Registro → Colaborador de empresa en el selector.
 
 ---
 

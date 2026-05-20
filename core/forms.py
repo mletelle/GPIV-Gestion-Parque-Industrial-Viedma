@@ -1,4 +1,5 @@
 from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, SetPasswordForm
+from django.contrib.auth.models import Group
 from django import forms
 from django.core.validators import FileExtensionValidator
 from django.utils import timezone
@@ -911,3 +912,189 @@ class RegistroEmpresaWizardForm(forms.Form):
             except forms.ValidationError as e:
                 self.add_error('password1', e)
         return cleaned
+
+
+class RegistroColaboradorForm(forms.Form):
+    """Registro liviano para colaboradores de empresa (sin crear Empresa)."""
+    first_name = forms.CharField(
+        label='Nombre', max_length=150,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'autofocus': True})
+    )
+    last_name = forms.CharField(
+        label='Apellido', max_length=150,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    username = forms.CharField(
+        label='Nombre de usuario', max_length=150,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    email = forms.EmailField(
+        label='Email',
+        widget=forms.EmailInput(attrs={'class': 'form-control'})
+    )
+    password1 = forms.CharField(
+        label='Contraseña',
+        widget=forms.PasswordInput(attrs={'class': 'form-control'})
+    )
+    password2 = forms.CharField(
+        label='Confirmar contraseña',
+        widget=forms.PasswordInput(attrs={'class': 'form-control'})
+    )
+
+    def clean_username(self):
+        username = self.cleaned_data['username']
+        if CustomUser.objects.filter(username=username).exists():
+            raise forms.ValidationError('Este nombre de usuario ya está en uso.')
+        return username
+
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if CustomUser.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError('Ya existe una cuenta con este email.')
+        return email
+
+    def clean(self):
+        cleaned = super().clean()
+        p1, p2 = cleaned.get('password1'), cleaned.get('password2')
+        if p1 and p2 and p1 != p2:
+            self.add_error('password2', 'Las contraseñas no coinciden.')
+        return cleaned
+
+    def save(self):
+        cd = self.cleaned_data
+        user = CustomUser.objects.create_user(
+            username=cd['username'],
+            email=cd['email'],
+            password=cd['password1'],
+            first_name=cd['first_name'],
+            last_name=cd['last_name'],
+        )
+        user.groups.add(Group.objects.get(name='EMPRESA'))
+        return user
+
+
+class AdminCrearUsuarioForm(forms.Form):
+    """Formulario de administracion para crear cualquier usuario del sistema."""
+    GRUPOS_DISPONIBLES = [
+        ('ADMIN_ENREPAVI', 'Admin ENREPAVI'),
+        ('EMPRESA', 'Empresa'),
+        ('PROVEEDOR_AGUA', 'Proveedor de Agua'),
+        ('PROVEEDOR_LUZ', 'Proveedor de Electricidad'),
+        ('PROVEEDOR_GAS', 'Proveedor de Gas'),
+        ('ORGANISMO_PUBLICO', 'Organismo Público'),
+    ]
+
+    first_name = forms.CharField(
+        label='Nombre', max_length=150,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    last_name = forms.CharField(
+        label='Apellido', max_length=150,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    username = forms.CharField(
+        label='Nombre de usuario', max_length=150,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    email = forms.EmailField(
+        label='Email',
+        widget=forms.EmailInput(attrs={'class': 'form-control'})
+    )
+    password1 = forms.CharField(
+        label='Contraseña',
+        widget=forms.PasswordInput(attrs={'class': 'form-control'})
+    )
+    password2 = forms.CharField(
+        label='Confirmar contraseña',
+        widget=forms.PasswordInput(attrs={'class': 'form-control'})
+    )
+    grupos = forms.MultipleChoiceField(
+        label='Grupo(s)',
+        choices=GRUPOS_DISPONIBLES,
+        widget=forms.CheckboxSelectMultiple(),
+        required=True,
+    )
+    empresa = forms.ModelChoiceField(
+        label='Empresa asignada (opcional)',
+        queryset=Empresa.objects.none(),
+        required=False,
+        empty_label='--- ninguna ---',
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    rol_interno = forms.ChoiceField(
+        label='Rol interno en la empresa',
+        choices=[('', '---')] + list(CustomUser.RolInterno.choices),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['empresa'].queryset = Empresa.objects.order_by('razon_social')
+
+    def clean_username(self):
+        username = self.cleaned_data['username']
+        if CustomUser.objects.filter(username=username).exists():
+            raise forms.ValidationError('Este nombre de usuario ya está en uso.')
+        return username
+
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if CustomUser.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError('Ya existe una cuenta con este email.')
+        return email
+
+    def clean(self):
+        cleaned = super().clean()
+        p1, p2 = cleaned.get('password1'), cleaned.get('password2')
+        if p1 and p2 and p1 != p2:
+            self.add_error('password2', 'Las contraseñas no coinciden.')
+        empresa = cleaned.get('empresa')
+        rol = cleaned.get('rol_interno')
+        grupos = cleaned.get('grupos', [])
+        if empresa and 'EMPRESA' not in grupos:
+            self.add_error('empresa', 'Para asignar empresa el grupo EMPRESA debe estar seleccionado.')
+        if rol and not empresa:
+            self.add_error('rol_interno', 'Seleccioná una empresa para asignar el rol interno.')
+        return cleaned
+
+    def save(self):
+        cd = self.cleaned_data
+        user = CustomUser.objects.create_user(
+            username=cd['username'],
+            email=cd['email'],
+            password=cd['password1'],
+            first_name=cd['first_name'],
+            last_name=cd['last_name'],
+            is_active=True,
+        )
+        for nombre_grupo in cd['grupos']:
+            grp, _ = Group.objects.get_or_create(name=nombre_grupo)
+            user.groups.add(grp)
+        if cd.get('empresa'):
+            user.empresa = cd['empresa']
+        if cd.get('rol_interno'):
+            user.rol_interno = cd['rol_interno']
+        user.save(update_fields=['empresa', 'rol_interno'])
+        return user
+
+
+class AdminAsignarColaboradorForm(forms.Form):
+    """Asignar empresa a un colaborador pendiente (sin empresa asignada)."""
+    empresa = forms.ModelChoiceField(
+        label='Empresa',
+        queryset=Empresa.objects.none(),
+        required=True,
+        empty_label='--- seleccionar ---',
+        widget=forms.Select(attrs={'class': 'form-control form-control-sm'})
+    )
+    rol_interno = forms.ChoiceField(
+        label='Rol',
+        choices=CustomUser.RolInterno.choices,
+        initial=CustomUser.RolInterno.ESTANDAR,
+        widget=forms.Select(attrs={'class': 'form-control form-control-sm'})
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['empresa'].queryset = Empresa.objects.order_by('razon_social')

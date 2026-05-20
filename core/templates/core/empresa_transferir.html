@@ -151,45 +151,22 @@
     justify-content: center;
   }
 
-  .btn-danger-gpiv {
-    background: #DC2626;
-    color: #fff;
-    border: none;
-    border-radius: 7px;
-    padding: 0.6rem 1.5rem;
-    font-size: 0.92rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.18s;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .btn-danger-gpiv:hover {
-    background: #B91C1C;
-  }
-
-  .btn-ghost-gpiv {
-    background: transparent;
-    color: var(--gris-suave);
-    border: 1.5px solid var(--borde);
-    border-radius: 7px;
-    padding: 0.6rem 1.5rem;
-    font-size: 0.92rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: border-color 0.18s, color 0.18s;
+  .btn-sm-gpiv {
+    font-size: 0.82rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 5px;
     text-decoration: none;
+    border: 1px solid var(--borde);
+    color: var(--gris-texto);
+    background: #fff;
+    transition: border-color 0.2s, color 0.2s;
+    cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.3rem;
   }
 
-  .btn-ghost-gpiv:hover {
-    border-color: var(--gris-texto);
-    color: var(--gris-texto);
-  }
+  .btn-sm-gpiv:hover { border-color: var(--verde); color: var(--verde); }
 
   .alerta-irreversible {
     background: #FEF9EC;
@@ -220,7 +197,7 @@
 
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h2 class="sec-title mb-0"><i class="bi bi-arrow-left-right"></i> Transferir titularidad</h2>
-      <a href="{% url 'core:empresa_usuarios' %}" class="btn-ghost-gpiv" style="font-size:0.85rem; padding:0.35rem 0.9rem;">
+      <a href="{% url 'core:empresa_usuarios' %}" class="btn-sm-gpiv" style="padding:0.5rem 1.2rem;">
         ← Volver al equipo
       </a>
     </div>
@@ -280,7 +257,7 @@
           <button type="button" class="btn-verde" id="btn-abrir-modal" style="background:#DC2626;" disabled>
             <i class="bi bi-arrow-left-right"></i> Transferir titularidad
           </button>
-          <a href="{% url 'core:empresa_usuarios' %}" class="btn-ghost-gpiv">Cancelar</a>
+          <a href="{% url 'core:empresa_usuarios' %}" class="btn-sm-gpiv" style="padding:0.5rem 1.2rem;">Cancelar</a>
         </div>
 
       </form>
@@ -300,10 +277,10 @@
             {# texto inyectado por JS #}
           </div>
           <div class="confirm-actions">
-            <button type="button" class="btn-ghost-gpiv" id="btn-cancelar-modal">
+            <button type="button" class="btn-sm-gpiv" style="padding:0.5rem 1.2rem;" id="btn-cancelar-modal">
               Cancelar
             </button>
-            <button type="button" class="btn-danger-gpiv" id="btn-confirmar-transfer">
+            <button type="button" class="btn-verde" style="background:#DC2626;" id="btn-confirmar-transfer">
               <i class="bi bi-check-lg"></i> Sí, transferir
             </button>
           </div>

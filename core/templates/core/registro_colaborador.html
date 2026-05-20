@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Registro de colaborador | GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .colaborador-wrap { padding: 2rem 0; }
+
+    .colaborador-card {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 2rem;
+        max-width: 520px;
+        margin: 0 auto;
+    }
+
+    .info-box {
+        background: var(--gris-fondo);
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        padding: 1.1rem 1.4rem;
+        font-size: 0.87rem;
+        color: var(--gris-texto);
+        margin-bottom: 1.5rem;
+    }
+
+    .form-gpiv label {
+        font-size: 0.88rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        display: block;
+    }
+
+    .form-gpiv .field-wrap { margin-bottom: 1rem; }
+
+    .form-gpiv .errorlist {
+        list-style: none;
+        padding: 0;
+        margin: 0.25rem 0 0;
+        font-size: 0.82rem;
+        color: #DC2626;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="colaborador-wrap">
+    <div class="container">
+
+        <div class="mb-3">
+            <h1 class="sec-title mb-0"><i class="bi bi-person-badge"></i> Registro de colaborador</h1>
+            <p style="color:var(--gris-suave);font-size:0.9rem;margin:0;">
+                Creá una cuenta para unirte al equipo de una empresa ya radicada.
+            </p>
+        </div>
+        <div class="sec-line"></div>
+
+        <div class="colaborador-card">
+
+            <div class="info-box">
+                <i class="bi bi-info-circle" style="color:var(--verde);"></i>
+                Esta cuenta te permite unirte al equipo de una empresa ya radicada.
+                <strong>No crea una nueva solicitud de empresa.</strong>
+                Una vez registrado, compartí tu nombre de usuario con el Titular de la empresa
+                para que te invite desde <em>Mi Equipo</em>.
+            </div>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} mb-3">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post" class="form-gpiv">
+                {% csrf_token %}
+
+                <div class="row g-2 mb-0">
+                    <div class="col-md-6">
+                        <div class="field-wrap">
+                            {{ form.first_name.label_tag }}
+                            {{ form.first_name }}
+                            {{ form.first_name.errors }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="field-wrap">
+                            {{ form.last_name.label_tag }}
+                            {{ form.last_name }}
+                            {{ form.last_name.errors }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field-wrap">
+                    {{ form.username.label_tag }}
+                    {{ form.username }}
+                    {{ form.username.errors }}
+                </div>
+
+                <div class="field-wrap">
+                    {{ form.email.label_tag }}
+                    {{ form.email }}
+                    {{ form.email.errors }}
+                </div>
+
+                <div class="row g-2 mb-0">
+                    <div class="col-md-6">
+                        <div class="field-wrap">
+                            {{ form.password1.label_tag }}
+                            {{ form.password1 }}
+                            {{ form.password1.errors }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="field-wrap">
+                            {{ form.password2.label_tag }}
+                            {{ form.password2 }}
+                            {{ form.password2.errors }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-3">
+                    <button type="submit" class="btn-verde">
+                        <i class="bi bi-check-lg"></i> Registrarme
+                    </button>
+                    <a href="{% url 'core:registro' %}" style="padding:0.5rem 1.2rem;font-size:0.85rem;border-radius:5px;border:1px solid var(--borde);color:var(--gris-texto);background:#fff;text-decoration:none;">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+
+        </div>
+
+        <p class="text-center mt-4" style="font-size:0.88rem;color:var(--gris-suave);">
+            ¿Ya tenés cuenta?
+            <a href="{% url 'core:login' %}" style="color:var(--verde);font-weight:700;">Iniciá sesión</a>
+        </p>
+
+    </div>
+</div>
+{% endblock %}
