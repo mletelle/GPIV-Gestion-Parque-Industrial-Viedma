@@ -39,8 +39,7 @@
             <form method="post" class="form-gpiv" novalidate>
                 {% csrf_token %}
                 <div class="mb-3">
-                    <label for="id_justificacion" class="form-label" style="font-weight:600;">{{
-                        form.justificacion.label }}</label>
+                    <label for="id_justificacion" class="form-label" style="font-weight:600;">{{ form.justificacion.label }}</label>
                     {{ form.justificacion }}
                     {% if form.justificacion.errors %}
                     <div style="color:#DC2626;font-size:0.82rem;margin-top:0.2rem;">{{ form.justificacion.errors.0 }}

@@ -50,7 +50,7 @@ El sistema reemplaza el seguimiento manual por planillas y comunicacion informal
 | :--- | :--- |
 | `ADMIN_ENREPAVI` | Gestion completa: evaluar solicitudes, adjudicar lotes, validar avances, aprobar prorrogas, emitir bajas, escriturar |
 | `EMPRESA` | Panel propio: estado de solicitud, lote asignado, carga de avances, solicitud de prorrogas |
-| `PROVEEDOR_SERVICIOS` | Carga mensual de consumos (agua, electricidad, gas) por empresa |
+| `PROVEEDOR_AGUA`, `PROVEEDOR_LUZ`, `PROVEEDOR_GAS` | Carga mensual de consumos del servicio asignado por empresa |
 | `ORGANISMO_PUBLICO` | Solo lectura: nomina de empresas radicadas e indicadores generales del parque |
 
 ---
@@ -134,3 +134,4 @@ Proyecto hecho por Tivena, para Ingenieria de Software, UNRN 2026
 - Perisse, Lautaro
 - Argel, Ramiro
 
+---

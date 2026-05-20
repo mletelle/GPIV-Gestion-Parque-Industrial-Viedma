@@ -31,6 +31,7 @@ from core.models import (
     Empresa,
     Lote,
     MensajeTicket,
+    SolicitudAcceso,
     SolicitudProrroga,
     Ticket,
     TransicionEstado,
@@ -574,6 +575,34 @@ ORGANISMOS = [
 ]
 
 
+SOLICITUDES_ACCESO_PRUEBA = [
+    {
+        'tipo': SolicitudAcceso.Tipo.PROVEEDOR,
+        'nombre_apellido': 'Carlos Benitez',
+        'cargo': 'Supervisor de Redes',
+        'organizacion': 'Gasnor S.A.',
+        'telefono': '+54 9 2920 444222',
+        'email_institucional': 'cbenitez@gasnor.com.ar',
+        'tipo_acceso': 'GAS',
+        'motivo': 'Necesito acceso para registrar los consumos mensuales de gas '
+                  'de las empresas radicadas en el parque.',
+        'estado': SolicitudAcceso.Estado.PENDIENTE,
+    },
+    {
+        'tipo': SolicitudAcceso.Tipo.ORGANISMO,
+        'nombre_apellido': 'Florencia Aguirre',
+        'cargo': 'Directora de Desarrollo Productivo',
+        'organizacion': 'Ministerio de Produccion — Provincia de Rio Negro',
+        'telefono': '+54 9 2920 333111',
+        'email_institucional': 'faguirre@mprod.rionegro.gov.ar',
+        'tipo_acceso': 'PROVINCIAL',
+        'motivo': 'Seguimiento del estado de ocupacion y avance constructivo '
+                  'del parque para informes de gestion provincial.',
+        'estado': SolicitudAcceso.Estado.PENDIENTE,
+    },
+]
+
+
 # tickets de mensajeria interna y consultas externas (issue #25).
 # 'creador' = username del usuario logueado, o None para externos.
 # cada entry tiene una lista de mensajes con (autor_username, contenido) en
@@ -865,6 +894,9 @@ class Command(BaseCommand):
         self._log('-- Cargando tickets de mensajeria...')
         self._cargar_tickets()
 
+        self._log('-- Cargando solicitudes de acceso...')
+        self._cargar_solicitudes_acceso()
+
         self._imprimir_resumen()
 
     def _crear_empresa(self, spec):
@@ -1084,6 +1116,13 @@ class Command(BaseCommand):
             marca = '+' if creado else '='
             origen = creador.username if creador else 'externo'
             self._log(f'   {marca} #{ticket.id} [{ticket.estado}] {origen}: {ticket.asunto}')
+
+    def _cargar_solicitudes_acceso(self):
+        """Carga solicitudes de acceso de prueba (proveedor y organismo)."""
+        SolicitudAcceso.objects.all().delete()
+        for spec in SOLICITUDES_ACCESO_PRUEBA:
+            sol = SolicitudAcceso.objects.create(**spec)
+            self._log(f'   + [{sol.tipo}] {sol.nombre_apellido} — {sol.organizacion}')
 
     def _imprimir_resumen(self):
         self.stdout.write('\n' + '=' * 70)
