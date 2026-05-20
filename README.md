@@ -39,6 +39,7 @@ El sistema reemplaza el seguimiento manual por planillas y comunicacion informal
   - Solicitudes de prorroga
   - finalizacion de obra y registro de escrituracion
   - baja administrativa con liberacion del lote asignado
+- lista de espera para empresas pre-aprobadas sin lote disponible
 - paneles condicionales por rol: cada grupo ve solo lo que le corresponde
 - notificaciones automaticas de vencimiento de plazos por mail
 - caducidad automatica de proyectos con plazo vencido

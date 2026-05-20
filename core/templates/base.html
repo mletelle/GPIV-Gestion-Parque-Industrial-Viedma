@@ -92,8 +92,8 @@
                 <i class="bi bi-envelope"></i> Bandeja de Mensajes
             </a>
             <a href="{% url 'core:solicitud_acceso_list' %}"
-                class="sidebar-link {% if 'solicitud_acceso' in request.resolver_match.url_name %}active{% endif %}">
-                <i class="bi bi-person-check"></i> Accesos Pendientes
+                class="sidebar-link {% if 'solicitud_acceso' in request.resolver_match.url_name or request.resolver_match.url_name == 'admin_crear_usuario' %}active{% endif %}">
+                <i class="bi bi-people"></i> Gestión de usuarios
             </a>
             {% endif %}
 

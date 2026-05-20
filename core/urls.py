@@ -16,6 +16,7 @@ from .views import (
     RegistroColaboradorView,
     RegistroColaboradorExitosoView,
     AdminGestionUsuariosView,
+    AdminCrearUsuarioView,
     SolicitudAccesoCreateView,
     SolicitudAccesoEnviadaView,
     SolicitudCreateView,
@@ -84,7 +85,8 @@ urlpatterns = [
     path('registro/empresa/', RegistroEmpresaView.as_view(), name='registro_empresa'),
     path('registro/colaborador/', RegistroColaboradorView.as_view(), name='registro_colaborador'),
     path('registro/colaborador/exitoso/', RegistroColaboradorExitosoView.as_view(), name='registro_colaborador_exitoso'),
-    path('admin/usuarios/', AdminGestionUsuariosView.as_view(), name='admin_gestion_usuarios'),
+    path('panel/usuarios/', AdminGestionUsuariosView.as_view(), name='admin_gestion_usuarios'),
+    path('panel/usuarios/crear/', AdminCrearUsuarioView.as_view(), name='admin_crear_usuario'),
     path(
         'registro/<slug:tipo_slug>/solicitud/',
         SolicitudAccesoCreateView.as_view(),

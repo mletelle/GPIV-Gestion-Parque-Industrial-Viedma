@@ -370,7 +370,7 @@ EMPRESAS_PRUEBA = [
 
 # usuarios en grupo EMPRESA sin empresa asignada.
 # representan cuentas listas para ser invitadas por un TITULAR
-# (flujo: Mi Equipo → Invitar → POST /empresa/equipo/invitar/).
+# (flujo: Mi Equipo → Invitar → POST /empresa/usuarios/invitar/).
 USUARIOS_LIBRES_EMPRESA = [
     ('empresa_libre_1', 'libre1@test.local', 'Pedro Martinez'),
     ('empresa_libre_2', 'libre2@test.local', 'Ana Rodriguez'),

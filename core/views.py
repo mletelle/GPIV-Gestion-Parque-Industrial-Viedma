@@ -461,6 +461,26 @@ class AdminGestionUsuariosView(LoginRequiredMixin, UserPassesTestMixin, View):
         return redirect('core:admin_gestion_usuarios')
 
 
+class AdminCrearUsuarioView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Crea un usuario de cualquier tipo desde el panel de administración."""
+
+    def test_func(self):
+        return _es_admin(self.request.user)
+
+    def get(self, request):
+        return render(request, 'core/admin_crear_usuario.html', {
+            'form': AdminCrearUsuarioForm(),
+        })
+
+    def post(self, request):
+        form = AdminCrearUsuarioForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, f'Usuario «{user.username}» creado correctamente.')
+            return redirect('core:solicitud_acceso_list')
+        return render(request, 'core/admin_crear_usuario.html', {'form': form})
+
+
 class SolicitudAccesoCreateView(CreateView):
     """
     Solicitud de acceso para Organismo Público o Proveedor.

@@ -43,6 +43,15 @@ class CustomUser(AbstractUser):
         ),
     )
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['empresa'],
+                condition=Q(rol_interno='TITULAR', is_active=True),
+                name='unique_titular_activo_por_empresa',
+            )
+        ]
+
 class Empresa(models.Model):
     # Enums de estado y clasificaciones
     class Estado(models.TextChoices):

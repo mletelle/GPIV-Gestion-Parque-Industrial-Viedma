@@ -942,13 +942,13 @@ class RegistroColaboradorForm(forms.Form):
     )
 
     def clean_username(self):
-        username = self.cleaned_data['username']
-        if CustomUser.objects.filter(username=username).exists():
+        username = self.cleaned_data['username'].strip()
+        if CustomUser.objects.filter(username__iexact=username).exists():
             raise forms.ValidationError('Este nombre de usuario ya está en uso.')
         return username
 
     def clean_email(self):
-        email = self.cleaned_data['email']
+        email = self.cleaned_data['email'].strip()
         if CustomUser.objects.filter(email__iexact=email).exists():
             raise forms.ValidationError('Ya existe una cuenta con este email.')
         return email
@@ -958,6 +958,12 @@ class RegistroColaboradorForm(forms.Form):
         p1, p2 = cleaned.get('password1'), cleaned.get('password2')
         if p1 and p2 and p1 != p2:
             self.add_error('password2', 'Las contraseñas no coinciden.')
+        if p1:
+            from django.contrib.auth.password_validation import validate_password
+            try:
+                validate_password(p1)
+            except forms.ValidationError as e:
+                self.add_error('password1', e)
         return cleaned
 
     def save(self):
@@ -969,7 +975,8 @@ class RegistroColaboradorForm(forms.Form):
             first_name=cd['first_name'],
             last_name=cd['last_name'],
         )
-        user.groups.add(Group.objects.get(name='EMPRESA'))
+        empresa_group, _ = Group.objects.get_or_create(name='EMPRESA')
+        user.groups.add(empresa_group)
         return user
 
 
@@ -1008,10 +1015,10 @@ class AdminCrearUsuarioForm(forms.Form):
         label='Confirmar contraseña',
         widget=forms.PasswordInput(attrs={'class': 'form-control'})
     )
-    grupos = forms.MultipleChoiceField(
-        label='Grupo(s)',
+    grupo = forms.ChoiceField(
+        label='Tipo de usuario',
         choices=GRUPOS_DISPONIBLES,
-        widget=forms.CheckboxSelectMultiple(),
+        widget=forms.RadioSelect(),
         required=True,
     )
     empresa = forms.ModelChoiceField(
@@ -1033,13 +1040,13 @@ class AdminCrearUsuarioForm(forms.Form):
         self.fields['empresa'].queryset = Empresa.objects.order_by('razon_social')
 
     def clean_username(self):
-        username = self.cleaned_data['username']
-        if CustomUser.objects.filter(username=username).exists():
+        username = self.cleaned_data['username'].strip()
+        if CustomUser.objects.filter(username__iexact=username).exists():
             raise forms.ValidationError('Este nombre de usuario ya está en uso.')
         return username
 
     def clean_email(self):
-        email = self.cleaned_data['email']
+        email = self.cleaned_data['email'].strip()
         if CustomUser.objects.filter(email__iexact=email).exists():
             raise forms.ValidationError('Ya existe una cuenta con este email.')
         return email
@@ -1051,11 +1058,14 @@ class AdminCrearUsuarioForm(forms.Form):
             self.add_error('password2', 'Las contraseñas no coinciden.')
         empresa = cleaned.get('empresa')
         rol = cleaned.get('rol_interno')
-        grupos = cleaned.get('grupos', [])
-        if empresa and 'EMPRESA' not in grupos:
-            self.add_error('empresa', 'Para asignar empresa el grupo EMPRESA debe estar seleccionado.')
+        grupo = cleaned.get('grupo')
+        if empresa and grupo != 'EMPRESA':
+            self.add_error('empresa', 'Solo se puede asignar empresa a usuarios del grupo Empresa.')
         if rol and not empresa:
             self.add_error('rol_interno', 'Seleccioná una empresa para asignar el rol interno.')
+        # Si hay empresa pero no rol, asignar ESTÁNDAR por defecto
+        if empresa and not rol:
+            cleaned['rol_interno'] = CustomUser.RolInterno.ESTANDAR
         return cleaned
 
     def save(self):
@@ -1068,9 +1078,8 @@ class AdminCrearUsuarioForm(forms.Form):
             last_name=cd['last_name'],
             is_active=True,
         )
-        for nombre_grupo in cd['grupos']:
-            grp, _ = Group.objects.get_or_create(name=nombre_grupo)
-            user.groups.add(grp)
+        grp, _ = Group.objects.get_or_create(name=cd['grupo'])
+        user.groups.add(grp)
         if cd.get('empresa'):
             user.empresa = cd['empresa']
         if cd.get('rol_interno'):

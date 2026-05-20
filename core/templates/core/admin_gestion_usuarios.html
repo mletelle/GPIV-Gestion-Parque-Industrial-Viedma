@@ -139,26 +139,24 @@
                     </thead>
                     <tbody>
                         {% for u, af in pendientes_con_form %}
-                        <form method="post">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="asignar_empresa">
-                            <input type="hidden" name="user_pk" value="{{ u.pk }}">
-                            <tr>
-                                <td><strong>{{ u.username }}</strong></td>
-                                <td>{{ u.get_full_name|default:"—" }}</td>
-                                <td style="font-size:0.82rem;">{{ u.email|default:"—" }}</td>
-                                <td>
+                        <tr>
+                            <td><strong>{{ u.username }}</strong></td>
+                            <td>{{ u.get_full_name|default:"—" }}</td>
+                            <td style="font-size:0.82rem;">{{ u.email|default:"—" }}</td>
+                            <td colspan="3">
+                                <form method="post" style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="asignar_empresa">
+                                    <input type="hidden" name="user_pk" value="{{ u.pk }}">
                                     {{ af.empresa }}
                                     {{ af.empresa.errors }}
-                                </td>
-                                <td>{{ af.rol_interno }}</td>
-                                <td>
+                                    {{ af.rol_interno }}
                                     <button type="submit" class="btn-sm-gpiv" style="border-color:var(--verde);color:var(--verde);">
                                         <i class="bi bi-check-lg"></i> Asignar
                                     </button>
-                                </td>
-                            </tr>
-                        </form>
+                                </form>
+                            </td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
