@@ -208,17 +208,17 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label-sm">Grupo(s) *</label>
+                        <label class="form-label-sm">Grupo *</label>
                         <div class="grupo-check-grid">
-                            {% for value, display in form.grupos.field.choices %}
+                            {% for value, display in form.grupo.field.choices %}
                             <label class="grupo-check-item">
-                                <input type="checkbox" name="grupos" value="{{ value }}"
-                                    {% if value in form.grupos.value %}checked{% endif %}>
+                                <input type="radio" name="grupo" value="{{ value }}"
+                                    {% if value == form.grupo.value %}checked{% endif %}>
                                 {{ display }}
                             </label>
                             {% endfor %}
                         </div>
-                        {{ form.grupos.errors }}
+                        {{ form.grupo.errors }}
                     </div>
 
                     <div class="row g-3 mb-3" id="empresa-fields">

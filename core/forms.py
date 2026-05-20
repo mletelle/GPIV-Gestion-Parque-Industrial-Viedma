@@ -1066,6 +1066,11 @@ class AdminCrearUsuarioForm(forms.Form):
         # Si hay empresa pero no rol, asignar ESTÁNDAR por defecto
         if empresa and not rol:
             cleaned['rol_interno'] = CustomUser.RolInterno.ESTANDAR
+        # Prevenir IntegrityError por constraint unique_titular_activo_por_empresa
+        rol_efectivo = cleaned.get('rol_interno') or (CustomUser.RolInterno.ESTANDAR if empresa and not rol else None)
+        if empresa and rol_efectivo == CustomUser.RolInterno.TITULAR:
+            if CustomUser.objects.filter(empresa=empresa, rol_interno=CustomUser.RolInterno.TITULAR, is_active=True).exists():
+                self.add_error('rol_interno', 'Esta empresa ya tiene un usuario Titular activo.')
         return cleaned
 
     def save(self):

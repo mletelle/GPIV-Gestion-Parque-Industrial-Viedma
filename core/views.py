@@ -444,7 +444,13 @@ class AdminGestionUsuariosView(LoginRequiredMixin, UserPassesTestMixin, View):
 
         elif action == 'asignar_empresa':
             user_pk = request.POST.get('user_pk')
-            usuario = get_object_or_404(CustomUser, pk=user_pk)
+            usuario = get_object_or_404(
+                CustomUser,
+                pk=user_pk,
+                groups__name='EMPRESA',
+                empresa__isnull=True,
+                is_active=True,
+            )
             assign_form = AdminAsignarColaboradorForm(request.POST, prefix=f'assign_{user_pk}')
             if assign_form.is_valid():
                 usuario.empresa = assign_form.cleaned_data['empresa']
