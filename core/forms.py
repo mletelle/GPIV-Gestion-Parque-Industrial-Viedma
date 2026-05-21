@@ -953,25 +953,25 @@ class RegistroEmpresaWizardForm(forms.Form):
             if not lote:
                 self.add_error('lote_seleccionado', 'Debés seleccionar un lote disponible para vincularte a esta empresa.')
 
-            # Los campos obligatorios de los pasos 2 y 3 se omiten: se eliminan
-            # los errores de validación que puedan haber quedado de esos campos.
-            campos_a_ignorar = [
-                'actividad_principal', 'descripcion_actividad', 'personal_a_ocupar',
-                'necesidad_m2', 'tiempo_radicacion_meses',
-                'superficie_cubierta_trabajo_m2', 'superficie_cubierta_deposito_m2',
-                'categoria_industrial',
-                'representante_nombre', 'representante_dni', 'representante_cargo',
-                'representante_email', 'representante_telefono',
-                'rubro', 'tipo_empresa', 'tipo_societario',
-                'persona_referente', 'telefono', 'correo_electronico',
-            ]
-            for campo in campos_a_ignorar:
-                if campo in self.errors:
+            # En el flujo rápido solo importan los campos del paso 4
+            # (credenciales) + los de identificación de la empresa. Todos
+            # los demás se relajan: se borran sus errores y se rellenan
+            # con los valores de la empresa existente.
+            campos_paso4 = {
+                'username', 'password1', 'password2',
+                'cuit', 'razon_social',
+                'empresa_existente_id', 'lote_seleccionado',
+            }
+            for campo in list(self.errors.keys()):
+                if campo not in campos_paso4:
                     del self.errors[campo]
-                # Rellenar con valor de la empresa existente o con un placeholder neutro
-                # para que no fallen validaciones de campos required.
-                if campo not in cleaned or not cleaned.get(campo):
-                    cleaned[campo] = getattr(empresa, campo, None) or ''
+
+            for nombre, field_obj in self.fields.items():
+                if nombre in campos_paso4:
+                    continue
+                # Rellenar con valor de la empresa existente o placeholder
+                if nombre not in cleaned or not cleaned.get(nombre):
+                    cleaned[nombre] = getattr(empresa, nombre, None) or ''
 
         return cleaned
 
