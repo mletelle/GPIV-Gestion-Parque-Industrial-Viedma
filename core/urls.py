@@ -21,6 +21,7 @@ from .views import (
     SolicitudAccesoEnviadaView,
     SolicitudCreateView,
     MiSolicitudView,
+    MisConsumosView,
     SolicitudListView,
     SolicitudDetailView,
     SolicitudPreAprobarView,
@@ -54,6 +55,7 @@ from .views import (
     TicketCreateView,
     TicketDetailView,
     AdminTicketListView,
+    AdminTicketCreateView,
     AdminTicketDetailView,
     TicketSoftDeleteView,
     TicketExternoCreateView,
@@ -140,6 +142,7 @@ urlpatterns = [
     # empresa: solicitud
     path('solicitud/nueva/', SolicitudCreateView.as_view(), name='solicitud_create'),
     path('mi-solicitud/', MiSolicitudView.as_view(), name='mi_solicitud'),
+    path('mis-consumos/', MisConsumosView.as_view(), name='mis_consumos'),
 
     # empresa: avance constructivo
     path('avance/nuevo/', AvanceCreateView.as_view(), name='avance_create'),
@@ -204,6 +207,7 @@ urlpatterns = [
 
     # mensajería interna / ticketera (admin)
     path('panel/mensajes/', AdminTicketListView.as_view(), name='admin_ticket_list'),
+    path('panel/mensajes/nuevo/', AdminTicketCreateView.as_view(), name='admin_ticket_create'),
     path('panel/mensajes/<int:pk>/', AdminTicketDetailView.as_view(), name='admin_ticket_detail'),
     path('panel/mensajes/<int:pk>/eliminar/', TicketSoftDeleteView.as_view(), name='ticket_delete'),
 

@@ -240,7 +240,7 @@
                 <a href="{% url 'core:mi_solicitud' %}" class="dash-card">
                     <div class="card-icon"><i class="bi bi-file-earmark-text"></i></div>
                     <h5>Mi solicitud</h5>
-                    <p>Estado de la solicitud de radicación, lote asignado y documentación.</p>
+                    <p>Estado de radicación, lote asignado, avances y prórrogas.</p>
                 </a>
             </div>
             {% if user.rol_interno == 'TITULAR' %}
@@ -252,6 +252,13 @@
                 </a>
             </div>
             {% endif %}
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:mis_consumos' %}" class="dash-card">
+                    <div class="card-icon"><i class="bi bi-droplet-half"></i></div>
+                    <h5>Mis consumos</h5>
+                    <p>Historial de agua, electricidad y gas declarado para la empresa.</p>
+                </a>
+            </div>
         </div>
         {% else %}
         <div class="row g-4 mt-1">

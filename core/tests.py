@@ -1875,7 +1875,28 @@ class ConsumosConsultaDashboardYReportesTests(TestCase):
         self.assertEqual(consumo.consumo_agua_potable_m3, Decimal("12.34"))
         self.assertIsNone(consumo.consumo_luz_kwh)
 
-    def test_empresa_consulta_solo_su_informacion_propia(self):
+    def test_inicio_empresa_muestra_accesos_separados(self):
+        self.client.force_login(self.usuario_empresa)
+        response = self.client.get(reverse("core:inicio"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Mi solicitud")
+        self.assertContains(response, "Mi equipo")
+        self.assertContains(response, "Mis consumos")
+        self.assertContains(response, reverse("core:mi_solicitud"))
+        self.assertContains(response, reverse("core:empresa_usuarios"))
+        self.assertContains(response, reverse("core:mis_consumos"))
+
+    def test_mi_solicitud_no_muestra_consumos_ni_equipo(self):
+        self.client.force_login(self.usuario_empresa)
+        response = self.client.get(reverse("core:mi_solicitud"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Consumos SRL")
+        self.assertNotContains(response, "Consumos de servicios")
+        self.assertNotContains(response, "Gestión del equipo")
+
+    def test_empresa_consulta_solo_sus_consumos_propios(self):
         otra_usuario = user("otra-empresa", "EMPRESA")
         otra_empresa = empresa(
             razon_social="Otra SRL",
@@ -1897,7 +1918,7 @@ class ConsumosConsultaDashboardYReportesTests(TestCase):
         )
 
         self.client.force_login(self.usuario_empresa)
-        response = self.client.get(reverse("core:mi_solicitud"))
+        response = self.client.get(reverse("core:mis_consumos"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Consumos SRL")
@@ -1940,6 +1961,92 @@ class ConsumosConsultaDashboardYReportesTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response["Content-Type"], "application/pdf")
             self.assertTrue(response.content.startswith(b"%PDF"))
+
+
+class AdminGestionUsuariosContactarTests(TestCase):
+    def setUp(self):
+        self.admin = user("admin-contactar", "ADMIN_ENREPAVI")
+        self.admin.email = "admin@example.com"
+        self.admin.save(update_fields=["email"])
+        self.usuario = user("usuario-contacto", "EMPRESA")
+        self.usuario.email = "usuario@example.com"
+        self.usuario.first_name = "Usuario"
+        self.usuario.last_name = "Contacto"
+        self.usuario.save(update_fields=["email", "first_name", "last_name"])
+        self.solicitud = SolicitudAcceso.objects.create(
+            tipo=SolicitudAcceso.Tipo.PROVEEDOR,
+            nombre_apellido="Proveedor Pendiente",
+            cargo="Representante",
+            organizacion="Aguas Test",
+            telefono="2920123456",
+            email_institucional="proveedor@example.com",
+            tipo_acceso="AGUA",
+            motivo="Necesito cargar consumos de agua.",
+        )
+
+    def test_gestion_usuarios_muestra_botones_contactar(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("core:admin_gestion_usuarios"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            f'{reverse("core:admin_ticket_create")}?solicitud_acceso={self.solicitud.pk}',
+        )
+        self.assertContains(
+            response,
+            f'{reverse("core:admin_ticket_create")}?user={self.usuario.pk}',
+        )
+        self.assertContains(response, "Contactar")
+
+    @patch("core.views.notificar_ticket_mensaje")
+    def test_admin_crea_ticket_interno_para_usuario(self, mock_notificar):
+        self.client.force_login(self.admin)
+        url = f'{reverse("core:admin_ticket_create")}?user={self.usuario.pk}'
+
+        response = self.client.post(url, {
+            "destinatario": f"user:{self.usuario.pk}",
+            "categoria": Ticket.Categoria.ADMINISTRATIVA,
+            "asunto": "Solicitud de documentación adicional",
+            "mensaje_inicial": "Por favor adjuntá la documentación faltante.",
+        })
+
+        ticket = Ticket.objects.get(asunto="Solicitud de documentación adicional")
+        self.assertRedirects(response, reverse("core:admin_ticket_detail", args=[ticket.pk]))
+        self.assertEqual(ticket.creador, self.usuario)
+        mensaje = ticket.mensajes.get()
+        self.assertEqual(mensaje.autor, self.admin)
+        self.assertIn("documentación faltante", mensaje.contenido)
+        mock_notificar.assert_called_once_with(ticket, mensaje)
+
+    @patch("core.views.notificar_ticket_mensaje")
+    def test_admin_crea_ticket_externo_para_solicitud_de_acceso(self, mock_notificar):
+        self.client.force_login(self.admin)
+        url = f'{reverse("core:admin_ticket_create")}?solicitud_acceso={self.solicitud.pk}'
+
+        response = self.client.post(url, {
+            "destinatario": f"solicitud_acceso:{self.solicitud.pk}",
+            "categoria": Ticket.Categoria.ADMINISTRATIVA,
+            "asunto": "Documentación adicional - Aguas Test",
+            "mensaje_inicial": "Necesitamos una nota institucional actualizada.",
+        })
+
+        ticket = Ticket.objects.get(asunto="Documentación adicional - Aguas Test")
+        self.assertRedirects(response, reverse("core:admin_ticket_detail", args=[ticket.pk]))
+        self.assertIsNone(ticket.creador)
+        self.assertEqual(ticket.nombre_contacto, "Proveedor Pendiente")
+        self.assertEqual(ticket.email_contacto, "proveedor@example.com")
+        mensaje = ticket.mensajes.get()
+        self.assertEqual(mensaje.autor, self.admin)
+        mock_notificar.assert_called_once_with(ticket, mensaje)
+
+    def test_usuario_no_admin_no_puede_contactar_desde_panel(self):
+        self.client.force_login(self.usuario)
+        response = self.client.get(
+            f'{reverse("core:admin_ticket_create")}?user={self.usuario.pk}'
+        )
+
+        self.assertEqual(response.status_code, 403)
 
 
 class RBACServicesTests(TestCase):
