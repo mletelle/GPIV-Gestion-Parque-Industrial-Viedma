@@ -743,7 +743,7 @@
 
         // Mostrar banner
         if (razonSocial) {
-            bannerTexto.textContent = `✅ Empresa encontrada: "${razonSocial}". Te vincularás a esta empresa.`;
+            bannerTexto.textContent = `Empresa encontrada: "${razonSocial}". Te vincularás a esta empresa.`;
         }
         bannerEncontrado.classList.add('visible');
 
@@ -763,6 +763,18 @@
             }
         });
 
+        // Deshabilitar campos del paso 1 que no son necesarios en flujo rápido
+        // (la empresa ya tiene estos datos cargados). Solo cuit y razon_social se mantienen.
+        const camposKeep = new Set(['id_cuit', 'id_razon_social', 'id_empresa_existente_id']);
+        const paso1Pane = form.querySelector('.step-pane[data-step="1"]');
+        if (paso1Pane) {
+            paso1Pane.querySelectorAll('input, select, textarea').forEach(el => {
+                if (!camposKeep.has(el.id)) {
+                    el.disabled = true;
+                }
+            });
+        }
+
         // En paso 4, el botón "Anterior" vuelve al paso 1 (salteando 2 y 3)
         if (btnPrevPaso4) {
             btnPrevPaso4.dataset._modoExistente = '1';
@@ -779,8 +791,8 @@
         if (bloqueEmpId) bloqueEmpId.value = '';
         if (razonSocialInput) razonSocialInput.readOnly = false;
 
-        // Rehabilitar inputs de pasos 2 y 3
-        SKIPPED_STEPS.forEach(n => {
+        // Rehabilitar inputs de pasos 1, 2 y 3
+        [1, ...SKIPPED_STEPS].forEach(n => {
             const pane = form.querySelector(`.step-pane[data-step="${n}"]`);
             if (pane) {
                 pane.querySelectorAll('input, select, textarea').forEach(el => {
@@ -883,7 +895,7 @@
         // required en el modelo pueden causar errores si vienen vacíos.
         // Los habilitamos momentáneamente sin required para que se incluyan vacíos.
         if (modoExistente) {
-            SKIPPED_STEPS.forEach(n => {
+            [1, ...SKIPPED_STEPS].forEach(n => {
                 const pane = form.querySelector(`.step-pane[data-step="${n}"]`);
                 if (pane) {
                     pane.querySelectorAll('input[disabled], select[disabled], textarea[disabled]').forEach(el => {
