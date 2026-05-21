@@ -109,7 +109,18 @@
     }
     .stepper .step.is-done .step-circle .num { display: none; }
 
-
+    /* Paso skipped (oculto en flujo rápido) */
+    .stepper .step.is-skipped .step-circle {
+        background: #e8f5e9;
+        border-color: var(--verde);
+        color: var(--verde);
+        opacity: 0.6;
+    }
+    .stepper .step.is-skipped .step-label {
+        color: var(--verde);
+        opacity: 0.6;
+        text-decoration: line-through;
+    }
 
     /* Card del paso */
     .step-card {
@@ -179,6 +190,50 @@
         font-size: 0.88rem;
         margin-bottom: 1.2rem;
     }
+
+    /* Banner empresa encontrada */
+    #banner-empresa-encontrada {
+        display: none;
+        background: linear-gradient(135deg, #d4edda, #c3e6cb);
+        border: 1.5px solid #28a745;
+        color: #155724;
+        border-radius: 10px;
+        padding: 1rem 1.2rem;
+        margin-bottom: 1rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        animation: slideIn .25s ease;
+    }
+    #banner-empresa-encontrada.visible { display: flex; align-items: center; gap: 0.7rem; }
+    #banner-empresa-encontrada .banner-icon { font-size: 1.4rem; flex-shrink: 0; }
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateY(-8px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Banner CUIT cargando */
+    #banner-cuit-checking {
+        display: none;
+        color: var(--gris-suave);
+        font-size: 0.87rem;
+        margin-top: 0.3rem;
+    }
+    #banner-cuit-checking.visible { display: block; }
+
+    /* Bloque lote (flujo rápido) */
+    #bloque-lote-existente {
+        display: none;
+        margin-top: 1.5rem;
+        padding-top: 1.2rem;
+        border-top: 1px dashed var(--borde);
+    }
+    #bloque-lote-existente.visible { display: block; }
+    #bloque-lote-existente h4 {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--verde);
+        margin-bottom: 0.8rem;
+    }
 </style>
 {% endblock %}
 
@@ -223,8 +278,18 @@
     <form method="post" novalidate id="wizard-form">
         {% csrf_token %}
 
+        {# Campo oculto: ID de la empresa existente (rellenado por JS tras verificar CUIT) #}
+        {{ form.empresa_existente_id }}
+
         {#  Paso 1: Datos de la empresa  #}
         <div class="step-pane is-active" data-step="1">
+
+            {# Banner: empresa encontrada (visible vía JS) #}
+            <div id="banner-empresa-encontrada">
+                <span class="banner-icon">✅</span>
+                <span id="banner-empresa-texto">Empresa encontrada. Te vincularás a esta empresa.</span>
+            </div>
+
             <div class="step-card">
                 <h3>Información Fiscal</h3>
                 <div class="row g-3">
@@ -236,6 +301,7 @@
                     <div class="col-md-4">
                         <label class="field-label" for="{{ form.cuit.id_for_label }}">CUIT *</label>
                         {{ form.cuit }}
+                        <div id="banner-cuit-checking"><i class="bi bi-hourglass-split"></i> Verificando CUIT…</div>
                         {% for e in form.cuit.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
                     </div>
                     <div class="col-md-6">
@@ -556,9 +622,24 @@
                         {% for e in form.password2.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
                     </div>
                 </div>
+
+                {# Bloque de selección de lote (solo visible en flujo rápido) #}
+                <div id="bloque-lote-existente">
+                    <h4><i class="bi bi-geo-alt-fill"></i> Lote a solicitar</h4>
+                    <p style="color:var(--gris-suave);font-size:0.87rem;margin-bottom:0.8rem;">
+                        Seleccioná el lote disponible que querés asociar a tu empresa.
+                    </p>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="field-label" for="{{ form.lote_seleccionado.id_for_label }}">Lote disponible *</label>
+                            {{ form.lote_seleccionado }}
+                            {% for e in form.lote_seleccionado.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="wizard-nav">
-                <button type="button" class="btn-prev" data-action="prev"><i class="bi bi-arrow-left"></i> Anterior</button>
+                <button type="button" class="btn-prev" data-action="prev" id="btn-prev-paso4"><i class="bi bi-arrow-left"></i> Anterior</button>
                 <button type="submit" class="btn-verde">
                     <i class="bi bi-send"></i> Enviar solicitud
                 </button>
@@ -576,10 +657,10 @@
 {% block extra_js %}
 <script>
 (function () {
-    // mascara de cuit: XX-XXXXXXXX-X
+    // ─── CUIT mask: XX-XXXXXXXX-X ────────────────────────────────────────────
     const cuitInput = document.getElementById('id_cuit');
     if (cuitInput) {
-        cuitInput.addEventListener('input', function (e) {
+        cuitInput.addEventListener('input', function () {
             let v = this.value.replace(/\D/g, '');
             if (v.length > 11) v = v.slice(0, 11);
             let formatted = '';
@@ -592,40 +673,169 @@
         cuitInput.setAttribute('maxlength', '13');
     }
 
-    const form = document.getElementById('wizard-form');
-    const panes = Array.from(form.querySelectorAll('.step-pane'));
-    const steps = Array.from(document.querySelectorAll('#wizard-stepper .step'));
-    const TOTAL = panes.length;
-    let current = 1;
+    // ─── Wizard state ────────────────────────────────────────────────────────
+    const form          = document.getElementById('wizard-form');
+    const panes         = Array.from(form.querySelectorAll('.step-pane'));
+    const steps         = Array.from(document.querySelectorAll('#wizard-stepper .step'));
+    const TOTAL         = panes.length;   // 4
+    const SKIPPED_STEPS = [2, 3];         // pasos que se omiten en flujo rápido
 
-    // Si el server devolvió errores de validación, abrir el primer step que tenga errores
+    let current        = 1;
+    let modoExistente  = false;   // true cuando el CUIT ya está registrado
+
+    // Elementos del banner y lote
+    const bannerEncontrado = document.getElementById('banner-empresa-encontrada');
+    const bannerTexto      = document.getElementById('banner-empresa-texto');
+    const bannerChecking   = document.getElementById('banner-cuit-checking');
+    const bloqueEmpId      = document.getElementById('id_empresa_existente_id');
+    const bloqueLote       = document.getElementById('bloque-lote-existente');
+    const loteSelect       = document.getElementById('id_lote_seleccionado');
+    const btnPrevPaso4     = document.getElementById('btn-prev-paso4');
+    const razonSocialInput = document.getElementById('id_razon_social');
+
+    // Si el server devolvió errores, abrir el primer step que tenga errores
     const firstError = form.querySelector('.field-error');
     if (firstError) {
         const pane = firstError.closest('.step-pane');
         if (pane) current = parseInt(pane.dataset.step, 10);
     }
+
+    // Si empresa_existente_id ya viene con valor (POST rechazado con datos previos),
+    // restaurar el modo existente visualmente.
+    if (bloqueEmpId && bloqueEmpId.value) {
+        modoExistente = true;
+        activarModoExistente(null);  // sin razón social (ya está en el campo)
+    }
+
     render();
 
+    // ─── Render del wizard ───────────────────────────────────────────────────
     function render() {
-        panes.forEach(p => p.classList.toggle('is-active', parseInt(p.dataset.step, 10) === current));
+        panes.forEach(p => {
+            const n = parseInt(p.dataset.step, 10);
+            p.classList.toggle('is-active', n === current);
+        });
+
         steps.forEach(s => {
             const n = parseInt(s.dataset.step, 10);
-            s.classList.toggle('is-active', n === current);
-            s.classList.toggle('is-done', n < current);
+            s.classList.remove('is-active', 'is-done', 'is-skipped');
+            if (modoExistente && SKIPPED_STEPS.includes(n)) {
+                s.classList.add('is-skipped');
+            } else if (n === current) {
+                s.classList.add('is-active');
+            } else if (n < current) {
+                s.classList.add('is-done');
+            }
         });
-        // avanzar la línea verde: el track ocupa 75% del ancho (de 12.5% a 87.5%)
+
+        // Progreso de la línea verde
         const progress = (current - 1) / (TOTAL - 1);
         document.getElementById('wizard-stepper').style.setProperty(
             '--progress-width', (progress * 75).toFixed(1) + '%'
         );
-        // scroll al inicio del wizard cuando cambia el paso
+
         document.querySelector('.wizard-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
+    // ─── Activar modo empresa existente ─────────────────────────────────────
+    function activarModoExistente(razonSocial) {
+        modoExistente = true;
+
+        // Mostrar banner
+        if (razonSocial) {
+            bannerTexto.textContent = `✅ Empresa encontrada: "${razonSocial}". Te vincularás a esta empresa.`;
+        }
+        bannerEncontrado.classList.add('visible');
+
+        // Mostrar bloque de lote en el paso 4
+        if (bloqueLote) bloqueLote.classList.add('visible');
+
+        // Habilitar/requerir el select de lote
+        if (loteSelect) loteSelect.disabled = false;
+
+        // Deshabilitar todos los inputs de los pasos 2 y 3 para saltear validación HTML5
+        SKIPPED_STEPS.forEach(n => {
+            const pane = form.querySelector(`.step-pane[data-step="${n}"]`);
+            if (pane) {
+                pane.querySelectorAll('input, select, textarea').forEach(el => {
+                    el.disabled = true;
+                });
+            }
+        });
+
+        // En paso 4, el botón "Anterior" vuelve al paso 1 (salteando 2 y 3)
+        if (btnPrevPaso4) {
+            btnPrevPaso4.dataset._modoExistente = '1';
+        }
+    }
+
+    // ─── Desactivar modo empresa existente ───────────────────────────────────
+    function desactivarModoExistente() {
+        modoExistente = false;
+
+        bannerEncontrado.classList.remove('visible');
+        if (bloqueLote) bloqueLote.classList.remove('visible');
+        if (loteSelect) loteSelect.disabled = true;
+        if (bloqueEmpId) bloqueEmpId.value = '';
+        if (razonSocialInput) razonSocialInput.readOnly = false;
+
+        // Rehabilitar inputs de pasos 2 y 3
+        SKIPPED_STEPS.forEach(n => {
+            const pane = form.querySelector(`.step-pane[data-step="${n}"]`);
+            if (pane) {
+                pane.querySelectorAll('input, select, textarea').forEach(el => {
+                    el.disabled = false;
+                });
+            }
+        });
+
+        if (btnPrevPaso4) delete btnPrevPaso4.dataset._modoExistente;
+    }
+
+    // ─── Verificación AJAX del CUIT ──────────────────────────────────────────
+    if (cuitInput) {
+        cuitInput.addEventListener('blur', async function () {
+            const cuit = this.value.trim();
+            // Solo verificar si el CUIT tiene el formato completo XX-XXXXXXXX-X
+            if (!/^\d{2}-\d{8}-\d{1}$/.test(cuit)) {
+                desactivarModoExistente();
+                return;
+            }
+
+            bannerChecking.classList.add('visible');
+            try {
+                const resp = await fetch(`{% url 'core:verificar_cuit' %}?cuit=${encodeURIComponent(cuit)}`);
+                const data = await resp.json();
+
+                if (data.existe) {
+                    // Empresa encontrada: activar flujo rápido
+                    bloqueEmpId.value = data.empresa_id;
+                    if (razonSocialInput) {
+                        razonSocialInput.value = data.razon_social;
+                        razonSocialInput.readOnly = true;
+                    }
+                    activarModoExistente(data.razon_social);
+                } else {
+                    // Empresa nueva: flujo completo
+                    desactivarModoExistente();
+                }
+            } catch (err) {
+                // Error de red: no bloquear al usuario, flujo normal
+                desactivarModoExistente();
+                console.warn('Error al verificar CUIT:', err);
+            } finally {
+                bannerChecking.classList.remove('visible');
+            }
+        });
+    }
+
+    // ─── Validación del paso actual ──────────────────────────────────────────
     function validateCurrent() {
         const pane = panes[current - 1];
-        const inputs = pane.querySelectorAll('input, select, textarea');
+        const inputs = pane.querySelectorAll('input:not([disabled]), select:not([disabled]), textarea:not([disabled])');
         for (const el of inputs) {
+            // En modo existente, saltar la validación del lote si está oculto (aún no es el paso 4)
+            if (el.id === 'id_lote_seleccionado' && current !== 4) continue;
             if (!el.checkValidity()) {
                 el.reportValidity();
                 return false;
@@ -634,21 +844,58 @@
         return true;
     }
 
-    form.addEventListener('click', (e) => {
+    // ─── Navegación ──────────────────────────────────────────────────────────
+    form.addEventListener('click', e => {
         const action = e.target.closest('[data-action]')?.dataset.action;
         if (!action) return;
+
         if (action === 'next') {
             if (!validateCurrent()) return;
-            if (current < TOTAL) { current++; render(); }
+            if (current < TOTAL) {
+                if (modoExistente && SKIPPED_STEPS.includes(current + 1)) {
+                    // Saltar pasos 2 y 3 en flujo rápido: ir directo al paso 4
+                    current = 4;
+                } else {
+                    current++;
+                }
+                render();
+            }
         } else if (action === 'prev') {
-            if (current > 1) { current--; render(); }
+            if (current > 1) {
+                if (modoExistente && e.target.closest('#btn-prev-paso4')) {
+                    // Desde paso 4 en flujo rápido: volver al paso 1
+                    current = 1;
+                } else if (modoExistente && SKIPPED_STEPS.includes(current - 1)) {
+                    current = 1;
+                } else {
+                    current--;
+                }
+                render();
+            }
         }
     });
 
-    // Validación HTML5 en submit final (solo paso 4)
-    form.addEventListener('submit', (e) => {
+    // ─── Submit final ────────────────────────────────────────────────────────
+    form.addEventListener('submit', e => {
+        // Antes de enviar, asegurar que los campos deshabilitados de los pasos
+        // 2 y 3 no se excluyan del POST (los disabled no se envían).
+        // En modo existente el backend no los necesita, pero los campos con
+        // required en el modelo pueden causar errores si vienen vacíos.
+        // Los habilitamos momentáneamente sin required para que se incluyan vacíos.
+        if (modoExistente) {
+            SKIPPED_STEPS.forEach(n => {
+                const pane = form.querySelector(`.step-pane[data-step="${n}"]`);
+                if (pane) {
+                    pane.querySelectorAll('input[disabled], select[disabled], textarea[disabled]').forEach(el => {
+                        el.disabled = false;
+                        el.removeAttribute('required');
+                    });
+                }
+            });
+        }
         if (!validateCurrent()) e.preventDefault();
     });
+
 })();
 </script>
 {% endblock %}

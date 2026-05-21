@@ -269,104 +269,185 @@ class RegistroEmpresaView(View):
 
         from django.db import transaction as db_transaction
         cd = form.cleaned_data
+        empresa_existente_id = cd.get('empresa_existente_id')
 
-        with db_transaction.atomic():
-            # 1. Crear el user activo y asignarle el grupo EMPRESA.
-            usuario = CustomUser.objects.create_user(
-                username=cd['username'],
-                email=cd['representante_email'],
-                password=cd['password1'],
-                first_name=cd['representante_nombre'].split(' ', 1)[0],
-                last_name=(
-                    cd['representante_nombre'].split(' ', 1)[1]
-                    if ' ' in cd['representante_nombre'] else ''
-                ),
-                is_active=True,
+        if empresa_existente_id:
+            # ─────────────────────────────────────────────────────────────────
+            # FLUJO RÁPIDO: la empresa ya existe → vincular nuevo usuario
+            # ─────────────────────────────────────────────────────────────────
+            try:
+                empresa = Empresa.objects.get(pk=empresa_existente_id)
+            except Empresa.DoesNotExist:
+                messages.error(request, 'La empresa indicada no existe. Intentá nuevamente.')
+                return render(request, self.template_name, {'form': form})
+
+            lote = cd.get('lote_seleccionado')
+
+            with db_transaction.atomic():
+                # 1. Crear el usuario activo con grupo EMPRESA.
+                usuario = CustomUser.objects.create_user(
+                    username=cd['username'],
+                    email=cd.get('representante_email') or f"{cd['username']}@gpiv.ar",
+                    password=cd['password1'],
+                    is_active=True,
+                )
+                grupo, _ = Group.objects.get_or_create(name='EMPRESA')
+                usuario.groups.add(grupo)
+
+                # 2. Determinar rol: TITULAR si la empresa no tiene uno activo,
+                #    ESTANDAR en caso contrario.
+                if empresa.tiene_titular():
+                    rol = CustomUser.RolInterno.ESTANDAR
+                else:
+                    rol = CustomUser.RolInterno.TITULAR
+
+                # 3. Vincular usuario a la empresa existente.
+                usuario.empresa = empresa
+                usuario.rol_interno = rol
+                usuario.save(update_fields=['empresa', 'rol_interno'])
+
+                # 4. Si se seleccionó un lote, asignarlo a la empresa y marcarlo EnUso.
+                if lote:
+                    lote.empresa = empresa
+                    lote.estado = Lote.Estado.EN_USO
+                    lote.save(update_fields=['empresa', 'estado'])
+
+            rol_display = 'Titular' if rol == CustomUser.RolInterno.TITULAR else 'Estándar'
+            messages.success(
+                request,
+                f'Te vinculaste a "{empresa.razon_social}" como {rol_display}. '
+                'Iniciá sesión para continuar.',
             )
-            grupo, _ = Group.objects.get_or_create(name='EMPRESA')
-            usuario.groups.add(grupo)
+            return redirect('core:login')
 
-            # 2. Crear la Empresa con datos del wizard + defaults razonables
-            #    para los campos NOT NULL no capturados (el admin los completa
-            #    desde el back-office si hace falta).
-            empresa = Empresa.objects.create(
-                # ── paso 1: empresa ──────────────────────────────────────────
-                razon_social=cd['razon_social'],
-                nombre_fantasia=cd.get('nombre_fantasia') or None,
-                cuit=cd['cuit'],
-                ingresos_brutos=cd.get('ingresos_brutos') or None,
-                tipo_empresa=cd['tipo_empresa'],
-                objetivo_proyecto=cd.get('objetivo_proyecto') or None,
-                rubro=cd['rubro'],
-                tipo_societario=cd['tipo_societario'],
-                # ── paso 1: contacto ─────────────────────────────────────────
-                direccion=cd.get('direccion') or None,
-                persona_referente=cd['persona_referente'],
-                telefono=cd['telefono'],
-                correo_electronico=cd['correo_electronico'],
-                # ── paso 2: actividad ────────────────────────────────────────
-                actividad_principal=cd['actividad_principal'],
-                actividad_secundaria=cd.get('actividad_secundaria') or None,
-                descripcion_actividad=cd['descripcion_actividad'],
-                emplazamiento_actual=cd.get('emplazamiento_actual') or None,
-                personal_jerarquico=cd.get('personal_jerarquico') or 0,
-                personal_administrativo=cd.get('personal_administrativo') or 0,
-                personal_produccion=cd.get('personal_produccion') or 0,
-                personal_a_ocupar=cd['personal_a_ocupar'],
-                materias_primas=cd.get('materias_primas') or None,
-                destino_produccion=cd.get('destino_produccion') or None,
-                # ── paso 2: infraestructura ──────────────────────────────────
-                necesidad_m2=cd['necesidad_m2'],
-                tiempo_radicacion_meses=cd['tiempo_radicacion_meses'],
-                superficie_cubierta_trabajo_m2=cd['superficie_cubierta_trabajo_m2'],
-                superficie_cubierta_deposito_m2=cd['superficie_cubierta_deposito_m2'],
-                superficie_futura_expansion_m2=cd.get('superficie_futura_expansion_m2') or None,
-                superficie_estacionamiento_m2=cd.get('superficie_estacionamiento_m2') or None,
-                tiene_planos=cd['tiene_planos'],
-                # ── paso 2: servicios ────────────────────────────────────────
-                energia_tension=cd.get('energia_tension') or None,
-                energia_potencia_rango=cd.get('energia_potencia_rango') or None,
-                consumo_estimado_agua_potable=cd.get('consumo_estimado_agua_potable') or None,
-                consumo_estimado_agua_cruda=cd.get('consumo_estimado_agua_cruda') or None,
-                gas=cd.get('gas', False),
-                requiere_internet=cd.get('requiere_internet', False),
-                necesidad_balanza_publica=cd.get('necesidad_balanza_publica', False),
-                necesidad_comedor=cd.get('necesidad_comedor', False),
-                necesidad_salon_multiuso=cd.get('necesidad_salon_multiuso', False),
-                # ── paso 2: impacto ambiental ────────────────────────────────
-                categoria_industrial=cd['categoria_industrial'],
-                maneja_inflamables=cd.get('maneja_inflamables', False),
-                genera_residuos=cd.get('genera_residuos', False),
-                tratamiento_en_planta=cd.get('tratamiento_en_planta', False),
-                # ── paso 3: representante legal ──────────────────────────────
-                representante_nombre=cd['representante_nombre'],
-                representante_dni=cd['representante_dni'],
-                representante_cargo=cd['representante_cargo'],
-                representante_email=cd['representante_email'],
-                representante_telefono=cd['representante_telefono'],
-                estado=Empresa.Estado.EN_EVALUACION,
+        else:
+            # ─────────────────────────────────────────────────────────────────
+            # FLUJO COMPLETO: empresa nueva
+            # ─────────────────────────────────────────────────────────────────
+            with db_transaction.atomic():
+                # 1. Crear el user activo y asignarle el grupo EMPRESA.
+                usuario = CustomUser.objects.create_user(
+                    username=cd['username'],
+                    email=cd['representante_email'],
+                    password=cd['password1'],
+                    first_name=cd['representante_nombre'].split(' ', 1)[0],
+                    last_name=(
+                        cd['representante_nombre'].split(' ', 1)[1]
+                        if ' ' in cd['representante_nombre'] else ''
+                    ),
+                    is_active=True,
+                )
+                grupo, _ = Group.objects.get_or_create(name='EMPRESA')
+                usuario.groups.add(grupo)
+
+                # 2. Crear la Empresa con datos del wizard + defaults razonables
+                #    para los campos NOT NULL no capturados (el admin los completa
+                #    desde el back-office si hace falta).
+                empresa = Empresa.objects.create(
+                    # ── paso 1: empresa ──────────────────────────────────────────
+                    razon_social=cd['razon_social'],
+                    nombre_fantasia=cd.get('nombre_fantasia') or None,
+                    cuit=cd['cuit'],
+                    ingresos_brutos=cd.get('ingresos_brutos') or None,
+                    tipo_empresa=cd['tipo_empresa'],
+                    objetivo_proyecto=cd.get('objetivo_proyecto') or None,
+                    rubro=cd['rubro'],
+                    tipo_societario=cd['tipo_societario'],
+                    # ── paso 1: contacto ─────────────────────────────────────────
+                    direccion=cd.get('direccion') or None,
+                    persona_referente=cd['persona_referente'],
+                    telefono=cd['telefono'],
+                    correo_electronico=cd['correo_electronico'],
+                    # ── paso 2: actividad ────────────────────────────────────────
+                    actividad_principal=cd['actividad_principal'],
+                    actividad_secundaria=cd.get('actividad_secundaria') or None,
+                    descripcion_actividad=cd['descripcion_actividad'],
+                    emplazamiento_actual=cd.get('emplazamiento_actual') or None,
+                    personal_jerarquico=cd.get('personal_jerarquico') or 0,
+                    personal_administrativo=cd.get('personal_administrativo') or 0,
+                    personal_produccion=cd.get('personal_produccion') or 0,
+                    personal_a_ocupar=cd['personal_a_ocupar'],
+                    materias_primas=cd.get('materias_primas') or None,
+                    destino_produccion=cd.get('destino_produccion') or None,
+                    # ── paso 2: infraestructura ──────────────────────────────────
+                    necesidad_m2=cd['necesidad_m2'],
+                    tiempo_radicacion_meses=cd['tiempo_radicacion_meses'],
+                    superficie_cubierta_trabajo_m2=cd['superficie_cubierta_trabajo_m2'],
+                    superficie_cubierta_deposito_m2=cd['superficie_cubierta_deposito_m2'],
+                    superficie_futura_expansion_m2=cd.get('superficie_futura_expansion_m2') or None,
+                    superficie_estacionamiento_m2=cd.get('superficie_estacionamiento_m2') or None,
+                    tiene_planos=cd['tiene_planos'],
+                    # ── paso 2: servicios ────────────────────────────────────────
+                    energia_tension=cd.get('energia_tension') or None,
+                    energia_potencia_rango=cd.get('energia_potencia_rango') or None,
+                    consumo_estimado_agua_potable=cd.get('consumo_estimado_agua_potable') or None,
+                    consumo_estimado_agua_cruda=cd.get('consumo_estimado_agua_cruda') or None,
+                    gas=cd.get('gas', False),
+                    requiere_internet=cd.get('requiere_internet', False),
+                    necesidad_balanza_publica=cd.get('necesidad_balanza_publica', False),
+                    necesidad_comedor=cd.get('necesidad_comedor', False),
+                    necesidad_salon_multiuso=cd.get('necesidad_salon_multiuso', False),
+                    # ── paso 2: impacto ambiental ────────────────────────────────
+                    categoria_industrial=cd['categoria_industrial'],
+                    maneja_inflamables=cd.get('maneja_inflamables', False),
+                    genera_residuos=cd.get('genera_residuos', False),
+                    tratamiento_en_planta=cd.get('tratamiento_en_planta', False),
+                    # ── paso 3: representante legal ──────────────────────────────
+                    representante_nombre=cd['representante_nombre'],
+                    representante_dni=cd['representante_dni'],
+                    representante_cargo=cd['representante_cargo'],
+                    representante_email=cd['representante_email'],
+                    representante_telefono=cd['representante_telefono'],
+                    estado=Empresa.Estado.EN_EVALUACION,
+                )
+
+                # 3. Registrar la primera transición de estado (None → EnEvaluacion).
+                TransicionEstado.objects.create(
+                    empresa=empresa,
+                    estado_anterior=None,
+                    estado_nuevo=Empresa.Estado.EN_EVALUACION,
+                    usuario=usuario,
+                    justificacion_resolucion='Creada desde el wizard de registro.',
+                )
+
+                # 4. Asignar empresa y rol TITULAR al usuario que registró.
+                usuario.empresa = empresa
+                usuario.rol_interno = CustomUser.RolInterno.TITULAR
+                usuario.save(update_fields=['empresa', 'rol_interno'])
+
+            messages.success(
+                request,
+                f'Tu solicitud para "{empresa.razon_social}" fue enviada. '
+                'Iniciá sesión para hacer seguimiento.',
             )
+            return redirect('core:login')
 
-            # 3. Registrar la primera transición de estado (None → EnEvaluacion).
-            TransicionEstado.objects.create(
-                empresa=empresa,
-                estado_anterior=None,
-                estado_nuevo=Empresa.Estado.EN_EVALUACION,
-                usuario=usuario,
-                justificacion_resolucion='Creada desde el wizard de registro.',
-            )
 
-            # 4. Asignar empresa y rol TITULAR al usuario que registró.
-            usuario.empresa = empresa
-            usuario.rol_interno = CustomUser.RolInterno.TITULAR
-            usuario.save(update_fields=['empresa', 'rol_interno'])
+def verificar_cuit(request):
+    """
+    API pública (GET) que verifica si un CUIT ya está registrado en el sistema.
 
-        messages.success(
-            request,
-            f'Tu solicitud para "{empresa.razon_social}" fue enviada. '
-            'Iniciá sesión para hacer seguimiento.',
-        )
-        return redirect('core:login')
+    Parámetros:
+        cuit (str): CUIT a verificar, con formato XX-XXXXXXXX-X.
+
+    Respuesta JSON:
+        {"existe": true,  "empresa_id": 5,  "razon_social": "Empresa SA"}
+        {"existe": false}
+        {"error": "CUIT inválido"}  (HTTP 400)
+    """
+    import re
+    cuit = request.GET.get('cuit', '').strip()
+    if not re.match(r'^\d{2}-\d{8}-\d{1}$', cuit):
+        return JsonResponse({'error': 'CUIT inválido'}, status=400)
+    try:
+        empresa = Empresa.objects.get(cuit=cuit)
+        return JsonResponse({
+            'existe': True,
+            'empresa_id': empresa.pk,
+            'razon_social': empresa.razon_social,
+        })
+    except Empresa.DoesNotExist:
+        return JsonResponse({'existe': False})
 
 
 class RegistroColaboradorView(View):

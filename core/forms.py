@@ -884,6 +884,22 @@ class RegistroEmpresaWizardForm(forms.Form):
         widget=forms.PasswordInput(attrs={**_TXT, 'autocomplete': 'new-password'}),
     )
 
+    # Campo oculto que transporta el ID de la empresa existente (cuando el CUIT ya está registrado).
+    # El frontend lo rellena vía JavaScript tras la verificación AJAX.
+    empresa_existente_id = forms.IntegerField(
+        required=False,
+        widget=forms.HiddenInput(),
+    )
+
+    # Selección de lote disponible: visible solo en el flujo rápido (empresa existente).
+    lote_seleccionado = forms.ModelChoiceField(
+        queryset=Lote.objects.filter(estado=Lote.Estado.DISPONIBLE).order_by('nro_parcela'),
+        required=False,
+        empty_label='Seleccioná un lote disponible...',
+        label='Lote a solicitar',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+
     def clean_username(self):
         username = self.cleaned_data['username'].strip()
         if CustomUser.objects.filter(username__iexact=username).exists():
@@ -895,8 +911,12 @@ class RegistroEmpresaWizardForm(forms.Form):
         cuit = self.cleaned_data['cuit'].strip()
         if not re.match(r'^\d{2}-\d{8}-\d{1}$', cuit):
             raise forms.ValidationError('El CUIT debe tener el formato XX-XXXXXXXX-X.')
-        if Empresa.objects.filter(cuit=cuit).exists():
-            raise forms.ValidationError('Ya existe una empresa registrada con ese CUIT.')
+        # Si la empresa ya existe, el flujo rápido la vincula sin crear una nueva;
+        # por eso no se rechaza el CUIT duplicado aquí (la vista lo gestiona).
+        empresa_existente_id = self.data.get('empresa_existente_id')
+        if not empresa_existente_id:
+            if Empresa.objects.filter(cuit=cuit).exists():
+                raise forms.ValidationError('Ya existe una empresa registrada con ese CUIT.')
         return cuit
 
     def clean(self):
@@ -911,6 +931,48 @@ class RegistroEmpresaWizardForm(forms.Form):
                 validate_password(p1)
             except forms.ValidationError as e:
                 self.add_error('password1', e)
+
+        empresa_existente_id = cleaned.get('empresa_existente_id')
+
+        if empresa_existente_id:
+            # --- Flujo rápido: empresa ya existe ---
+            # Verificar que el ID corresponde realmente a una empresa en la BD.
+            try:
+                empresa = Empresa.objects.get(pk=empresa_existente_id)
+            except Empresa.DoesNotExist:
+                self.add_error(None, 'La empresa indicada no existe en el sistema. Recargá la página e intentá nuevamente.')
+                return cleaned
+
+            # Verificar que el CUIT enviado coincide con la empresa detectada.
+            cuit = cleaned.get('cuit', '')
+            if cuit and empresa.cuit != cuit:
+                self.add_error('cuit', 'El CUIT no coincide con la empresa seleccionada.')
+
+            # El lote es requerido en el flujo rápido.
+            lote = cleaned.get('lote_seleccionado')
+            if not lote:
+                self.add_error('lote_seleccionado', 'Debés seleccionar un lote disponible para vincularte a esta empresa.')
+
+            # Los campos obligatorios de los pasos 2 y 3 se omiten: se eliminan
+            # los errores de validación que puedan haber quedado de esos campos.
+            campos_a_ignorar = [
+                'actividad_principal', 'descripcion_actividad', 'personal_a_ocupar',
+                'necesidad_m2', 'tiempo_radicacion_meses',
+                'superficie_cubierta_trabajo_m2', 'superficie_cubierta_deposito_m2',
+                'categoria_industrial',
+                'representante_nombre', 'representante_dni', 'representante_cargo',
+                'representante_email', 'representante_telefono',
+                'rubro', 'tipo_empresa', 'tipo_societario',
+                'persona_referente', 'telefono', 'correo_electronico',
+            ]
+            for campo in campos_a_ignorar:
+                if campo in self.errors:
+                    del self.errors[campo]
+                # Rellenar con valor de la empresa existente o con un placeholder neutro
+                # para que no fallen validaciones de campos required.
+                if campo not in cleaned or not cleaned.get(campo):
+                    cleaned[campo] = getattr(empresa, campo, None) or ''
+
         return cleaned
 
 

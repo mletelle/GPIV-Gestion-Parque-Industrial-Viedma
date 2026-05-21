@@ -68,6 +68,8 @@ from .views import (
     EmpresaInvitarView,
     EmpresaTransferirView,
     EmpresaRemoverMiembroView,
+    # api pública
+    verificar_cuit,
 )
 
 app_name = 'core'
@@ -85,6 +87,8 @@ urlpatterns = [
     path('registro/empresa/', RegistroEmpresaView.as_view(), name='registro_empresa'),
     path('registro/colaborador/', RegistroColaboradorView.as_view(), name='registro_colaborador'),
     path('registro/colaborador/exitoso/', RegistroColaboradorExitosoView.as_view(), name='registro_colaborador_exitoso'),
+    # api pública: verificar si un CUIT ya está registrado
+    path('api/verificar-cuit/', verificar_cuit, name='verificar_cuit'),
     path('panel/usuarios/', AdminGestionUsuariosView.as_view(), name='admin_gestion_usuarios'),
     path('panel/usuarios/crear/', AdminCrearUsuarioView.as_view(), name='admin_crear_usuario'),
     path(
