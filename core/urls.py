@@ -55,6 +55,7 @@ from .views import (
     TicketCreateView,
     TicketDetailView,
     AdminTicketListView,
+    AdminTicketCreateView,
     AdminTicketDetailView,
     TicketSoftDeleteView,
     TicketExternoCreateView,
@@ -206,6 +207,7 @@ urlpatterns = [
 
     # mensajería interna / ticketera (admin)
     path('panel/mensajes/', AdminTicketListView.as_view(), name='admin_ticket_list'),
+    path('panel/mensajes/nuevo/', AdminTicketCreateView.as_view(), name='admin_ticket_create'),
     path('panel/mensajes/<int:pk>/', AdminTicketDetailView.as_view(), name='admin_ticket_detail'),
     path('panel/mensajes/<int:pk>/eliminar/', TicketSoftDeleteView.as_view(), name='ticket_delete'),
 

@@ -80,6 +80,23 @@
         color: #6B7280;
         border: 1px solid var(--borde);
     }
+    .btn-contactar {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.8rem;
+        padding: 0.3rem 0.75rem;
+        border-radius: 5px;
+        border: 1px solid var(--borde);
+        background: #fff;
+        color: var(--gris-texto);
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .btn-contactar:hover {
+        border-color: var(--verde);
+        color: var(--verde);
+    }
 </style>
 {% endblock %}
 
@@ -120,7 +137,7 @@
                         <th>Acceso</th>
                         <th>Doc.</th>
                         <th>Fecha</th>
-                        <th></th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -145,10 +162,16 @@
                         </td>
                         <td style="white-space:nowrap;">{{ s.fecha_solicitud|date:"d/m/Y" }}</td>
                         <td>
+                            <div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;">
                             <a href="{% url 'core:solicitud_acceso_detail' s.pk %}"
                                class="btn-verde" style="font-size:0.8rem;padding:0.3rem 0.75rem;">
                                 <i class="bi bi-eye"></i> Revisar
                             </a>
+                            <a href="{% url 'core:admin_ticket_create' %}?solicitud_acceso={{ s.pk }}"
+                               class="btn-contactar">
+                                <i class="bi bi-envelope"></i> Contactar
+                            </a>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -175,6 +198,7 @@
                         <th>Nombre</th>
                         <th>Email</th>
                         <th colspan="3">Asignar empresa y rol</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -199,6 +223,12 @@
                                 {{ af.empresa.errors }}{{ af.rol_interno.errors }}
                             </div>
                             {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'core:admin_ticket_create' %}?user={{ u.pk }}"
+                               class="btn-contactar">
+                                <i class="bi bi-envelope"></i> Contactar
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -225,6 +255,7 @@
                         <th>Tipo</th>
                         <th>Empresa</th>
                         <th>Estado</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -258,10 +289,16 @@
                             <span class="badge-inactivo">Inactivo</span>
                             {% endif %}
                         </td>
+                        <td>
+                            <a href="{% url 'core:admin_ticket_create' %}?user={{ u.pk }}"
+                               class="btn-contactar">
+                                <i class="bi bi-envelope"></i> Contactar
+                            </a>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" style="text-align:center;padding:2rem;color:var(--gris-suave);">
+                        <td colspan="7" style="text-align:center;padding:2rem;color:var(--gris-suave);">
                             No hay usuarios registrados.
                         </td>
                     </tr>

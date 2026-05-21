@@ -415,6 +415,41 @@ class TicketCreateForm(forms.ModelForm):
         self.fields['categoria'].choices = choices
 
 
+class AdminTicketCreateForm(forms.Form):
+    """Formulario para que administración contacte usuarios desde Gestión de usuarios."""
+    destinatario = forms.ChoiceField(
+        label='Destinatario',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    categoria = forms.ChoiceField(
+        label='Categoría',
+        choices=[],
+        initial=Ticket.Categoria.ADMINISTRATIVA,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    asunto = forms.CharField(
+        label='Asunto',
+        max_length=200,
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+    )
+    mensaje_inicial = forms.CharField(
+        label='Mensaje',
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 5,
+            'placeholder': 'Indicá qué documentación o información necesitás solicitar.',
+        }),
+    )
+
+    def __init__(self, *args, destinatario_choices=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['destinatario'].choices = destinatario_choices or []
+        self.fields['categoria'].choices = [
+            (k, v) for k, v in Ticket.Categoria.choices
+            if k != Ticket.Categoria.EXTERNA
+        ]
+
+
 class TicketExternoForm(forms.ModelForm):
     """Formulario para recibir consultas desde la landing page (sin usuario)."""
     mensaje = forms.CharField(widget=forms.Textarea)
