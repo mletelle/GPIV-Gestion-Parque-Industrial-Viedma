@@ -1004,12 +1004,17 @@ class Command(BaseCommand):
 
         # limpiar y recrear avances
         empresa.avances_constructivos.all().delete()
+        admin_user = CustomUser.objects.filter(
+            groups__name='ADMIN_ENREPAVI',
+        ).first()
         for pct, validado in spec['avances']:
             AvanceConstructivo.objects.create(
                 empresa=empresa,
                 porcentaje_declarado=Decimal(pct),
                 certificado_pdf='certificados/placeholder.pdf',
                 validado_admin=validado,
+                validado_por=admin_user if validado else None,
+                fecha_validacion=timezone.now() - timedelta(days=30) if validado else None,
             )
 
         # limpiar historial y dejar una transicion representativa

@@ -1875,7 +1875,28 @@ class ConsumosConsultaDashboardYReportesTests(TestCase):
         self.assertEqual(consumo.consumo_agua_potable_m3, Decimal("12.34"))
         self.assertIsNone(consumo.consumo_luz_kwh)
 
-    def test_empresa_consulta_solo_su_informacion_propia(self):
+    def test_inicio_empresa_muestra_accesos_separados(self):
+        self.client.force_login(self.usuario_empresa)
+        response = self.client.get(reverse("core:inicio"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Mi solicitud")
+        self.assertContains(response, "Mi equipo")
+        self.assertContains(response, "Mis consumos")
+        self.assertContains(response, reverse("core:mi_solicitud"))
+        self.assertContains(response, reverse("core:empresa_usuarios"))
+        self.assertContains(response, reverse("core:mis_consumos"))
+
+    def test_mi_solicitud_no_muestra_consumos_ni_equipo(self):
+        self.client.force_login(self.usuario_empresa)
+        response = self.client.get(reverse("core:mi_solicitud"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Consumos SRL")
+        self.assertNotContains(response, "Consumos de servicios")
+        self.assertNotContains(response, "Gestión del equipo")
+
+    def test_empresa_consulta_solo_sus_consumos_propios(self):
         otra_usuario = user("otra-empresa", "EMPRESA")
         otra_empresa = empresa(
             razon_social="Otra SRL",
@@ -1897,7 +1918,7 @@ class ConsumosConsultaDashboardYReportesTests(TestCase):
         )
 
         self.client.force_login(self.usuario_empresa)
-        response = self.client.get(reverse("core:mi_solicitud"))
+        response = self.client.get(reverse("core:mis_consumos"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Consumos SRL")

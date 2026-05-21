@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}Mis Consumos — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .mis-consumos-wrap {
+        padding: 2rem 0;
+        min-height: calc(100vh - 200px);
+    }
+
+    .tabla-consumos {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+
+    .tabla-consumos th {
+        background: var(--verde);
+        color: #fff;
+        padding: 0.7rem 1rem;
+        font-weight: 600;
+        font-size: 0.82rem;
+        text-align: left;
+    }
+
+    .tabla-consumos th:first-child {
+        border-radius: var(--radio) 0 0 0;
+    }
+
+    .tabla-consumos th:last-child {
+        border-radius: 0 var(--radio) 0 0;
+    }
+
+    .tabla-consumos td {
+        padding: 0.6rem 1rem;
+        border-bottom: 1px solid var(--borde);
+        vertical-align: middle;
+    }
+
+    .tabla-consumos tr:hover td {
+        background: var(--verde-claro);
+    }
+
+    .valor-num {
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--gris-suave);
+    }
+
+    .empty-state i {
+        display: block;
+        font-size: 2.4rem;
+        margin-bottom: 0.75rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mis-consumos-wrap">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div>
+                <h2 class="sec-title mb-0">Mis consumos</h2>
+                <p style="color:var(--gris-suave);font-size:0.88rem;margin:0;">
+                    {{ empresa.razon_social }}
+                </p>
+            </div>
+            <a href="{% url 'core:inicio' %}" class="btn-verde" style="background:var(--azul);">
+                <i class="bi bi-arrow-left"></i> Inicio
+            </a>
+        </div>
+        <div class="sec-line"></div>
+
+        <div class="gpiv-card" style="padding:0;overflow:hidden;">
+            {% if consumos %}
+            <div style="overflow-x:auto;">
+                <table class="tabla-consumos">
+                    <thead>
+                        <tr>
+                            <th>Período</th>
+                            <th class="valor-num">Agua potable (m³)</th>
+                            <th class="valor-num">Agua cruda (m³)</th>
+                            <th class="valor-num">Electricidad (kWh)</th>
+                            <th class="valor-num">Gas (m³)</th>
+                            <th>Fecha de carga</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in consumos %}
+                        <tr>
+                            <td><strong>{{ c.periodo_mes|stringformat:"02d" }}/{{ c.periodo_anio }}</strong></td>
+                            <td class="valor-num">{{ c.consumo_agua_potable_m3|default:"—" }}</td>
+                            <td class="valor-num">{{ c.consumo_agua_cruda_m3|default:"—" }}</td>
+                            <td class="valor-num">{{ c.consumo_luz_kwh|default:"—" }}</td>
+                            <td class="valor-num">{{ c.consumo_gas_m3|default:"—" }}</td>
+                            <td>{{ c.fecha_carga|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="bi bi-droplet"></i>
+                <p style="margin:0;">No hay consumos registrados para tu empresa.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <nav class="mt-4" aria-label="Paginación">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a>
+                </li>
+                {% endif %}
+                {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                </li>
+                {% endfor %}
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

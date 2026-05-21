@@ -334,6 +334,12 @@ class AvanceConstructivo(models.Model):
     certificado_pdf = models.FileField(upload_to='certificados/')
     fecha_presentacion = models.DateField(auto_now_add=True)
     validado_admin = models.BooleanField(default=False)
+    validado_por = models.ForeignKey(
+        'CustomUser', on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='avances_validados',
+    )
+    fecha_validacion = models.DateTimeField(null=True, blank=True)
 
     history = HistoricalRecords()
 

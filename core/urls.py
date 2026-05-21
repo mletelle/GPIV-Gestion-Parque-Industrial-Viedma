@@ -21,6 +21,7 @@ from .views import (
     SolicitudAccesoEnviadaView,
     SolicitudCreateView,
     MiSolicitudView,
+    MisConsumosView,
     SolicitudListView,
     SolicitudDetailView,
     SolicitudPreAprobarView,
@@ -140,6 +141,7 @@ urlpatterns = [
     # empresa: solicitud
     path('solicitud/nueva/', SolicitudCreateView.as_view(), name='solicitud_create'),
     path('mi-solicitud/', MiSolicitudView.as_view(), name='mi_solicitud'),
+    path('mis-consumos/', MisConsumosView.as_view(), name='mis_consumos'),
 
     # empresa: avance constructivo
     path('avance/nuevo/', AvanceCreateView.as_view(), name='avance_create'),

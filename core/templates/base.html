@@ -108,11 +108,15 @@
                 <i class="bi bi-people"></i> Mi Equipo
             </a>
             {% endif %}
+            <a href="{% url 'core:mis_consumos' %}"
+                class="sidebar-link {% if request.resolver_match.url_name == 'mis_consumos' %}active{% endif %}">
+                <i class="bi bi-droplet-half"></i> Mis Consumos
+            </a>
             {% endif %}
 
             {% if 'PROVEEDOR_AGUA' in user_groups or 'PROVEEDOR_LUZ' in user_groups or 'PROVEEDOR_GAS' in user_groups %}
             <a href="{% url 'core:consumo_list' %}"
-                class="sidebar-link {% if 'consumo' in request.resolver_match.url_name %}active{% endif %}">
+                class="sidebar-link {% if request.resolver_match.url_name == 'consumo_list' or request.resolver_match.url_name == 'consumo_create' %}active{% endif %}">
                 <i class="bi bi-droplet"></i> Consumos
             </a>
             {% endif %}

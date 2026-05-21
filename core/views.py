@@ -402,13 +402,18 @@ def _es_admin(user):
 
 
 class AdminGestionUsuariosView(LoginRequiredMixin, UserPassesTestMixin, View):
-    """Crea usuarios de cualquier tipo y gestiona colaboradores pendientes."""
+    """Listado de todos los usuarios del sistema."""
 
     def test_func(self):
         return _es_admin(self.request.user)
 
     def get(self, request):
-        form = AdminCrearUsuarioForm()
+        usuarios = (
+            CustomUser.objects
+            .prefetch_related('groups')
+            .select_related('empresa')
+            .order_by('username')
+        )
         pendientes = CustomUser.objects.filter(
             groups__name='EMPRESA', empresa__isnull=True, is_active=True
         ).order_by('username')
@@ -416,33 +421,22 @@ class AdminGestionUsuariosView(LoginRequiredMixin, UserPassesTestMixin, View):
             (u, AdminAsignarColaboradorForm(prefix=f'assign_{u.pk}'))
             for u in pendientes
         ]
+        solicitudes_pendientes = (
+            SolicitudAcceso.objects
+            .filter(estado=SolicitudAcceso.Estado.PENDIENTE)
+            .select_related('usuario')
+            .order_by('fecha_solicitud')
+        )
         return render(request, 'core/admin_gestion_usuarios.html', {
-            'form': form,
+            'usuarios': usuarios,
             'pendientes_con_form': pendientes_con_form,
+            'solicitudes_pendientes': solicitudes_pendientes,
         })
 
     def post(self, request):
         action = request.POST.get('action')
 
-        if action == 'crear_usuario':
-            form = AdminCrearUsuarioForm(request.POST)
-            pendientes = CustomUser.objects.filter(
-                groups__name='EMPRESA', empresa__isnull=True, is_active=True
-            ).order_by('username')
-            pendientes_con_form = [
-                (u, AdminAsignarColaboradorForm(prefix=f'assign_{u.pk}'))
-                for u in pendientes
-            ]
-            if form.is_valid():
-                user = form.save()
-                messages.success(request, f'Usuario \u00ab{user.username}\u00bb creado correctamente.')
-                return redirect('core:admin_gestion_usuarios')
-            return render(request, 'core/admin_gestion_usuarios.html', {
-                'form': form,
-                'pendientes_con_form': pendientes_con_form,
-            })
-
-        elif action == 'asignar_empresa':
+        if action == 'asignar_empresa':
             user_pk = request.POST.get('user_pk')
             usuario = get_object_or_404(
                 CustomUser,
@@ -459,7 +453,7 @@ class AdminGestionUsuariosView(LoginRequiredMixin, UserPassesTestMixin, View):
                     usuario.save(update_fields=['empresa', 'rol_interno'])
                     messages.success(
                         request,
-                        f'«{usuario.username}» asignado a {usuario.empresa.razon_social} como {usuario.get_rol_interno_display()}.'
+                        f'\u00ab{usuario.username}\u00bb asignado a {usuario.empresa.razon_social} como {usuario.get_rol_interno_display()}.'
                     )
                 except IntegrityError:
                     messages.error(request, 'No se pudo asignar: la empresa ya tiene un Titular activo.')
@@ -791,9 +785,6 @@ class MiSolicitudView(EmpresaMixin, TemplateView):
         # La relación ahora es FK directa en user.empresa (no reverse 1:1)
         empresa = self.request.user.empresa
         ctx['empresa'] = empresa
-        ctx['es_titular'] = (
-            self.request.user.rol_interno == CustomUser.RolInterno.TITULAR
-        )
         if empresa:
             ctx['historial'] = empresa.historial_estados.select_related('usuario').all()
             ctx['lote'] = empresa.lotes.first()
@@ -805,15 +796,24 @@ class MiSolicitudView(EmpresaMixin, TemplateView):
             ]
             # puede pedir prorroga si esta en construccion
             ctx['puede_pedir_prorroga'] = empresa.estado == Empresa.Estado.EN_CONSTRUCCION
-            # ultimos 12 consumos declarados
-            ctx['consumos'] = empresa.consumos.order_by(
-                '-periodo_anio', '-periodo_mes'
-            )[:12]
-            # miembros de la empresa (solo para titular)
-            if ctx['es_titular']:
-                ctx['miembros'] = empresa.empleados.select_related().order_by(
-                    'rol_interno', 'username'
-                )
+        return ctx
+
+
+class MisConsumosView(EmpresaMixin, ListView):
+    """empresa: consulta sus consumos de servicios en pantalla propia."""
+    model = ConsumoServicio
+    template_name = 'core/mis_consumos.html'
+    context_object_name = 'consumos'
+    paginate_by = 20
+
+    def get_queryset(self):
+        return ConsumoServicio.objects.filter(
+            empresa=self.request.user.empresa,
+        ).order_by('-periodo_anio', '-periodo_mes')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['empresa'] = self.request.user.empresa
         return ctx
 
 
@@ -1043,8 +1043,26 @@ class AvanceValidarView(AdminEnrepaviMixin, View):
     def post(self, request, pk):
         avance = get_object_or_404(AvanceConstructivo, pk=pk, validado_admin=False)
         avance.validado_admin = True
-        avance.save(update_fields=['validado_admin'])
-        messages.success(request, f'Avance de {avance.empresa.razon_social} ({avance.porcentaje_declarado}%) validado.')
+        avance.validado_por = request.user
+        avance.fecha_validacion = timezone.now()
+        avance.save(update_fields=['validado_admin', 'validado_por', 'fecha_validacion'])
+
+        empresa = avance.empresa
+        if (avance.porcentaje_declarado == 100
+                and empresa.estado == Empresa.Estado.EN_CONSTRUCCION):
+            registrar_transicion(
+                empresa, Empresa.Estado.FINALIZADO, request.user,
+                'Obra finalizada por avance validado al 100%',
+            )
+            messages.success(
+                request,
+                f'Avance de {empresa.razon_social} (100%) validado. La empresa pasó a Finalizado.',
+            )
+        else:
+            messages.success(
+                request,
+                f'Avance de {empresa.razon_social} ({avance.porcentaje_declarado}%) validado.',
+            )
         return redirect('core:avances_pendientes')
 
 

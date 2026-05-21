@@ -248,38 +248,6 @@
         </div>
         {% endif %}
 
-        <div class="gpiv-card mb-3">
-            <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Consumos de servicios</h5>
-            {% if consumos %}
-            <div style="overflow-x:auto;">
-                <table style="width:100%;font-size:0.88rem;border-collapse:collapse;">
-                    <thead>
-                        <tr style="border-bottom:1px solid var(--borde);text-align:left;color:var(--gris-suave);">
-                            <th style="padding:0.4rem 0.6rem;">Período</th>
-                            <th style="padding:0.4rem 0.6rem;text-align:right;">Agua potable (m³)</th>
-                            <th style="padding:0.4rem 0.6rem;text-align:right;">Agua cruda (m³)</th>
-                            <th style="padding:0.4rem 0.6rem;text-align:right;">Electricidad (kWh)</th>
-                            <th style="padding:0.4rem 0.6rem;text-align:right;">Gas (m³)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for c in consumos %}
-                        <tr style="border-bottom:1px solid var(--borde);">
-                            <td style="padding:0.4rem 0.6rem;">{{ c.periodo_mes|stringformat:"02d" }}/{{ c.periodo_anio }}</td>
-                            <td style="padding:0.4rem 0.6rem;text-align:right;">{{ c.consumo_agua_potable_m3|default:"—" }}</td>
-                            <td style="padding:0.4rem 0.6rem;text-align:right;">{{ c.consumo_agua_cruda_m3|default:"—" }}</td>
-                            <td style="padding:0.4rem 0.6rem;text-align:right;">{{ c.consumo_luz_kwh|default:"—" }}</td>
-                            <td style="padding:0.4rem 0.6rem;text-align:right;">{{ c.consumo_gas_m3|default:"—" }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <p style="margin:0;color:var(--gris-suave);font-size:0.9rem;">Sin consumos registrados.</p>
-            {% endif %}
-        </div>
-
         {% if historial %}
         <div class="gpiv-card">
             <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Historial de Estado</h5>
@@ -299,52 +267,8 @@
         </div>
         {% endif %}
 
-        {# ── Gestión de equipo: solo visible para el TITULAR ── #}
-        {% if es_titular %}
-        <div class="gpiv-card mb-3" style="border-left: 4px solid var(--verde);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                <h5 style="color:var(--verde);font-weight:700;margin:0;"><i class="bi bi-star-fill"></i> Gestión del equipo</h5>
-                <a href="{% url 'core:empresa_usuarios' %}" class="btn-verde" style="font-size:0.85rem; padding:0.35rem 0.85rem;">
-                    Ver todos los miembros →
-                </a>
-            </div>
-            {% if miembros %}
-            <table style="width:100%;font-size:0.88rem;border-collapse:collapse;">
-                <thead>
-                    <tr style="border-bottom:1px solid var(--borde);color:var(--gris-suave);">
-                        <th style="padding:0.35rem 0.5rem;text-align:left;">Usuario</th>
-                        <th style="padding:0.35rem 0.5rem;text-align:left;">Rol</th>
-                        <th style="padding:0.35rem 0.5rem;text-align:left;">Email</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for m in miembros %}
-                    <tr style="border-bottom:1px solid var(--borde);">
-                        <td style="padding:0.35rem 0.5rem;">{{ m.username }}</td>
-                        <td style="padding:0.35rem 0.5rem;">
-                            {% if m.rol_interno == 'TITULAR' %}
-                                <span style="font-size:0.75rem;font-weight:700;background:#DCFCE7;color:#166534;padding:0.15rem 0.4rem;border-radius:4px;"><i class="bi bi-star-fill"></i> Titular</span>
-                            {% else %}
-                                <span style="font-size:0.75rem;font-weight:700;background:#F1F5F9;color:#475569;padding:0.15rem 0.4rem;border-radius:4px;">Estándar</span>
-                            {% endif %}
-                        </td>
-                        <td style="padding:0.35rem 0.5rem;color:var(--gris-suave);">{{ m.email|default:"—" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <p style="color:var(--gris-suave);font-size:0.9rem;margin:0;">Solo vos sos miembro de esta empresa.</p>
-            {% endif %}
-            <div style="display:flex;gap:0.75rem;margin-top:1rem;flex-wrap:wrap;">
-                <a href="{% url 'core:empresa_invitar' %}" class="btn-verde" style="font-size:0.85rem;padding:0.35rem 0.85rem;"><i class="bi bi-plus-lg"></i> Invitar usuario</a>
-                <a href="{% url 'core:empresa_transferir' %}" class="btn-verde" style="font-size:0.85rem;padding:0.35rem 0.85rem;background:var(--azul);"><i class="bi bi-arrow-left-right"></i> Transferir titularidad</a>
-            </div>
-        </div>
-        {% endif %}
-
         {% endif %}
     </div>
 
 </div>
-{% endblock %}
+{% endblock %}
