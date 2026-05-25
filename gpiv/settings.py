@@ -9,7 +9,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # seguridad
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-fallback-local-only')
-DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
+# En producción, si no se setea la variable DEBUG, el fallback es False (seguro).
+# En desarrollo local, setear DEBUG=True en el .env.
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost,http://127.0.0.1').split(',')
 
@@ -95,6 +97,15 @@ STATICFILES_DIRS = [
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Seguridad HTTP — se activan solo en producción (DEBUG=False).
+# En desarrollo local con HTTP no se aplican para no romper el flujo.
+SESSION_COOKIE_SECURE = not DEBUG   # Cookie de sesión solo por HTTPS
+CSRF_COOKIE_SECURE = not DEBUG      # Cookie CSRF solo por HTTPS
+SECURE_SSL_REDIRECT = not DEBUG     # Redirige HTTP → HTTPS automáticamente
+SECURE_HSTS_SECONDS = 0 if DEBUG else 31536000   # HSTS: 1 año en producción
+SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
+SECURE_HSTS_PRELOAD = not DEBUG
 
 # Usuario customizado para roles
 AUTH_USER_MODEL = 'core.CustomUser'
