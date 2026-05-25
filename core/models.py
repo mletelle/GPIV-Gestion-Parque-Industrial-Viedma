@@ -43,6 +43,17 @@ class CustomUser(AbstractUser):
         ),
     )
 
+    # Sobreescribimos el campo email heredado de AbstractUser para hacerlo único.
+    # Esto es necesario para que la autenticación por email sea confiable y no
+    # retorne múltiples usuarios con el mismo correo.
+    email = models.EmailField(
+        _('correo electrónico'),
+        unique=True,
+        error_messages={
+            'unique': _('Ya existe un usuario con este correo electrónico.'),
+        },
+    )
+
     class Meta:
         constraints = [
             models.UniqueConstraint(

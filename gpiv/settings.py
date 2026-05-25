@@ -98,6 +98,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Usuario customizado para roles
 AUTH_USER_MODEL = 'core.CustomUser'
+
+# Backends de autenticación: primero username/email dual, luego el estándar de Django.
+# El backend propio busca primero por username y, si no coincide, por email (case-insensitive).
+AUTHENTICATION_BACKENDS = [
+    'core.backends.EmailOrUsernameModelBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 LOGIN_URL = 'core:login'
 LOGIN_REDIRECT_URL = 'core:inicio'
 LOGOUT_REDIRECT_URL = 'core:landing'
