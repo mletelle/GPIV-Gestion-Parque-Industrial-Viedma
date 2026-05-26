@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'simple_history',
+    'django_ratelimit',
     'core',
 ]
 
@@ -97,6 +98,21 @@ STATICFILES_DIRS = [
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Caché Redis — requerido por django-ratelimit (necesita shared cache con
+# soporte de incr() atómico). Usa el backend nativo de Django 4+, sin
+# paquetes extra. La URL apunta al servicio 'redis' del docker-compose.
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': os.environ.get('REDIS_URL', 'redis://redis:6379/1'),
+    }
+}
+
+# Rate limiting — usa el cache 'default' configurado arriba.
+# RATELIMIT_FAIL_OPEN=False: si la caché falla, se BLOQUEA (fail closed = más seguro).
+RATELIMIT_USE_CACHE = 'default'
+RATELIMIT_FAIL_OPEN = False
 
 # Seguridad HTTP — se activan solo en producción (DEBUG=False).
 # En desarrollo local con HTTP no se aplican para no romper el flujo.

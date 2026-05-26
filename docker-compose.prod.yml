@@ -10,6 +10,18 @@ services:
     networks:
       - gpiv_network
 
+  redis:
+    image: redis:7-alpine
+    container_name: gpiv_redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - gpiv_network
+
   web:
     build: .
     container_name: gpiv_web
@@ -26,6 +38,7 @@ services:
       - .env
     depends_on:
       - db
+      - redis
     networks:
       - gpiv_network
 
