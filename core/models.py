@@ -63,6 +63,29 @@ class CustomUser(AbstractUser):
             )
         ]
 
+    def clean(self):
+        """
+        Normaliza el email a minúsculas antes de la validación del formulario.
+
+        El campo email tiene unique=True, que en PostgreSQL es un índice B-tree
+        case-sensitive. Guardarlo siempre en minúsculas equivale a una unicidad
+        case-insensitive, evitando que 'User@x.com' y 'user@x.com' coexistan y
+        rompan el lookup email__iexact del backend de autenticación dual.
+        """
+        super().clean()
+        if self.email:
+            self.email = self.email.lower()
+
+    def save(self, *args, **kwargs):
+        """
+        Normaliza el email a minúsculas también en escrituras directas
+        (create_user(), scripts de management, panel de admin, etc.) que no
+        pasan por la validación del formulario y por lo tanto no llaman a clean().
+        """
+        if self.email:
+            self.email = self.email.lower()
+        super().save(*args, **kwargs)
+
 class Empresa(models.Model):
     # Enums de estado y clasificaciones
     class Estado(models.TextChoices):
