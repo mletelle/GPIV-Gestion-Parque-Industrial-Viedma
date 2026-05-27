@@ -7,11 +7,24 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def env_bool(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def ratelimit_client_ip(request):
+    return request.META.get('HTTP_X_REAL_IP') or request.META['REMOTE_ADDR']
+
+
 # seguridad
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-fallback-local-only')
 # En producción, si no se setea la variable DEBUG, el fallback es False (seguro).
 # En desarrollo local, setear DEBUG=True en el .env.
-DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+DEBUG = env_bool('DEBUG', False)
+HTTPS_ENABLED = env_bool('HTTPS_ENABLED', False)
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost,http://127.0.0.1').split(',')
 
@@ -113,28 +126,26 @@ CACHES = {
 # RATELIMIT_FAIL_OPEN=False: si la caché falla, se BLOQUEA (fail closed = más seguro).
 RATELIMIT_USE_CACHE = 'default'
 RATELIMIT_FAIL_OPEN = False
+RATELIMIT_IP_META_KEY = os.environ.get('RATELIMIT_IP_META_KEY') or ratelimit_client_ip
 
-# Proxy inverso (Nginx) — le indica a Django que confíe en el header
-# X-Forwarded-For inyectado por Nginx para obtener la IP real del cliente.
-# NUM_PROXIES=1 descarta todos los valores menos el último añadido por Nginx,
-# evitando que un cliente malicioso falsifique la cabecera.
-NUM_PROXIES = 1
+# django-ratelimit 4.1.0 todavía no lista el RedisCache nativo de Django como
+# backend soportado, aunque soporta add()/incr() atómicos sobre Redis. Usamos el
+# backend nativo para evitar otra dependencia y silenciamos solo ese warning.
+SILENCED_SYSTEM_CHECKS = ['django_ratelimit.W001']
 
-# Seguridad HTTP — se activan solo en producción (DEBUG=False).
-# En desarrollo local con HTTP no se aplican para no romper el flujo.
-#
-# SECURE_PROXY_SSL_HEADER es indispensable cuando Nginx termina TLS y
-# reenvía a Gunicorn por HTTP plano. Sin él, Django nunca considera la
-# conexión como HTTPS y SECURE_SSL_REDIRECT produce un bucle infinito de
-# redirects, dejando el sitio inaccesible en producción.
-# Nginx debe enviar 'X-Forwarded-Proto: https' (ver nginx.conf).
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SESSION_COOKIE_SECURE = not DEBUG   # Cookie de sesión solo por HTTPS
-CSRF_COOKIE_SECURE = not DEBUG      # Cookie CSRF solo por HTTPS
-SECURE_SSL_REDIRECT = not DEBUG     # Redirige HTTP → HTTPS automáticamente
-SECURE_HSTS_SECONDS = 0 if DEBUG else 31536000   # HSTS: 1 año en producción
-SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
-SECURE_HSTS_PRELOAD = not DEBUG
+# Seguridad HTTP — HTTPS debe habilitarse explícitamente cuando exista un camino
+# TLS real (Nginx con 443 o un terminador TLS externo confiable).
+SECURE_PROXY_SSL_HEADER = (
+    ('HTTP_X_FORWARDED_PROTO', 'https') if HTTPS_ENABLED else None
+)
+SESSION_COOKIE_SECURE = HTTPS_ENABLED
+CSRF_COOKIE_SECURE = HTTPS_ENABLED
+SECURE_SSL_REDIRECT = HTTPS_ENABLED
+SECURE_HSTS_SECONDS = int(
+    os.environ.get('SECURE_HSTS_SECONDS', '31536000' if HTTPS_ENABLED else '0')
+)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = HTTPS_ENABLED
+SECURE_HSTS_PRELOAD = HTTPS_ENABLED
 
 # Usuario customizado para roles
 AUTH_USER_MODEL = 'core.CustomUser'

@@ -19,7 +19,7 @@ class EmailOrUsernameModelBackend(ModelBackend):
 
     Orden de búsqueda:
     1. Busca al usuario por username (exacto, comportamiento estándar).
-    2. Si no lo encuentra, busca por email (insensible a mayúsculas).
+    2. Si el identificador parece email, busca por email (case-insensitive).
 
     En caso de múltiples coincidencias por email (no debería ocurrir si el
     campo es unique), se ignoran todas y no se autentica a nadie.
@@ -31,26 +31,38 @@ class EmailOrUsernameModelBackend(ModelBackend):
         if username is None or password is None:
             return None
 
+        identificador = username.strip()
+
         # --- Intento 1: buscar por username exacto ---
         try:
-            user = UserModel.objects.get(username=username)
+            user = UserModel.objects.get(username=identificador)
         except UserModel.DoesNotExist:
             user = None
 
+        if user and user.check_password(password) and self.user_can_authenticate(user):
+            return user
+
         # --- Intento 2: buscar por email (case-insensitive) ---
-        if user is None:
+        if '@' in identificador:
             try:
-                user = UserModel.objects.get(email__iexact=username)
+                email_user = UserModel.objects.get(email__iexact=identificador)
             except UserModel.DoesNotExist:
-                # Ejecutamos el hasher igualmente para mitigar timing attacks
-                UserModel().set_password(password)
-                return None
+                email_user = None
             except UserModel.MultipleObjectsReturned:
                 # Emails duplicados: comportamiento seguro, no autenticar
                 return None
 
-        # Verificar contraseña y que el usuario pueda autenticarse
-        if user.check_password(password) and self.user_can_authenticate(user):
-            return user
+            if (
+                email_user
+                and email_user != user
+                and email_user.check_password(password)
+                and self.user_can_authenticate(email_user)
+            ):
+                return email_user
+
+        # Ejecutamos el hasher igualmente para mitigar timing attacks cuando no
+        # encontramos ningún usuario por username.
+        if user is None:
+            UserModel().set_password(password)
 
         return None

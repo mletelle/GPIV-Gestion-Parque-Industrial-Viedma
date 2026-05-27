@@ -7,6 +7,31 @@ from .models import Lote, Empresa, CustomUser, AvanceConstructivo, SolicitudPror
 from .services import SERVICIO_CAMPOS
 
 
+def _clean_new_username(username):
+    username = username.strip()
+    if '@' in username:
+        raise forms.ValidationError('El nombre de usuario no puede contener @.')
+    if CustomUser.objects.filter(username__iexact=username).exists():
+        raise forms.ValidationError('Este nombre de usuario ya está en uso.')
+    if CustomUser.objects.filter(email__iexact=username).exists():
+        raise forms.ValidationError(
+            'No se puede usar un correo existente como nombre de usuario.'
+        )
+    return username
+
+
+def _clean_new_email(email, duplicate_message='Ya existe una cuenta con este email.'):
+    email = email.strip().lower()
+    if CustomUser.objects.filter(email=email).exists():
+        raise forms.ValidationError(duplicate_message)
+    if CustomUser.objects.filter(username__iexact=email).exists():
+        raise forms.ValidationError(
+            'No se puede usar ese correo electrónico porque coincide con '
+            'un nombre de usuario existente.'
+        )
+    return email
+
+
 class LoginForm(AuthenticationForm):
     """Login con estilo institucional GPIV."""
     username = forms.CharField(
@@ -652,20 +677,16 @@ class SolicitudAccesoForm(forms.ModelForm):
             )
 
     def clean_username(self):
-        username = self.cleaned_data['username'].strip()
-        if CustomUser.objects.filter(username__iexact=username).exists():
-            raise forms.ValidationError(
-                'No se puede usar ese nombre de usuario. Elegí otro.'
-            )
-        return username
+        return _clean_new_username(self.cleaned_data['username'])
 
     def clean_email_institucional(self):
-        email = self.cleaned_data['email_institucional'].strip().lower()
-        if CustomUser.objects.filter(email__iexact=email).exists():
-            raise forms.ValidationError(
+        email = _clean_new_email(
+            self.cleaned_data['email_institucional'],
+            duplicate_message=(
                 'No se pudo procesar la solicitud con esos datos. '
                 'Si ya tenés cuenta, iniciá sesión.'
-            )
+            ),
+        )
         if SolicitudAcceso.objects.filter(
             email_institucional__iexact=email,
             estado=SolicitudAcceso.Estado.PENDIENTE,
@@ -920,10 +941,7 @@ class RegistroEmpresaWizardForm(forms.Form):
     )
 
     def clean_username(self):
-        username = self.cleaned_data['username'].strip()
-        if CustomUser.objects.filter(username__iexact=username).exists():
-            raise forms.ValidationError('Ese nombre de usuario ya está en uso.')
-        return username
+        return _clean_new_username(self.cleaned_data['username'])
 
     def clean_representante_email(self):
         """
@@ -934,13 +952,13 @@ class RegistroEmpresaWizardForm(forms.Form):
         Se normaliza a minúsculas aquí (igual que CustomUser.save()) para que la
         verificación de unicidad nunca sea eludida por diferencias de capitalización.
         """
-        email = self.cleaned_data['representante_email'].strip().lower()
-        if CustomUser.objects.filter(email=email).exists():
-            raise forms.ValidationError(
+        return _clean_new_email(
+            self.cleaned_data['representante_email'],
+            duplicate_message=(
                 'Ya existe una cuenta registrada con ese correo electrónico. '
                 'Si ya tenés cuenta, iniciá sesión directamente.'
-            )
-        return email
+            ),
+        )
 
     def clean_cuit(self):
         import re
@@ -994,18 +1012,12 @@ class RegistroColaboradorForm(forms.Form):
     )
 
     def clean_username(self):
-        username = self.cleaned_data['username'].strip()
-        if CustomUser.objects.filter(username__iexact=username).exists():
-            raise forms.ValidationError('Este nombre de usuario ya está en uso.')
-        return username
+        return _clean_new_username(self.cleaned_data['username'])
 
     def clean_email(self):
         # Normalizar a minúsculas para que la verificación sea consistente con
         # CustomUser.save(), que también almacena emails en minúsculas.
-        email = self.cleaned_data['email'].strip().lower()
-        if CustomUser.objects.filter(email=email).exists():
-            raise forms.ValidationError('Ya existe una cuenta con este email.')
-        return email
+        return _clean_new_email(self.cleaned_data['email'])
 
     def clean(self):
         cleaned = super().clean()
@@ -1094,18 +1106,12 @@ class AdminCrearUsuarioForm(forms.Form):
         self.fields['empresa'].queryset = Empresa.objects.order_by('razon_social')
 
     def clean_username(self):
-        username = self.cleaned_data['username'].strip()
-        if CustomUser.objects.filter(username__iexact=username).exists():
-            raise forms.ValidationError('Este nombre de usuario ya está en uso.')
-        return username
+        return _clean_new_username(self.cleaned_data['username'])
 
     def clean_email(self):
         # Normalizar a minúsculas para que la verificación sea consistente con
         # CustomUser.save(), que también almacena emails en minúsculas.
-        email = self.cleaned_data['email'].strip().lower()
-        if CustomUser.objects.filter(email=email).exists():
-            raise forms.ValidationError('Ya existe una cuenta con este email.')
-        return email
+        return _clean_new_email(self.cleaned_data['email'])
 
     def clean(self):
         cleaned = super().clean()

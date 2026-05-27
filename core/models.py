@@ -48,6 +48,8 @@ class CustomUser(AbstractUser):
     # retorne múltiples usuarios con el mismo correo.
     email = models.EmailField(
         _('correo electrónico'),
+        blank=True,
+        null=True,
         unique=True,
         error_messages={
             'unique': _('Ya existe un usuario con este correo electrónico.'),
@@ -73,8 +75,7 @@ class CustomUser(AbstractUser):
         rompan el lookup email__iexact del backend de autenticación dual.
         """
         super().clean()
-        if self.email:
-            self.email = self.email.lower()
+        self.email = self._normalize_email(self.email)
 
     def save(self, *args, **kwargs):
         """
@@ -82,9 +83,15 @@ class CustomUser(AbstractUser):
         (create_user(), scripts de management, panel de admin, etc.) que no
         pasan por la validación del formulario y por lo tanto no llaman a clean().
         """
-        if self.email:
-            self.email = self.email.lower()
+        self.email = self._normalize_email(self.email)
         super().save(*args, **kwargs)
+
+    @staticmethod
+    def _normalize_email(email):
+        if not email:
+            return None
+        email = email.strip().lower()
+        return email or None
 
 class Empresa(models.Model):
     # Enums de estado y clasificaciones

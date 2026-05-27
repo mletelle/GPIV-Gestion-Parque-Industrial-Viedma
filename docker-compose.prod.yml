@@ -14,6 +14,13 @@ services:
     image: redis:7-alpine
     container_name: gpiv_redis
     restart: unless-stopped
+    command: [
+      "redis-server",
+      "--save", "",
+      "--appendonly", "no",
+      "--maxmemory", "64mb",
+      "--maxmemory-policy", "allkeys-lru",
+    ]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s

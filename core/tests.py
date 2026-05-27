@@ -12,7 +12,7 @@ from io import StringIO
 from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
-from django.contrib.auth import get_user_model
+from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
@@ -21,7 +21,7 @@ from django.urls import reverse
 from django.utils import timezone
 from simple_history.models import HistoricalRecords
 
-from core.forms import RegistroEmpresaWizardForm
+from core.forms import RegistroColaboradorForm, RegistroEmpresaWizardForm
 from core.models import (
     Empresa, Lote, TransicionEstado, AvanceConstructivo,
     SolicitudProrroga, ConsumoServicio, Ticket, MensajeTicket,
@@ -2089,3 +2089,64 @@ class RBACServicesTests(TestCase):
     def test_remover_titular_lanza_excepcion(self):
         with self.assertRaises(NoSePuedeDegradarTitularError):
             remover_miembro(self.emp, self.titular, self.titular)
+
+
+class EmailLoginNamespaceTests(TestCase):
+    """Reglas de email opcional y namespace compartido username/email."""
+
+    def test_create_user_sin_email_guarda_null_y_permite_multiples(self):
+        u1 = CustomUser.objects.create_user(username='sin_email_1', password=PASSWORD)
+        u2 = CustomUser.objects.create_user(username='sin_email_2', password=PASSWORD)
+
+        self.assertIsNone(u1.email)
+        self.assertIsNone(u2.email)
+        self.assertEqual(CustomUser.objects.filter(email__isnull=True).count(), 2)
+
+    def test_login_por_email_fallback_si_username_legacy_colisiona(self):
+        usuario_email = CustomUser.objects.create_user(
+            username='usuario_email',
+            email='persona@example.com',
+            password=PASSWORD,
+        )
+        CustomUser.objects.create_user(
+            username='persona@example.com',
+            email='legacy@example.com',
+            password='OtraPassword123!',
+        )
+
+        autenticado = authenticate(username='persona@example.com', password=PASSWORD)
+
+        self.assertEqual(autenticado, usuario_email)
+
+    def test_registro_colaborador_bloquea_colisiones_username_email(self):
+        CustomUser.objects.create_user(
+            username='usuario_existente',
+            email='ocupado@example.com',
+            password=PASSWORD,
+        )
+        CustomUser.objects.create_user(
+            username='legacy@example.com',
+            password=PASSWORD,
+        )
+
+        form_username_email = RegistroColaboradorForm(data={
+            'first_name': 'Ana',
+            'last_name': 'Prueba',
+            'username': 'ocupado@example.com',
+            'email': 'ana@example.com',
+            'password1': PASSWORD,
+            'password2': PASSWORD,
+        })
+        form_email_username = RegistroColaboradorForm(data={
+            'first_name': 'Luis',
+            'last_name': 'Prueba',
+            'username': 'luis_prueba',
+            'email': 'legacy@example.com',
+            'password1': PASSWORD,
+            'password2': PASSWORD,
+        })
+
+        self.assertFalse(form_username_email.is_valid())
+        self.assertIn('username', form_username_email.errors)
+        self.assertFalse(form_email_username.is_valid())
+        self.assertIn('email', form_email_username.errors)
