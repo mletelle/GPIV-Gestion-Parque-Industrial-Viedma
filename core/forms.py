@@ -925,6 +925,23 @@ class RegistroEmpresaWizardForm(forms.Form):
             raise forms.ValidationError('Ese nombre de usuario ya está en uso.')
         return username
 
+    def clean_representante_email(self):
+        """
+        Valida el email del representante legal ANTES de que la vista llame a
+        create_user(). Sin esta validación, un email duplicado provoca un
+        IntegrityError en la capa de base de datos y devuelve un 500 al usuario.
+
+        Se normaliza a minúsculas aquí (igual que CustomUser.save()) para que la
+        verificación de unicidad nunca sea eludida por diferencias de capitalización.
+        """
+        email = self.cleaned_data['representante_email'].strip().lower()
+        if CustomUser.objects.filter(email=email).exists():
+            raise forms.ValidationError(
+                'Ya existe una cuenta registrada con ese correo electrónico. '
+                'Si ya tenés cuenta, iniciá sesión directamente.'
+            )
+        return email
+
     def clean_cuit(self):
         import re
         cuit = self.cleaned_data['cuit'].strip()
@@ -983,8 +1000,10 @@ class RegistroColaboradorForm(forms.Form):
         return username
 
     def clean_email(self):
-        email = self.cleaned_data['email'].strip()
-        if CustomUser.objects.filter(email__iexact=email).exists():
+        # Normalizar a minúsculas para que la verificación sea consistente con
+        # CustomUser.save(), que también almacena emails en minúsculas.
+        email = self.cleaned_data['email'].strip().lower()
+        if CustomUser.objects.filter(email=email).exists():
             raise forms.ValidationError('Ya existe una cuenta con este email.')
         return email
 
@@ -1081,8 +1100,10 @@ class AdminCrearUsuarioForm(forms.Form):
         return username
 
     def clean_email(self):
-        email = self.cleaned_data['email'].strip()
-        if CustomUser.objects.filter(email__iexact=email).exists():
+        # Normalizar a minúsculas para que la verificación sea consistente con
+        # CustomUser.save(), que también almacena emails en minúsculas.
+        email = self.cleaned_data['email'].strip().lower()
+        if CustomUser.objects.filter(email=email).exists():
             raise forms.ValidationError('Ya existe una cuenta con este email.')
         return email
 
