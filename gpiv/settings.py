@@ -122,6 +122,13 @@ NUM_PROXIES = 1
 
 # Seguridad HTTP — se activan solo en producción (DEBUG=False).
 # En desarrollo local con HTTP no se aplican para no romper el flujo.
+#
+# SECURE_PROXY_SSL_HEADER es indispensable cuando Nginx termina TLS y
+# reenvía a Gunicorn por HTTP plano. Sin él, Django nunca considera la
+# conexión como HTTPS y SECURE_SSL_REDIRECT produce un bucle infinito de
+# redirects, dejando el sitio inaccesible en producción.
+# Nginx debe enviar 'X-Forwarded-Proto: https' (ver nginx.conf).
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SESSION_COOKIE_SECURE = not DEBUG   # Cookie de sesión solo por HTTPS
 CSRF_COOKIE_SECURE = not DEBUG      # Cookie CSRF solo por HTTPS
 SECURE_SSL_REDIRECT = not DEBUG     # Redirige HTTP → HTTPS automáticamente
