@@ -114,6 +114,12 @@ CACHES = {
 RATELIMIT_USE_CACHE = 'default'
 RATELIMIT_FAIL_OPEN = False
 
+# Proxy inverso (Nginx) — le indica a Django que confíe en el header
+# X-Forwarded-For inyectado por Nginx para obtener la IP real del cliente.
+# NUM_PROXIES=1 descarta todos los valores menos el último añadido por Nginx,
+# evitando que un cliente malicioso falsifique la cabecera.
+NUM_PROXIES = 1
+
 # Seguridad HTTP — se activan solo en producción (DEBUG=False).
 # En desarrollo local con HTTP no se aplican para no romper el flujo.
 SESSION_COOKIE_SECURE = not DEBUG   # Cookie de sesión solo por HTTPS
