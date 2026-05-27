@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Mis Consumos — GPIV{% endblock %}
+{% block title %}Mis Consumos - GPIV{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -83,11 +83,11 @@
                 <table class="tabla-consumos">
                     <thead>
                         <tr>
-                            <th>Período</th>
-                            <th class="valor-num">Agua potable (m³)</th>
-                            <th class="valor-num">Agua cruda (m³)</th>
+                            <th>Periodo</th>
+                            <th class="valor-num">Agua potable (m3)</th>
+                            <th class="valor-num">Agua cruda (m3)</th>
                             <th class="valor-num">Electricidad (kWh)</th>
-                            <th class="valor-num">Gas (m³)</th>
+                            <th class="valor-num">Gas (m3)</th>
                             <th>Fecha de carga</th>
                         </tr>
                     </thead>
@@ -95,10 +95,10 @@
                         {% for c in consumos %}
                         <tr>
                             <td><strong>{{ c.periodo_mes|stringformat:"02d" }}/{{ c.periodo_anio }}</strong></td>
-                            <td class="valor-num">{{ c.consumo_agua_potable_m3|default:"—" }}</td>
-                            <td class="valor-num">{{ c.consumo_agua_cruda_m3|default:"—" }}</td>
-                            <td class="valor-num">{{ c.consumo_luz_kwh|default:"—" }}</td>
-                            <td class="valor-num">{{ c.consumo_gas_m3|default:"—" }}</td>
+                            <td class="valor-num">{{ c.consumo_agua_potable_m3|default:"-" }}</td>
+                            <td class="valor-num">{{ c.consumo_agua_cruda_m3|default:"-" }}</td>
+                            <td class="valor-num">{{ c.consumo_luz_kwh|default:"-" }}</td>
+                            <td class="valor-num">{{ c.consumo_gas_m3|default:"-" }}</td>
                             <td>{{ c.fecha_carga|date:"d/m/Y H:i" }}</td>
                         </tr>
                         {% endfor %}
@@ -114,7 +114,7 @@
         </div>
 
         {% if page_obj.has_other_pages %}
-        <nav class="mt-4" aria-label="Paginación">
+        <nav class="mt-4" aria-label="Paginacion">
             <ul class="pagination justify-content-center">
                 {% if page_obj.has_previous %}
                 <li class="page-item">
