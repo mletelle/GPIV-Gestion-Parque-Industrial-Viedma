@@ -58,20 +58,23 @@
 <div class="login-wrap">
     <div class="login-card">
         <h2>Acceder al sistema</h2>
-        <p class="login-sub">Ingresá tus credenciales para continuar.</p>
+        <p class="login-sub">Ingresá tu usuario o correo electrónico junto con tu contraseña para continuar.</p>
 
         {% if form.errors %}
         <div class="login-error">
             <i class="bi bi-exclamation-circle me-1"></i>
-            Usuario o contraseña incorrectos.
+            Usuario, Correo Electrónico o Contraseña incorrectos.
         </div>
         {% endif %}
 
         <form method="post" class="form-gpiv" novalidate>
             {% csrf_token %}
             <div class="mb-3">
-                <label for="id_username">Usuario</label>
+                <label for="id_username">Usuario o Correo Electrónico</label>
                 {{ form.username }}
+                <small class="text-muted" style="font-size:0.78rem;display:block;margin-top:0.3rem;">
+                    Podés ingresar con tu nombre de usuario o tu correo electrónico registrado.
+                </small>
             </div>
             <div class="mb-2">
                 <label for="id_password">Contraseña</label>

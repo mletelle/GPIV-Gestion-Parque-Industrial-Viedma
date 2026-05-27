@@ -43,6 +43,19 @@ class CustomUser(AbstractUser):
         ),
     )
 
+    # Sobreescribimos el campo email heredado de AbstractUser para hacerlo único.
+    # Esto es necesario para que la autenticación por email sea confiable y no
+    # retorne múltiples usuarios con el mismo correo.
+    email = models.EmailField(
+        _('correo electrónico'),
+        blank=True,
+        null=True,
+        unique=True,
+        error_messages={
+            'unique': _('Ya existe un usuario con este correo electrónico.'),
+        },
+    )
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -51,6 +64,34 @@ class CustomUser(AbstractUser):
                 name='unique_titular_activo_por_empresa',
             )
         ]
+
+    def clean(self):
+        """
+        Normaliza el email a minúsculas antes de la validación del formulario.
+
+        El campo email tiene unique=True, que en PostgreSQL es un índice B-tree
+        case-sensitive. Guardarlo siempre en minúsculas equivale a una unicidad
+        case-insensitive, evitando que 'User@x.com' y 'user@x.com' coexistan y
+        rompan el lookup email__iexact del backend de autenticación dual.
+        """
+        super().clean()
+        self.email = self._normalize_email(self.email)
+
+    def save(self, *args, **kwargs):
+        """
+        Normaliza el email a minúsculas también en escrituras directas
+        (create_user(), scripts de management, panel de admin, etc.) que no
+        pasan por la validación del formulario y por lo tanto no llaman a clean().
+        """
+        self.email = self._normalize_email(self.email)
+        super().save(*args, **kwargs)
+
+    @staticmethod
+    def _normalize_email(email):
+        if not email:
+            return None
+        email = email.strip().lower()
+        return email or None
 
 class Empresa(models.Model):
     # Enums de estado y clasificaciones

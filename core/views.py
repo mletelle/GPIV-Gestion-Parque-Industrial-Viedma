@@ -14,8 +14,11 @@ from django.utils import timezone
 from django.db.models import Sum, Q
 from django.db import transaction, IntegrityError
 from django.core.exceptions import MultipleObjectsReturned
+from django.utils.decorators import method_decorator
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
+from django_ratelimit.decorators import ratelimit
+from django_ratelimit.exceptions import Ratelimited
 
 from .models import (
     Lote, Empresa, TransicionEstado, AvanceConstructivo,
@@ -60,10 +63,19 @@ class LandingPageView(TemplateView):
         return super().get(request, *args, **kwargs)
 
  # autenticacion
+@method_decorator(
+    ratelimit(key='ip', rate='10/5m', method='POST', block=False),
+    name='post',
+)
 class CustomLoginView(LoginView):
     template_name = 'core/login.html'
     authentication_form = LoginForm
     redirect_authenticated_user = True
+
+    def post(self, request, *args, **kwargs):
+        if getattr(request, 'limited', False):
+            return render(request, 'core/429.html', status=429)
+        return super().post(request, *args, **kwargs)
 
     def get_success_url(self):
         return reverse_lazy('core:inicio')
@@ -259,9 +271,12 @@ class RegistroEmpresaView(View):
             return redirect('core:inicio')
         return render(request, self.template_name, {'form': RegistroEmpresaWizardForm()})
 
+    @method_decorator(ratelimit(key='ip', rate='5/10m', method='POST', block=False))
     def post(self, request):
         if request.user.is_authenticated:
             return redirect('core:inicio')
+        if getattr(request, 'limited', False):
+            return render(request, 'core/429.html', status=429)
 
         form = RegistroEmpresaWizardForm(request.POST)
         if not form.is_valid():
@@ -377,9 +392,12 @@ class RegistroColaboradorView(View):
             return redirect('core:inicio')
         return render(request, 'core/registro_colaborador.html', {'form': RegistroColaboradorForm()})
 
+    @method_decorator(ratelimit(key='ip', rate='5/10m', method='POST', block=False))
     def post(self, request):
         if request.user.is_authenticated:
             return redirect('core:inicio')
+        if getattr(request, 'limited', False):
+            return render(request, 'core/429.html', status=429)
         form = RegistroColaboradorForm(request.POST)
         if form.is_valid():
             user = form.save()
@@ -509,6 +527,18 @@ class SolicitudAccesoCreateView(CreateView):
         if request.user.is_authenticated:
             return redirect('core:inicio')
         self.tipo = self.TIPO_POR_SLUG[slug]
+        # Rate limiting solo en POST (intentos de envío del formulario)
+        if request.method == 'POST':
+            from django_ratelimit.core import is_ratelimited
+            limited = is_ratelimited(
+                request,
+                group='solicitud_acceso',
+                key='ip',
+                rate='5/10m',
+                increment=True,
+            )
+            if limited:
+                return render(request, 'core/429.html', status=429)
         return super().dispatch(request, *args, **kwargs)
 
     def get_form_kwargs(self):

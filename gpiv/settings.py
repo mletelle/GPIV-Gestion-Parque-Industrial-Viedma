@@ -7,9 +7,24 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def env_bool(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def ratelimit_client_ip(request):
+    return request.META.get('HTTP_X_REAL_IP') or request.META['REMOTE_ADDR']
+
+
 # seguridad
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-fallback-local-only')
-DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
+# En producción, si no se setea la variable DEBUG, el fallback es False (seguro).
+# En desarrollo local, setear DEBUG=True en el .env.
+DEBUG = env_bool('DEBUG', False)
+HTTPS_ENABLED = env_bool('HTTPS_ENABLED', False)
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost,http://127.0.0.1').split(',')
 
@@ -22,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'simple_history',
+    'django_ratelimit',
     'core',
 ]
 
@@ -96,8 +112,51 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Caché Redis — requerido por django-ratelimit (necesita shared cache con
+# soporte de incr() atómico). Usa el backend nativo de Django 4+, sin
+# paquetes extra. La URL apunta al servicio 'redis' del docker-compose.
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': os.environ.get('REDIS_URL', 'redis://redis:6379/1'),
+    }
+}
+
+# Rate limiting — usa el cache 'default' configurado arriba.
+# RATELIMIT_FAIL_OPEN=False: si la caché falla, se BLOQUEA (fail closed = más seguro).
+RATELIMIT_USE_CACHE = 'default'
+RATELIMIT_FAIL_OPEN = False
+RATELIMIT_IP_META_KEY = os.environ.get('RATELIMIT_IP_META_KEY') or ratelimit_client_ip
+
+# django-ratelimit 4.1.0 todavía no lista el RedisCache nativo de Django como
+# backend soportado, aunque soporta add()/incr() atómicos sobre Redis. Usamos el
+# backend nativo para evitar otra dependencia y silenciamos solo ese warning.
+SILENCED_SYSTEM_CHECKS = ['django_ratelimit.W001']
+
+# Seguridad HTTP — HTTPS debe habilitarse explícitamente cuando exista un camino
+# TLS real (Nginx con 443 o un terminador TLS externo confiable).
+SECURE_PROXY_SSL_HEADER = (
+    ('HTTP_X_FORWARDED_PROTO', 'https') if HTTPS_ENABLED else None
+)
+SESSION_COOKIE_SECURE = HTTPS_ENABLED
+CSRF_COOKIE_SECURE = HTTPS_ENABLED
+SECURE_SSL_REDIRECT = HTTPS_ENABLED
+SECURE_HSTS_SECONDS = int(
+    os.environ.get('SECURE_HSTS_SECONDS', '31536000' if HTTPS_ENABLED else '0')
+)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = HTTPS_ENABLED
+SECURE_HSTS_PRELOAD = HTTPS_ENABLED
+
 # Usuario customizado para roles
 AUTH_USER_MODEL = 'core.CustomUser'
+
+# Backends de autenticación: primero username/email dual, luego el estándar de Django.
+# El backend propio busca primero por username y, si no coincide, por email (case-insensitive).
+AUTHENTICATION_BACKENDS = [
+    'core.backends.EmailOrUsernameModelBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 LOGIN_URL = 'core:login'
 LOGIN_REDIRECT_URL = 'core:inicio'
 LOGOUT_REDIRECT_URL = 'core:landing'
