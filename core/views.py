@@ -1,17 +1,19 @@
 import logging
 
+from urllib.parse import urlencode
+
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import Group
 from django.views.generic import (
     TemplateView, ListView, CreateView, UpdateView, DetailView, View
 )
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, Max
 from django.db import transaction, IntegrityError
 from django.core.exceptions import MultipleObjectsReturned
 from django.utils.decorators import method_decorator
@@ -856,17 +858,55 @@ class SolicitudListView(AdminEnrepaviMixin, ListView):
     context_object_name = 'solicitudes'
     paginate_by = 20
 
+    GRUPOS_FILTRO = {
+        'obras_activas': 'Obras activas',
+        'con_avance': 'Con avance validado',
+        'vencidas': 'Obras vencidas',
+        'proximas_vencer': 'Obras por vencer',
+    }
+
     def get_queryset(self):
         qs = Empresa.objects.prefetch_related('empleados').order_by('-pk')
+        grupo = self.request.GET.get('grupo')
         estado = self.request.GET.get('estado')
-        if estado and estado in dict(Empresa.Estado.choices):
+        hoy = timezone.now().date()
+        if grupo == 'obras_activas':
+            qs = qs.filter(
+                estado__in=[Empresa.Estado.RADICADA, Empresa.Estado.EN_CONSTRUCCION],
+            )
+        elif grupo == 'con_avance':
+            qs = qs.filter(
+                estado__in=[
+                    Empresa.Estado.RADICADA,
+                    Empresa.Estado.EN_CONSTRUCCION,
+                    Empresa.Estado.FINALIZADO,
+                    Empresa.Estado.ESCRITURADO,
+                ],
+                avances_constructivos__validado_admin=True,
+            ).distinct()
+        elif grupo == 'vencidas':
+            qs = qs.filter(
+                estado__in=[Empresa.Estado.RADICADA, Empresa.Estado.EN_CONSTRUCCION],
+                fecha_limite_obra__lt=hoy,
+            )
+        elif grupo == 'proximas_vencer':
+            limite = hoy + timedelta(days=30)
+            qs = qs.filter(
+                estado=Empresa.Estado.EN_CONSTRUCCION,
+                fecha_limite_obra__gte=hoy,
+                fecha_limite_obra__lte=limite,
+            )
+        elif estado and estado in dict(Empresa.Estado.choices):
             qs = qs.filter(estado=estado)
         return qs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        grupo = self.request.GET.get('grupo', '')
         ctx['estados_choices'] = Empresa.Estado.choices
         ctx['filtro_estado'] = self.request.GET.get('estado', '')
+        ctx['filtro_grupo'] = grupo if grupo in self.GRUPOS_FILTRO else ''
+        ctx['filtro_grupo_label'] = self.GRUPOS_FILTRO.get(grupo, '')
         return ctx
 
 
@@ -1071,19 +1111,29 @@ class AvancesPendientesView(AdminEnrepaviMixin, ListView):
 class AvanceValidarView(AdminEnrepaviMixin, View):
     """admin: validar un avance constructivo"""
     def post(self, request, pk):
-        avance = get_object_or_404(AvanceConstructivo, pk=pk, validado_admin=False)
-        avance.validado_admin = True
-        avance.validado_por = request.user
-        avance.fecha_validacion = timezone.now()
-        avance.save(update_fields=['validado_admin', 'validado_por', 'fecha_validacion'])
-
-        empresa = avance.empresa
-        if (avance.porcentaje_declarado == 100
-                and empresa.estado == Empresa.Estado.EN_CONSTRUCCION):
-            registrar_transicion(
-                empresa, Empresa.Estado.FINALIZADO, request.user,
-                'Obra finalizada por avance validado al 100%',
+        with transaction.atomic():
+            avance = get_object_or_404(
+                AvanceConstructivo.objects.select_for_update(),
+                pk=pk,
+                validado_admin=False,
             )
+            empresa = Empresa.objects.select_for_update().get(pk=avance.empresa_id)
+            avance.validado_admin = True
+            avance.validado_por = request.user
+            avance.fecha_validacion = timezone.now()
+            avance.save(update_fields=['validado_admin', 'validado_por', 'fecha_validacion'])
+
+            finaliza_obra = (
+                avance.porcentaje_declarado >= 100
+                and empresa.estado == Empresa.Estado.EN_CONSTRUCCION
+            )
+            if finaliza_obra:
+                registrar_transicion(
+                    empresa, Empresa.Estado.FINALIZADO, request.user,
+                    'Obra finalizada por avance validado al 100%',
+                )
+
+        if finaliza_obra:
             messages.success(
                 request,
                 f'Avance de {empresa.razon_social} (100%) validado. La empresa pasó a Finalizado.',
@@ -1406,8 +1456,26 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
             periodos.append((periodo.year, periodo.month, f'{periodo.month:02d}/{str(periodo.year)[2:]}'))
         return periodos
 
+    @staticmethod
+    def _dashboard_url(nombre, **params):
+        url = reverse(nombre)
+        params_limpios = {k: v for k, v in params.items() if v not in (None, '')}
+        if params_limpios:
+            return f'{url}?{urlencode(params_limpios)}'
+        return url
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        puede_gestionar = (
+            self.request.user.is_superuser
+            or self.request.user.groups.filter(name='ADMIN_ENREPAVI').exists()
+        )
+
+        def action_url(nombre, **params):
+            if not puede_gestionar:
+                return ''
+            return self._dashboard_url(nombre, **params)
+
         empresas = Empresa.objects.filter(
             estado__in=self.ESTADOS_ACTIVOS,
         ).prefetch_related('lotes').order_by('razon_social')
@@ -1423,11 +1491,27 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
         pct_num = (lotes_en_uso / total_lotes * 100) if total_lotes else 0
         pct_ocupacion = f'{pct_num:.1f}'
         ocupacion_items = [
-            {'label': 'Disponibles', 'cantidad': lotes_disponibles, 'color': '#22C55E'},
-            {'label': 'En uso', 'cantidad': lotes_en_uso, 'color': '#64748B'},
-            {'label': 'Reserva fiscal', 'cantidad': lotes_reserva, 'color': '#FBBF24'},
+            {
+                'label': 'Disponibles',
+                'cantidad': lotes_disponibles,
+                'color': '#22C55E',
+                'href': action_url('core:lote_list', estado=Lote.Estado.DISPONIBLE),
+            },
+            {
+                'label': 'En uso',
+                'cantidad': lotes_en_uso,
+                'color': '#64748B',
+                'href': action_url('core:lote_list', estado=Lote.Estado.EN_USO),
+            },
+            {
+                'label': 'Reserva fiscal',
+                'cantidad': lotes_reserva,
+                'color': '#FBBF24',
+                'href': action_url('core:lote_list', estado=Lote.Estado.RESERVA_FISCAL),
+            },
         ]
         ocupacion_gradient = self._conic_gradient(ocupacion_items)
+        ocupacion_total_href = action_url('core:lote_list')
 
         empresas_por_estado = []
         for idx, (valor, label) in enumerate(Empresa.Estado.choices):
@@ -1437,6 +1521,7 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
                     'label': label,
                     'cantidad': cant,
                     'color': self.COLORES_ESTADO[idx % len(self.COLORES_ESTADO)],
+                    'href': action_url('core:solicitud_list', estado=valor),
                 })
         max_empresas_estado = max(
             [item['cantidad'] for item in empresas_por_estado] or [1]
@@ -1470,24 +1555,9 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
                 })
         rubros_gradient = self._conic_gradient(rubros)
 
-        # consumos del ultimo periodo cargado
         ultimo = ConsumoServicio.objects.order_by(
             '-periodo_anio', '-periodo_mes',
         ).first()
-        consumos_periodo = None
-        periodo_consumo = None
-        if ultimo:
-            consumos_periodo = ConsumoServicio.objects.filter(
-                periodo_mes=ultimo.periodo_mes,
-                periodo_anio=ultimo.periodo_anio,
-            ).aggregate(
-                total_agua_potable=Sum('consumo_agua_potable_m3'),
-                total_agua_cruda=Sum('consumo_agua_cruda_m3'),
-                total_kwh=Sum('consumo_luz_kwh'),
-                total_gas=Sum('consumo_gas_m3'),
-            )
-            periodo_consumo = f'{ultimo.periodo_mes:02d}/{ultimo.periodo_anio}'
-
         servicios_consumo = [
             {
                 'clave': 'agua_potable',
@@ -1526,36 +1596,28 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
                 'color': '#EF4444',
             },
         ]
-        consumo_barras = []
-        if consumos_periodo:
-            for servicio in servicios_consumo:
-                valor = float(consumos_periodo.get(servicio['total_key']) or 0)
-                consumo_barras.append({
-                    **servicio,
-                    'valor': valor,
-                    'pct': 0,
-                    'pct_css': '0',
-                })
-
-        periodos_consumo = self._periodos_ultimos_meses(ultimo)
+        periodos_consumo = self._periodos_ultimos_meses(ultimo, cantidad=6)
         consumo_evolucion = []
-        pct_actual_por_servicio = {}
         if periodos_consumo:
-            agregados_periodo = {}
+            filtro_periodos = Q()
             for anio, mes, _ in periodos_consumo:
-                agregados_periodo[(anio, mes)] = ConsumoServicio.objects.filter(
-                    periodo_anio=anio,
-                    periodo_mes=mes,
-                ).aggregate(
+                filtro_periodos |= Q(periodo_anio=anio, periodo_mes=mes)
+            agregados_periodo = {
+                (item['periodo_anio'], item['periodo_mes']): item
+                for item in ConsumoServicio.objects.filter(filtro_periodos).values(
+                    'periodo_anio',
+                    'periodo_mes',
+                ).annotate(
                     total_agua_potable=Sum('consumo_agua_potable_m3'),
                     total_agua_cruda=Sum('consumo_agua_cruda_m3'),
                     total_kwh=Sum('consumo_luz_kwh'),
                     total_gas=Sum('consumo_gas_m3'),
                 )
+            }
             for servicio in servicios_consumo:
                 valores = [
                     float(
-                        agregados_periodo[(anio, mes)].get(servicio['total_key'])
+                        agregados_periodo.get((anio, mes), {}).get(servicio['total_key'])
                         or 0
                     )
                     for anio, mes, _ in periodos_consumo
@@ -1564,8 +1626,6 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
                 ultimo_valor = valores[-1] if valores else 0
                 delta = ultimo_valor - primero
                 delta_pct = (delta / primero * 100) if primero else 0
-                max_servicio = max(valores or [1]) or 1
-                pct_actual_por_servicio[servicio['clave']] = ultimo_valor / max_servicio * 100
                 consumo_evolucion.append({
                     **servicio,
                     'valores': valores,
@@ -1574,15 +1634,8 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
                     'delta': delta,
                     'delta_pct': delta_pct,
                 })
-        for item in consumo_barras:
-            pct = pct_actual_por_servicio.get(
-                item['clave'],
-                100 if item['valor'] else 0,
-            )
-            item['pct'] = pct
-            item['pct_css'] = f'{pct:.1f}'
 
-        # tareas pendientes
+        # tareas pendientes y kpis operativos
         avances_pendientes = AvanceConstructivo.objects.filter(
             validado_admin=False,
         ).count()
@@ -1592,15 +1645,115 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
         solicitudes_evaluacion = Empresa.objects.filter(
             estado=Empresa.Estado.EN_EVALUACION,
         ).count()
+        solicitudes_preaprobadas = Empresa.objects.filter(
+            estado=Empresa.Estado.PRE_APROBADO,
+        ).count()
 
-        # obras proximas a vencer (30 dias)
         hoy = timezone.now().date()
         limite = hoy + timedelta(days=30)
+        obras_activas = Empresa.objects.filter(
+            estado__in=[Empresa.Estado.RADICADA, Empresa.Estado.EN_CONSTRUCCION],
+        ).count()
+        obras_finalizadas_sin_escritura = Empresa.objects.filter(
+            estado=Empresa.Estado.FINALIZADO,
+        ).count()
+        obras_vencidas = Empresa.objects.filter(
+            estado__in=[Empresa.Estado.RADICADA, Empresa.Estado.EN_CONSTRUCCION],
+            fecha_limite_obra__lt=hoy,
+        ).count()
+        avances_por_empresa = list(
+            Empresa.objects.filter(
+                estado__in=[
+                    Empresa.Estado.RADICADA,
+                    Empresa.Estado.EN_CONSTRUCCION,
+                    Empresa.Estado.FINALIZADO,
+                    Empresa.Estado.ESCRITURADO,
+                ],
+            ).annotate(
+                max_avance_validado=Max(
+                    'avances_constructivos__porcentaje_declarado',
+                    filter=Q(avances_constructivos__validado_admin=True),
+                )
+            )
+            .values_list('max_avance_validado', flat=True)
+        )
+        if avances_por_empresa:
+            avance_promedio = sum(
+                float(valor or 0) for valor in avances_por_empresa
+            ) / len(avances_por_empresa)
+        else:
+            avance_promedio = 0
+        kpis_operativos = [
+            {
+                'label': 'Avance promedio',
+                'valor': f'{avance_promedio:.0f}%',
+                'detalle': 'avance validado sobre empresas activas',
+                'icono': 'bi-graph-up-arrow',
+                'tono': 'verde',
+                'href': action_url('core:solicitud_list', grupo='con_avance'),
+            },
+            {
+                'label': 'Obras activas',
+                'valor': obras_activas,
+                'detalle': 'radicadas o en construccion',
+                'icono': 'bi-hammer',
+                'tono': 'azul',
+                'href': action_url('core:solicitud_list', grupo='obras_activas'),
+            },
+            {
+                'label': 'Finalizadas',
+                'valor': obras_finalizadas_sin_escritura,
+                'detalle': 'pendientes de escrituracion',
+                'icono': 'bi-check2-circle',
+                'tono': 'verde',
+                'href': action_url('core:solicitud_list', estado=Empresa.Estado.FINALIZADO),
+            },
+            {
+                'label': 'Vencidas',
+                'valor': obras_vencidas,
+                'detalle': 'con plazo de obra excedido',
+                'icono': 'bi-exclamation-triangle',
+                'tono': 'rojo' if obras_vencidas else 'gris',
+                'href': action_url('core:solicitud_list', grupo='vencidas'),
+            },
+            {
+                'label': 'Preaprobadas',
+                'valor': solicitudes_preaprobadas,
+                'detalle': 'listas para evaluar adjudicacion',
+                'icono': 'bi-clipboard-check',
+                'tono': 'amarillo',
+                'href': action_url('core:solicitud_list', estado=Empresa.Estado.PRE_APROBADO),
+            },
+        ]
+        # obras proximas a vencer (30 dias)
         proximos_vencer = Empresa.objects.filter(
             estado=Empresa.Estado.EN_CONSTRUCCION,
             fecha_limite_obra__lte=limite,
             fecha_limite_obra__gte=hoy,
         ).prefetch_related('empleados')
+        proximos_vencer_count = proximos_vencer.count()
+        tareas_pendientes = [
+            {
+                'label': 'Solicitudes en evaluación',
+                'valor': solicitudes_evaluacion,
+                'href': action_url('core:solicitud_list', estado=Empresa.Estado.EN_EVALUACION),
+            },
+            {
+                'label': 'Avances por validar',
+                'valor': avances_pendientes,
+                'href': action_url('core:avances_pendientes'),
+            },
+            {
+                'label': 'Prórrogas por resolver',
+                'valor': prorrogas_pendientes,
+                'href': action_url('core:prorrogas_pendientes'),
+            },
+            {
+                'label': 'Obras por vencer (30 días)',
+                'valor': proximos_vencer_count,
+                'href': action_url('core:solicitud_list', grupo='proximas_vencer'),
+            },
+        ]
         obras_semaforo = []
         obras_con_plazo = Empresa.objects.filter(
             estado__in=[Empresa.Estado.RADICADA, Empresa.Estado.EN_CONSTRUCCION],
@@ -1631,6 +1784,8 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
             'lotes_en_uso': lotes_en_uso,
             'lotes_disponibles': lotes_disponibles,
             'lotes_reserva': lotes_reserva,
+            'ocupacion_total_href': ocupacion_total_href,
+            'puede_gestionar_dashboard': puede_gestionar,
             'pct_ocupacion': pct_ocupacion,
             'empresas_por_estado': empresas_por_estado,
             'categorias': categorias,
@@ -1639,15 +1794,15 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
             'rubros_gradient': rubros_gradient,
             'ocupacion_items': ocupacion_items,
             'ocupacion_gradient': ocupacion_gradient,
-            'consumos_periodo': consumos_periodo,
-            'periodo_consumo': periodo_consumo,
-            'consumo_barras': consumo_barras,
             'periodos_consumo': periodos_consumo,
             'periodos_consumo_labels': [label for _, _, label in periodos_consumo],
             'consumo_evolucion': consumo_evolucion,
             'avances_pendientes': avances_pendientes,
             'prorrogas_pendientes': prorrogas_pendientes,
             'solicitudes_evaluacion': solicitudes_evaluacion,
+            'solicitudes_preaprobadas': solicitudes_preaprobadas,
+            'kpis_operativos': kpis_operativos,
+            'tareas_pendientes': tareas_pendientes,
             'proximos_vencer': proximos_vencer,
             'obras_semaforo': obras_semaforo,
         })

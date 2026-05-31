@@ -141,11 +141,6 @@
         color: #fff;
     }
 
-    .btn-finalizar {
-        background: #059669;
-        color: #fff;
-    }
-
     .btn-escriturar {
         background: #0891B2;
         color: #fff;
@@ -257,15 +252,6 @@
                 <i class="bi bi-x-circle"></i> Rechazar
             </a>
             {% elif empresa.estado == 'EnConstruccion' %}
-            {% if tiene_avance_100_validado %}
-            <form method="post" action="{% url 'core:finalizar_obra' empresa.pk %}" style="display:inline;">
-                {% csrf_token %}
-                <button type="submit" class="btn-accion btn-finalizar"
-                    onclick="return confirm('¿Marcar obra como finalizada?')">
-                    <i class="bi bi-check-all"></i> Finalizar Obra
-                </button>
-            </form>
-            {% endif %}
             <a href="{% url 'core:baja_empresa' empresa.pk %}" class="btn-accion btn-baja">
                 <i class="bi bi-x-circle"></i> Dar de Baja
             </a>

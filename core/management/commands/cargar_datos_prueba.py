@@ -829,6 +829,28 @@ def _consumos_para(empresa, meses=6):
     return consumos
 
 
+def _normalizar_avances(avances):
+    normalizados = []
+    for pct, validado in avances:
+        porcentaje = Decimal(str(pct)).quantize(Decimal('0.01'))
+        if porcentaje < 0:
+            raise ValueError('Los avances de prueba no pueden ser negativos.')
+        if porcentaje > Decimal('100.00'):
+            porcentaje = Decimal('100.00')
+        normalizados.append((porcentaje, bool(validado)))
+    return normalizados
+
+
+def _estado_coherente_con_avances(estado, avances):
+    tiene_100_validado = any(
+        validado and porcentaje >= Decimal('100.00')
+        for porcentaje, validado in avances
+    )
+    if estado == Empresa.Estado.EN_CONSTRUCCION and tiene_100_validado:
+        return Empresa.Estado.FINALIZADO
+    return estado
+
+
 class Command(BaseCommand):
     help = 'Carga grupos, lotes, usuarios, empresas y consumos de prueba'
 
@@ -958,6 +980,8 @@ class Command(BaseCommand):
         if spec['fecha_limite_offset_dias'] is not None:
             fecha_limite = hoy + timedelta(days=spec['fecha_limite_offset_dias'])
 
+        avances = _normalizar_avances(spec['avances'])
+        estado = _estado_coherente_con_avances(spec['estado'], avances)
         empresa_defaults = dict(EMPRESA_DEFAULTS)
         empresa_defaults.update({
             'razon_social': spec['razon_social'],
@@ -965,7 +989,7 @@ class Command(BaseCommand):
             'categoria_industrial': spec['categoria_industrial'],
             'tipo_empresa': spec['tipo_empresa'],
             'necesidad_m2': spec['necesidad_m2'],
-            'estado': spec['estado'],
+            'estado': estado,
             'correo_electronico': spec['email'] or f'contacto@{spec["cuit"]}.local',
             'fecha_limite_obra': fecha_limite,
         })
@@ -1007,10 +1031,10 @@ class Command(BaseCommand):
         admin_user = CustomUser.objects.filter(
             groups__name='ADMIN_ENREPAVI',
         ).first()
-        for pct, validado in spec['avances']:
+        for pct, validado in avances:
             AvanceConstructivo.objects.create(
                 empresa=empresa,
-                porcentaje_declarado=Decimal(pct),
+                porcentaje_declarado=pct,
                 certificado_pdf='certificados/placeholder.pdf',
                 validado_admin=validado,
                 validado_por=admin_user if validado else None,
@@ -1022,7 +1046,7 @@ class Command(BaseCommand):
         TransicionEstado.objects.create(
             empresa=empresa,
             estado_anterior=None,
-            estado_nuevo=spec['estado'],
+            estado_nuevo=estado,
             usuario=usuario,
             justificacion_resolucion='Cargado por cargar_datos_prueba',
         )

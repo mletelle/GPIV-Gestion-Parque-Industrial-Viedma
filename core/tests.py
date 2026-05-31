@@ -38,6 +38,10 @@ from core.services import (
     RBACError, UsuarioYaVinculadoError, UsuarioNoEsMiembroError,
     NoSePuedeDegradarTitularError,
 )
+from core.management.commands.cargar_datos_prueba import (
+    _estado_coherente_con_avances,
+    _normalizar_avances,
+)
 
 User = get_user_model()
 
@@ -1751,6 +1755,113 @@ class AvancesProrrogasYBajaTests(TempMediaMixin, TestCase):
         self.assertRedirects(response, reverse("core:avances_pendientes"))
         avance.refresh_from_db()
         self.assertTrue(avance.validado_admin)
+        self.assertEqual(avance.validado_por, self.admin)
+        self.assertIsNotNone(avance.fecha_validacion)
+
+    def test_avance_mayor_a_100_se_guarda_como_100(self):
+        self.client.force_login(self.usuario_empresa)
+        archivo = SimpleUploadedFile(
+            "certificado.pdf", b"%PDF-1.4 test", content_type="application/pdf"
+        )
+
+        response = self.client.post(
+            reverse("core:avance_create"),
+            {"porcentaje_declarado": "150.00", "certificado_pdf": archivo},
+        )
+
+        self.assertRedirects(response, reverse("core:mi_solicitud"))
+        avance = AvanceConstructivo.objects.get(empresa=self.empresa)
+        self.assertEqual(avance.porcentaje_declarado, Decimal("100"))
+
+    def test_avance_negativo_se_rechaza(self):
+        self.client.force_login(self.usuario_empresa)
+        archivo = SimpleUploadedFile(
+            "certificado.pdf", b"%PDF-1.4 test", content_type="application/pdf"
+        )
+
+        response = self.client.post(
+            reverse("core:avance_create"),
+            {"porcentaje_declarado": "-1.00", "certificado_pdf": archivo},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "El porcentaje no puede ser menor a 0.")
+        self.assertFalse(AvanceConstructivo.objects.filter(empresa=self.empresa).exists())
+
+    def test_admin_valida_avance_100_y_finaliza_obra_automaticamente(self):
+        self.empresa.estado = Empresa.Estado.EN_CONSTRUCCION
+        self.empresa.save(update_fields=["estado"])
+        avance = AvanceConstructivo.objects.create(
+            empresa=self.empresa,
+            porcentaje_declarado=Decimal("100.00"),
+            certificado_pdf=SimpleUploadedFile(
+                "avance.pdf", b"%PDF-1.4", content_type="application/pdf"
+            ),
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.post(reverse("core:avance_validar", args=[avance.pk]))
+
+        self.assertRedirects(response, reverse("core:avances_pendientes"))
+        avance.refresh_from_db()
+        self.empresa.refresh_from_db()
+        self.assertTrue(avance.validado_admin)
+        self.assertEqual(self.empresa.estado, Empresa.Estado.FINALIZADO)
+        self.assertTrue(
+            TransicionEstado.objects.filter(
+                empresa=self.empresa,
+                estado_nuevo=Empresa.Estado.FINALIZADO,
+                justificacion_resolucion__icontains="100%",
+            ).exists()
+        )
+
+    def test_validar_avance_100_revierte_todo_si_falla_finalizacion(self):
+        self.empresa.estado = Empresa.Estado.EN_CONSTRUCCION
+        self.empresa.save(update_fields=["estado"])
+        avance = AvanceConstructivo.objects.create(
+            empresa=self.empresa,
+            porcentaje_declarado=Decimal("100.00"),
+            certificado_pdf=SimpleUploadedFile(
+                "avance.pdf", b"%PDF-1.4", content_type="application/pdf"
+            ),
+        )
+        self.client.force_login(self.admin)
+
+        with patch("core.views.registrar_transicion", side_effect=RuntimeError("fallo")):
+            with self.assertRaises(RuntimeError):
+                self.client.post(reverse("core:avance_validar", args=[avance.pk]))
+
+        avance.refresh_from_db()
+        self.empresa.refresh_from_db()
+        self.assertFalse(avance.validado_admin)
+        self.assertIsNone(avance.validado_por)
+        self.assertIsNone(avance.fecha_validacion)
+        self.assertEqual(self.empresa.estado, Empresa.Estado.EN_CONSTRUCCION)
+        self.assertFalse(
+            TransicionEstado.objects.filter(
+                empresa=self.empresa,
+                estado_nuevo=Empresa.Estado.FINALIZADO,
+            ).exists()
+        )
+
+    def test_detalle_no_muestra_boton_manual_finalizar_obra(self):
+        self.empresa.estado = Empresa.Estado.EN_CONSTRUCCION
+        self.empresa.save(update_fields=["estado"])
+        AvanceConstructivo.objects.create(
+            empresa=self.empresa,
+            porcentaje_declarado=Decimal("100.00"),
+            validado_admin=True,
+            validado_por=self.admin,
+            certificado_pdf=SimpleUploadedFile(
+                "avance.pdf", b"%PDF-1.4", content_type="application/pdf"
+            ),
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("core:solicitud_detail", args=[self.empresa.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Finalizar Obra")
 
     def test_empresa_solicita_prorroga_y_admin_aprueba_actualizando_fecha_limite(self):
         self.empresa.estado = Empresa.Estado.EN_CONSTRUCCION
@@ -1942,6 +2053,80 @@ class ConsumosConsultaDashboardYReportesTests(TestCase):
         response_empresa = self.client.get(reverse("core:consulta_parque"))
         self.assertEqual(response_empresa.status_code, 403)
 
+    def test_dashboard_muestra_evolucion_de_6_meses_y_kpis_operativos(self):
+        self.empresa.estado = Empresa.Estado.EN_CONSTRUCCION
+        self.empresa.save(update_fields=["estado"])
+        AvanceConstructivo.objects.create(
+            empresa=self.empresa,
+            porcentaje_declarado=Decimal("50.00"),
+            validado_admin=True,
+            certificado_pdf=SimpleUploadedFile(
+                "avance.pdf", b"%PDF-1.4", content_type="application/pdf"
+            ),
+        )
+        for mes in range(1, 7):
+            ConsumoServicio.objects.create(
+                empresa=self.empresa,
+                periodo_mes=mes,
+                periodo_anio=2026,
+                consumo_agua_potable_m3=Decimal(str(10 * mes)),
+            )
+
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("core:consulta_parque"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Evolución de consumos últimos 6 meses")
+        self.assertNotContains(response, "Consumo último período")
+        self.assertEqual(len(response.context["periodos_consumo_labels"]), 6)
+        kpi_labels = [kpi["label"] for kpi in response.context["kpis_operativos"]]
+        self.assertIn("Avance promedio", kpi_labels)
+        self.assertIn("Obras activas", kpi_labels)
+        self.assertIn("Finalizadas", kpi_labels)
+        self.assertIn("Vencidas", kpi_labels)
+        self.assertIn("Preaprobadas", kpi_labels)
+        kpi_hrefs = [kpi["href"] for kpi in response.context["kpis_operativos"]]
+        self.assertTrue(any("grupo=con_avance" in href for href in kpi_hrefs))
+        self.assertTrue(any("grupo=obras_activas" in href for href in kpi_hrefs))
+        self.assertTrue(any(f"estado={Empresa.Estado.PRE_APROBADO}" in href for href in kpi_hrefs))
+        self.assertContains(response, "grupo=vencidas")
+
+    def test_solicitud_list_filtra_grupos_operativos_del_dashboard(self):
+        self.empresa.estado = Empresa.Estado.EN_CONSTRUCCION
+        self.empresa.fecha_limite_obra = timezone.now().date() - timedelta(days=1)
+        self.empresa.save(update_fields=["estado", "fecha_limite_obra"])
+        vigente = empresa(
+            razon_social="Vigente SRL",
+            cuit="30-00000012-2",
+            estado=Empresa.Estado.EN_CONSTRUCCION,
+            fecha_limite_obra=timezone.now().date() + timedelta(days=20),
+        )
+        AvanceConstructivo.objects.create(
+            empresa=vigente,
+            porcentaje_declarado=Decimal("30.00"),
+            validado_admin=True,
+            certificado_pdf=SimpleUploadedFile(
+                "avance.pdf", b"%PDF-1.4", content_type="application/pdf"
+            ),
+        )
+
+        self.client.force_login(self.admin)
+        response_vencidas = self.client.get(
+            reverse("core:solicitud_list"),
+            {"grupo": "vencidas"},
+        )
+        response_con_avance = self.client.get(
+            reverse("core:solicitud_list"),
+            {"grupo": "con_avance"},
+        )
+
+        self.assertEqual(response_vencidas.status_code, 200)
+        self.assertContains(response_vencidas, "Vista rápida")
+        self.assertContains(response_vencidas, "Consumos SRL")
+        self.assertNotContains(response_vencidas, "Vigente SRL")
+        self.assertEqual(response_con_avance.status_code, 200)
+        self.assertContains(response_con_avance, "Vigente SRL")
+
     def test_reportes_admin_generan_respuestas_pdf_con_datos_actuales(self):
         lote(nro_parcela=50, estado=Lote.Estado.EN_USO, empresa=self.empresa)
         ConsumoServicio.objects.create(
@@ -1961,6 +2146,21 @@ class ConsumosConsultaDashboardYReportesTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response["Content-Type"], "application/pdf")
             self.assertTrue(response.content.startswith(b"%PDF"))
+
+
+class CargarDatosPruebaConsistencyTests(TestCase):
+    def test_avances_de_prueba_no_dejan_construccion_con_100_validado(self):
+        avances = _normalizar_avances([(150, True)])
+
+        self.assertEqual(avances[0][0], Decimal("100.00"))
+        self.assertEqual(
+            _estado_coherente_con_avances(Empresa.Estado.EN_CONSTRUCCION, avances),
+            Empresa.Estado.FINALIZADO,
+        )
+
+    def test_avances_de_prueba_rechazan_porcentaje_negativo(self):
+        with self.assertRaises(ValueError):
+            _normalizar_avances([(-1, True)])
 
 
 class AdminGestionUsuariosContactarTests(TestCase):

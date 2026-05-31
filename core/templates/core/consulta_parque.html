@@ -32,6 +32,81 @@
         margin-bottom: 0.8rem;
     }
 
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    @media (max-width: 1200px) {
+        .kpi-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 768px) {
+        .kpi-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .kpi-tile {
+        display: block;
+        border: 1px solid var(--borde);
+        border-left: 5px solid var(--kpi-color);
+        border-radius: 8px;
+        background: #fff;
+        padding: 1rem;
+        min-width: 0;
+        color: inherit;
+        text-decoration: none;
+        transition: border-color 0.18s ease, transform 0.18s ease;
+    }
+
+    .kpi-tile:hover {
+        border-color: var(--kpi-color);
+        color: inherit;
+        transform: translateY(-1px);
+    }
+
+    .kpi-tile.verde { --kpi-color: #22C55E; }
+    .kpi-tile.azul { --kpi-color: #0EA5E9; }
+    .kpi-tile.amarillo { --kpi-color: #F59E0B; }
+    .kpi-tile.rojo { --kpi-color: #EF4444; }
+    .kpi-tile.gris { --kpi-color: #94A3B8; }
+
+    .kpi-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        color: var(--gris-suave);
+        font-size: 0.76rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .kpi-head i {
+        color: var(--kpi-color);
+        font-size: 1.05rem;
+    }
+
+    .kpi-value {
+        display: block;
+        margin: 0.55rem 0 0.25rem;
+        color: #111827;
+        font-size: 1.55rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .kpi-detail {
+        color: var(--gris-suave);
+        font-size: 0.78rem;
+        line-height: 1.25;
+    }
+
     .span-3 { grid-column: span 3; }
     .span-4 { grid-column: span 4; }
     .span-5 { grid-column: span 5; }
@@ -147,11 +222,20 @@
     }
 
     .occ-metric {
+        display: block;
         border: 1px solid #E5E7EB;
         border-radius: 8px;
         background: #F8FAFC;
         padding: 0.65rem 0.6rem;
         min-width: 0;
+        color: inherit;
+        text-decoration: none;
+        transition: border-color 0.18s ease;
+    }
+
+    .occ-metric:hover {
+        border-color: var(--verde);
+        color: inherit;
     }
 
     .occ-metric strong {
@@ -176,6 +260,12 @@
         align-items: center;
         font-size: 0.86rem;
         margin-bottom: 0.65rem;
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .bar-row:hover {
+        color: var(--verde);
     }
 
     .bar-track {
@@ -330,11 +420,19 @@
     }
 
     .obra-card {
+        display: block;
         border: 1px solid #E5E7EB;
         border-left: 5px solid var(--semaforo-color);
         border-radius: 8px;
         padding: 0.9rem;
         background: var(--semaforo-bg);
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .obra-card:hover {
+        border-color: var(--semaforo-color);
+        color: inherit;
     }
 
     .obra-card.rojo {
@@ -374,6 +472,15 @@
     .mini-table td {
         padding: 0.3rem 0;
         border-bottom: 1px dashed var(--borde);
+    }
+
+    .mini-table a {
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .mini-table a:hover {
+        color: var(--verde);
     }
 
     .mini-table tr:last-child td {
@@ -465,6 +572,27 @@
         </p>
         <div class="sec-line"></div>
 
+        <div class="kpi-grid">
+            {% for kpi in kpis_operativos %}
+            {% if kpi.href %}
+            <a href="{{ kpi.href }}" class="kpi-tile {{ kpi.tono }}">
+            {% else %}
+            <section class="kpi-tile {{ kpi.tono }}">
+            {% endif %}
+                <div class="kpi-head">
+                    <span>{{ kpi.label }}</span>
+                    <i class="bi {{ kpi.icono }}"></i>
+                </div>
+                <strong class="kpi-value">{{ kpi.valor }}</strong>
+                <div class="kpi-detail">{{ kpi.detalle }}</div>
+            {% if kpi.href %}
+            </a>
+            {% else %}
+            </section>
+            {% endif %}
+            {% endfor %}
+        </div>
+
         <div class="dash-grid">
             <section class="dash-card span-4 ocupacion-card">
                 <h6>Ocupación del parque</h6>
@@ -477,22 +605,32 @@
                     </div>
                 </div>
                 <div class="occupancy-summary">
+                    {% if ocupacion_total_href %}
+                    <a href="{{ ocupacion_total_href }}" class="occ-metric">
+                    {% else %}
                     <div class="occ-metric">
+                    {% endif %}
                         <strong>{{ total_lotes }}</strong>
                         <span>Total lotes</span>
+                    {% if ocupacion_total_href %}
+                    </a>
+                    {% else %}
                     </div>
+                    {% endif %}
+                    {% for item in ocupacion_items %}
+                    {% if item.href %}
+                    <a href="{{ item.href }}" class="occ-metric">
+                    {% else %}
                     <div class="occ-metric">
-                        <strong>{{ lotes_disponibles }}</strong>
-                        <span>Libres</span>
+                    {% endif %}
+                        <strong>{{ item.cantidad }}</strong>
+                        <span>{{ item.label }}</span>
+                    {% if item.href %}
+                    </a>
+                    {% else %}
                     </div>
-                    <div class="occ-metric">
-                        <strong>{{ lotes_en_uso }}</strong>
-                        <span>En uso</span>
-                    </div>
-                    <div class="occ-metric">
-                        <strong>{{ lotes_reserva }}</strong>
-                        <span>Reserva</span>
-                    </div>
+                    {% endif %}
+                    {% endfor %}
                 </div>
             </section>
 
@@ -500,44 +638,29 @@
                 <h6>Empresas por estado</h6>
                 {% if empresas_por_estado %}
                     {% for item in empresas_por_estado %}
+                    {% if item.href %}
+                    <a href="{{ item.href }}" class="bar-row">
+                    {% else %}
                     <div class="bar-row">
+                    {% endif %}
                         <span>{{ item.label }}</span>
                         <div class="bar-track">
                             <div class="bar-fill" style="--bar-width: {{ item.pct_barra_css }}%; --bar-color: {{ item.color }};"></div>
                         </div>
                         <strong>{{ item.cantidad }}</strong>
+                    {% if item.href %}
+                    </a>
+                    {% else %}
                     </div>
+                    {% endif %}
                     {% endfor %}
                 {% else %}
                     <p class="kpi-detalle">Aún no hay empresas registradas.</p>
                 {% endif %}
             </section>
 
-            <section class="dash-card span-4">
-                <h6>Consumo último período</h6>
-                {% if periodo_consumo %}
-                <div class="donut-label" style="margin-bottom:0.8rem;">{{ periodo_consumo }}</div>
-                <div class="consumo-list">
-                    {% for item in consumo_barras %}
-                    <div class="consumo-row" style="--svc-color: {{ item.color }};">
-                        <span class="consumo-icon"><i class="bi {{ item.icono }}"></i></span>
-                        <div>
-                            <div class="consumo-name">{{ item.label }}</div>
-                            <div class="bar-track">
-                                <div class="bar-fill" style="--bar-width: {{ item.pct_css }}%; --bar-color: {{ item.color }};"></div>
-                            </div>
-                        </div>
-                        <span class="consumo-value">{{ item.valor|floatformat:0 }} {{ item.unidad }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="kpi-detalle">No hay consumos cargados todavía.</p>
-                {% endif %}
-            </section>
-
-            <section class="dash-card span-8">
-                <h6>Evolución de consumos últimos 4 meses</h6>
+            <section class="dash-card span-12">
+                <h6>Evolución de consumos últimos 6 meses</h6>
                 {% if consumo_evolucion %}
                 <div class="spark-grid">
                     {% for serie in consumo_evolucion %}
@@ -624,7 +747,11 @@
                 {% if obras_semaforo %}
                 <div class="semaforo-grid">
                     {% for obra in obras_semaforo %}
+                    {% if puede_gestionar_dashboard %}
+                    <a href="{% url 'core:solicitud_detail' obra.empresa.pk %}" class="obra-card {{ obra.nivel }}">
+                    {% else %}
                     <article class="obra-card {{ obra.nivel }}">
+                    {% endif %}
                         <strong>{{ obra.empresa.razon_social }}</strong>
                         <div class="obra-meta">
                             <span>{{ obra.nivel_label }}</span>
@@ -642,7 +769,11 @@
                             <span>{{ obra.empresa.get_estado_display }}</span>
                             <strong>{{ obra.empresa.fecha_limite_obra|date:"d/m/Y" }}</strong>
                         </div>
+                    {% if puede_gestionar_dashboard %}
+                    </a>
+                    {% else %}
                     </article>
+                    {% endif %}
                     {% endfor %}
                 </div>
                 {% else %}
@@ -653,22 +784,17 @@
             <section class="dash-card span-12">
                 <h6>Tareas pendientes</h6>
                 <table class="mini-table">
+                    {% for tarea in tareas_pendientes %}
                     <tr>
-                        <td>Solicitudes en evaluación</td>
-                        <td>{{ solicitudes_evaluacion }}</td>
+                        {% if tarea.href %}
+                        <td><a href="{{ tarea.href }}">{{ tarea.label }}</a></td>
+                        <td><a href="{{ tarea.href }}">{{ tarea.valor }}</a></td>
+                        {% else %}
+                        <td>{{ tarea.label }}</td>
+                        <td>{{ tarea.valor }}</td>
+                        {% endif %}
                     </tr>
-                    <tr>
-                        <td>Avances por validar</td>
-                        <td>{{ avances_pendientes }}</td>
-                    </tr>
-                    <tr>
-                        <td>Prórrogas por resolver</td>
-                        <td>{{ prorrogas_pendientes }}</td>
-                    </tr>
-                    <tr>
-                        <td>Obras por vencer (30 días)</td>
-                        <td>{{ proximos_vencer|length }}</td>
-                    </tr>
+                    {% endfor %}
                 </table>
             </section>
         </div>
