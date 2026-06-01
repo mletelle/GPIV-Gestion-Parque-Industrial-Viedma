@@ -1289,8 +1289,9 @@ class AdjudicacionView(AdminEnrepaviMixin, View):
 
     def post(self, request, pk):
         empresa = get_object_or_404(Empresa, pk=pk, estado=Empresa.Estado.LISTO_ADJUDICAR)
-        # Defensa en profundidad: verificar documentación aunque el estado ya lo garantiza
-        if not empresa.documentacion_proyecto:
+        # Defensa en profundidad: verificar que la empresa subió documentación
+        # (usa la property documentacion_subida → documentos_proyecto.exists())
+        if not empresa.documentacion_subida:
             from django.core.exceptions import PermissionDenied
             raise PermissionDenied(
                 'No se puede adjudicar: la empresa no tiene documentación del proyecto registrada.'
