@@ -31,6 +31,7 @@ from .views import (
     SubirDocumentacionView,
     DecisionFinalView,
     EmpresasDescartadasView,
+    DescargarDocumentoView,
     # etapa 2
     AvanceCreateView,
     AvancesPendientesView,
@@ -179,6 +180,8 @@ urlpatterns = [
     path('solicitudes/<int:pk>/finalizar/', FinalizarObraView.as_view(), name='finalizar_obra'),
     path('solicitudes/<int:pk>/escriturar/', EscrituracionView.as_view(), name='escrituracion'),
     path('solicitudes/<int:pk>/baja/', BajaEmpresaView.as_view(), name='baja_empresa'),
+    # descarga protegida de documentos del proyecto
+    path('documentos/<int:pk>/descargar/', DescargarDocumentoView.as_view(), name='descargar_documento'),
 
     # admin: avances pendientes
     path('avances/pendientes/', AvancesPendientesView.as_view(), name='avances_pendientes'),

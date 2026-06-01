@@ -1198,6 +1198,48 @@ class EmpresasDescartadasView(AdminEnrepaviMixin, ListView):
         return ctx
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# DESCARGA PROTEGIDA de documentos del proyecto
+# ──────────────────────────────────────────────────────────────────────────────
+
+class DescargarDocumentoView(LoginRequiredMixin, View):
+    """
+    Sirve un DocumentoProyecto con autenticación.
+
+    Permiso: admin (grupo ADMIN_ENREPAVI) o usuario perteneciente a la empresa propietaria.
+    Usa FileResponse con as_attachment=True para forzar la descarga del archivo.
+    """
+
+    def get(self, request, pk):
+        from django.http import FileResponse, Http404
+        from django.core.exceptions import PermissionDenied
+        import os
+
+        doc = get_object_or_404(DocumentoProyecto, pk=pk)
+
+        # Verificar permiso: admin o miembro de la empresa
+        es_admin = request.user.groups.filter(name='ADMIN_ENREPAVI').exists()
+        es_de_empresa = (
+            hasattr(request.user, 'empresa') and request.user.empresa == doc.empresa
+        )
+        if not (es_admin or es_de_empresa):
+            raise PermissionDenied
+
+        # Abrir y servir el archivo
+        if not doc.archivo:
+            raise Http404('El archivo no existe.')
+
+        nombre = doc.nombre_original or os.path.basename(doc.archivo.name)
+        try:
+            response = FileResponse(
+                doc.archivo.open('rb'),
+                as_attachment=True,
+                filename=nombre,
+            )
+            return response
+        except FileNotFoundError:
+            raise Http404('El archivo no se encontró en el servidor.')
+
 
  # adjudicacion de lote
 
