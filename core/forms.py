@@ -1210,6 +1210,15 @@ class AdminAsignarColaboradorForm(forms.Form):
 # Flujo: Preaprobación → Documentación → Adjudicación / Descarte
 # ──────────────────────────────────────────────────────────────────────────────
 
+class MultipleFileInput(forms.FileInput):
+    """
+    Widget para selección múltiple de archivos.
+    Django 4.2+ requiere allow_multiple_selected = True en el widget;
+    de lo contrario FileInput lanza ValueError al instanciar el form.
+    """
+    allow_multiple_selected = True
+
+
 class SubirDocumentacionForm(forms.Form):
     """
     Formulario para que la empresa suba uno o más archivos de documentación del proyecto.
@@ -1221,7 +1230,7 @@ class SubirDocumentacionForm(forms.Form):
     """
 
     archivos = forms.FileField(
-        widget=forms.FileInput(attrs={
+        widget=MultipleFileInput(attrs={
             'class': 'form-control',
             'accept': '.pdf,.zip,.rar,.docx,.doc,.xlsx,.xls,.dwg',
             'multiple': True,
