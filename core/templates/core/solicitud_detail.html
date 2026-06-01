@@ -282,20 +282,25 @@
             </a>
 
             {% elif empresa.estado == 'PreAprobado' %}
-            {# Admin no puede adjudicar directamente; requiere doc + decisión final #}
+            {# Con documentación: ambas acciones pasan por decision_final (aprobación o descarte con motivo) #}
             {% if puede_tomar_decision %}
             <a href="{% url 'core:decision_final' empresa.pk %}" class="btn-accion btn-decision"
                id="btn-aprobar-solicitud">
                 <i class="bi bi-check2-circle"></i> Aprobar
             </a>
+            <a href="{% url 'core:decision_final' empresa.pk %}" class="btn-accion btn-rechazar"
+               id="btn-descartar-solicitud">
+                <i class="bi bi-x-circle"></i> Descartar
+            </a>
             {% else %}
+            {# Sin documentación: solo se puede rechazar por la vía normal (empresa no cumplió) #}
             <span class="btn-accion" style="background:#F3F4F6;color:#9CA3AF;cursor:default;" title="Esperando documentación de la empresa">
                 <i class="bi bi-hourglass-split"></i> Esperando documentación...
             </span>
-            {% endif %}
             <a href="{% url 'core:solicitud_rechazar' empresa.pk %}" class="btn-accion btn-rechazar">
                 <i class="bi bi-x-circle"></i> Rechazar
             </a>
+            {% endif %}
 
             {% elif empresa.estado == 'ListoAdjudicar' %}
             <a href="{% url 'core:adjudicacion' empresa.pk %}" class="btn-accion btn-adjudicar"
