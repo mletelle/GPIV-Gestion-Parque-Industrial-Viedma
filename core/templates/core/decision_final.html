@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Decisión Final — {{ empresa.razon_social }} — GPIV{% endblock %}
+{% block title %}Aprobar Solicitud — {{ empresa.razon_social }} — GPIV{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -210,7 +210,7 @@
         <!-- Header -->
         <div class="decision-header mt-3">
             <div>
-                <h2 class="sec-title mb-0">Decisión Final</h2>
+                <h2 class="sec-title mb-0">Aprobar Solicitud</h2>
                 <p style="color: #6B7280; margin: 0.25rem 0 0; font-size: 0.92rem;">
                     {{ empresa.razon_social }}
                     {% if empresa.nombre_fantasia %}<span style="color:#9CA3AF"> · {{ empresa.nombre_fantasia }}</span>{% endif %}
@@ -286,7 +286,7 @@
 
         <!-- Acciones -->
         <h5 style="font-weight: 700; color: #1F2937; margin-bottom: 0.75rem; font-size: 0.95rem;">
-            <i class="bi bi-check2-square"></i> Tomá una decisión
+            <i class="bi bi-check2-circle"></i> Revisión y aprobación
         </h5>
 
         <div class="accion-cards">

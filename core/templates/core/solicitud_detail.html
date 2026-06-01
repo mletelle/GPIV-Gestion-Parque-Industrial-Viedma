@@ -285,8 +285,8 @@
             {# Admin no puede adjudicar directamente; requiere doc + decisión final #}
             {% if puede_tomar_decision %}
             <a href="{% url 'core:decision_final' empresa.pk %}" class="btn-accion btn-decision"
-               id="btn-decision-final">
-                <i class="bi bi-check2-square"></i> Tomar Decisión Final
+               id="btn-aprobar-solicitud">
+                <i class="bi bi-check2-circle"></i> Aprobar
             </a>
             {% else %}
             <span class="btn-accion" style="background:#F3F4F6;color:#9CA3AF;cursor:default;" title="Esperando documentación de la empresa">
@@ -344,7 +344,7 @@
             <div>
                 <strong style="color:#92400E;font-size:0.9rem;">Esperando documentación de la empresa</strong>
                 <p style="margin:0;font-size:0.82rem;color:#78350F;">
-                    La empresa debe subir el proyecto desde su portal. El botón de decisión final
+                    La empresa debe subir el proyecto desde su portal. El botón de Aprobar
                     se habilitará una vez que suba al menos un archivo.
                 </p>
             </div>
