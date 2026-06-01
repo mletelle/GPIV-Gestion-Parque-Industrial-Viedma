@@ -4,9 +4,7 @@
 
 {% block extra_css %}
 <style>
-    .mi-solicitud-wrap {
-        padding: 2rem 0;
-    }
+    .mi-solicitud-wrap { padding: 2rem 0; }
 
     .estado-badge {
         font-size: 0.85rem;
@@ -15,51 +13,17 @@
         border-radius: 6px;
         display: inline-block;
     }
-
-    .estado-badge.enevaluacion {
-        background: #FEF3C7;
-        color: #92400E;
-    }
-
-    .estado-badge.preaprobado {
-        background: #DBEAFE;
-        color: #1E40AF;
-    }
-
-    .estado-badge.rechazado {
-        background: #FEE2E2;
-        color: #991B1B;
-    }
-
-    .estado-badge.radicada {
-        background: #DCFCE7;
-        color: #166534;
-    }
-
-    .estado-badge.enconstruccion {
-        background: #E0E7FF;
-        color: #3730A3;
-    }
-
-    .estado-badge.finalizado {
-        background: #D1FAE5;
-        color: #065F46;
-    }
-
-    .estado-badge.escriturado {
-        background: #CFFAFE;
-        color: #155E75;
-    }
-
-    .estado-badge.caducado {
-        background: #FEE2E2;
-        color: #991B1B;
-    }
-
-    .estado-badge.historico_baja {
-        background: #F1F5F9;
-        color: #475569;
-    }
+    .estado-badge.enevaluacion  { background: #FEF3C7; color: #92400E; }
+    .estado-badge.preaprobado   { background: #DBEAFE; color: #1E40AF; }
+    .estado-badge.rechazado     { background: #FEE2E2; color: #991B1B; }
+    .estado-badge.radicada      { background: #DCFCE7; color: #166534; }
+    .estado-badge.enconstruccion{ background: #E0E7FF; color: #3730A3; }
+    .estado-badge.finalizado    { background: #D1FAE5; color: #065F46; }
+    .estado-badge.escriturado   { background: #CFFAFE; color: #155E75; }
+    .estado-badge.caducado      { background: #FEE2E2; color: #991B1B; }
+    .estado-badge.historico_baja{ background: #F1F5F9; color: #475569; }
+    .estado-badge.listoadjudicar{ background: #DCFCE7; color: #166534; }
+    .estado-badge.descartada    { background: #FEE2E2; color: #991B1B; }
 
     .dato-row {
         display: flex;
@@ -67,26 +31,80 @@
         border-bottom: 1px solid var(--borde);
         font-size: 0.92rem;
     }
-
-    .dato-row:last-child {
-        border-bottom: none;
-    }
-
-    .dato-label {
-        font-weight: 600;
-        min-width: 220px;
-        color: var(--gris-suave);
-    }
+    .dato-row:last-child { border-bottom: none; }
+    .dato-label { font-weight: 600; min-width: 220px; color: var(--gris-suave); }
 
     .historial-item {
         padding: 0.7rem 0;
         border-bottom: 1px solid var(--borde);
         font-size: 0.9rem;
     }
+    .historial-item:last-child { border-bottom: none; }
 
-    .historial-item:last-child {
-        border-bottom: none;
+    /* ── Línea de tiempo del proceso ── */
+    .timeline-proceso {
+        display: flex;
+        align-items: flex-start;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
     }
+    .tl-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        min-width: 100px;
+        position: relative;
+    }
+    .tl-step:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        top: 14px;
+        left: calc(50% + 14px);
+        width: calc(100% - 28px);
+        height: 2px;
+        background: #E5E7EB;
+        z-index: 0;
+    }
+    .tl-step.completado::after { background: var(--verde); }
+    .tl-dot {
+        width: 28px; height: 28px; border-radius: 50%;
+        border: 2px solid #E5E7EB; background: #fff;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.75rem; position: relative; z-index: 1;
+    }
+    .tl-step.completado .tl-dot { background: var(--verde); border-color: var(--verde); color: #fff; }
+    .tl-step.activo .tl-dot {
+        background: #EFF6FF; border-color: #2563EB; color: #2563EB;
+        box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
+    }
+    .tl-step.pendiente .tl-dot { background: #F9FAFB; border-color: #D1D5DB; color: #9CA3AF; }
+    .tl-step.error .tl-dot { background: #FEE2E2; border-color: #DC2626; color: #DC2626; }
+    .tl-label { font-size: 0.72rem; font-weight: 600; text-align: center; margin-top: 0.4rem; color: #6B7280; max-width: 90px; }
+    .tl-step.activo .tl-label    { color: #2563EB; }
+    .tl-step.completado .tl-label{ color: var(--verde); }
+    .tl-step.error .tl-label     { color: #DC2626; }
+
+    /* ── Bloque de subida de documentación ── */
+    .doc-upload-block {
+        background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+        border: 2px solid #93C5FD; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.25rem;
+    }
+    .doc-upload-block h5 { color: #1E40AF; font-weight: 700; margin-bottom: 0.5rem; font-size: 0.95rem; }
+    .doc-upload-block p  { color: #3B82F6; font-size: 0.87rem; margin-bottom: 1rem; }
+
+    .doc-enviado-block {
+        background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
+        border: 1.5px solid #86EFAC; border-radius: 12px; padding: 1.25rem 1.5rem;
+        margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.75rem;
+    }
+    .doc-enviado-block i { font-size: 1.5rem; color: #16A34A; }
+
+    .descartada-block {
+        background: #FFF5F5; border: 1.5px solid #FCA5A5; border-radius: 12px;
+        padding: 1.25rem 1.5rem; margin-bottom: 1.25rem;
+    }
+    .descartada-block h5 { color: #DC2626; font-weight: 700; margin-bottom: 0.5rem; }
 </style>
 {% endblock %}
 
@@ -97,8 +115,7 @@
         <div class="gpiv-card text-center py-5">
             <i class="bi bi-file-earmark-text" style="font-size:3rem;color:var(--gris-suave);"></i>
             <h3 class="mt-3" style="font-size:1.2rem;">No tenés una solicitud cargada</h3>
-            <p style="color:var(--gris-suave);font-size:0.92rem;">Completá el formulario de radicación para comenzar el
-                proceso.</p>
+            <p style="color:var(--gris-suave);font-size:0.92rem;">Completá el formulario de radicación para comenzar el proceso.</p>
             <a href="{% url 'core:solicitud_create' %}" class="btn-verde">
                 <i class="bi bi-plus-lg"></i> Nueva Solicitud
             </a>
@@ -121,6 +138,136 @@
             <a href="{% url 'core:prorroga_create' %}" class="btn-verde" style="background:var(--azul);">
                 <i class="bi bi-calendar-plus"></i> Solicitar Prórroga
             </a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {# ── Línea de tiempo del proceso #}
+        <div class="gpiv-card mb-3" style="padding: 1.25rem 1.5rem;">
+            <h5 style="color: var(--verde); font-weight:700; margin-bottom:1rem; font-size:0.9rem;">
+                <i class="bi bi-diagram-3"></i> Estado de tu solicitud
+            </h5>
+            <div class="timeline-proceso">
+                {# Paso 1: En Evaluación #}
+                <div class="tl-step {% if empresa.estado == 'EnEvaluacion' %}activo{% else %}completado{% endif %}">
+                    <div class="tl-dot">
+                        {% if empresa.estado == 'EnEvaluacion' %}<i class="bi bi-hourglass-split"></i>
+                        {% else %}<i class="bi bi-check-lg"></i>{% endif %}
+                    </div>
+                    <span class="tl-label">En Evaluación</span>
+                </div>
+
+                {# Paso 2: Pre-Aprobada #}
+                {% if empresa.estado == 'EnEvaluacion' %}
+                <div class="tl-step pendiente">
+                    <div class="tl-dot"><i class="bi bi-circle"></i></div>
+                    <span class="tl-label">Pre-Aprobada</span>
+                </div>
+                {% elif empresa.estado == 'Rechazado' %}
+                <div class="tl-step error">
+                    <div class="tl-dot"><i class="bi bi-x-lg"></i></div>
+                    <span class="tl-label">Rechazada</span>
+                </div>
+                {% elif empresa.estado == 'PreAprobado' %}
+                <div class="tl-step activo">
+                    <div class="tl-dot"><i class="bi bi-upload"></i></div>
+                    <span class="tl-label">Pre-Aprobada<br><small style="color:#2563EB;">(subí doc)</small></span>
+                </div>
+                {% else %}
+                <div class="tl-step completado">
+                    <div class="tl-dot"><i class="bi bi-check-lg"></i></div>
+                    <span class="tl-label">Pre-Aprobada</span>
+                </div>
+                {% endif %}
+
+                {# Paso 3: Listo para Adjudicar / Descartada #}
+                {% if empresa.estado == 'ListoAdjudicar' %}
+                <div class="tl-step activo">
+                    <div class="tl-dot"><i class="bi bi-geo-alt"></i></div>
+                    <span class="tl-label">Lista para Adjudicar</span>
+                </div>
+                {% elif empresa.estado == 'Descartada' %}
+                <div class="tl-step error">
+                    <div class="tl-dot"><i class="bi bi-x-lg"></i></div>
+                    <span class="tl-label">Descartada</span>
+                </div>
+                {% else %}
+                <div class="tl-step {% if empresa.estado in 'Radicada,EnConstruccion,Finalizado,Escriturado' %}completado{% else %}pendiente{% endif %}">
+                    <div class="tl-dot">
+                        {% if empresa.estado in 'Radicada,EnConstruccion,Finalizado,Escriturado' %}
+                            <i class="bi bi-check-lg"></i>
+                        {% else %}<i class="bi bi-circle"></i>{% endif %}
+                    </div>
+                    <span class="tl-label">Lista para Adjudicar</span>
+                </div>
+                {% endif %}
+
+                {# Paso 4: Radicada #}
+                <div class="tl-step {% if empresa.estado in 'Radicada,EnConstruccion,Finalizado,Escriturado' %}completado{% else %}pendiente{% endif %}">
+                    <div class="tl-dot">
+                        {% if empresa.estado in 'Radicada,EnConstruccion,Finalizado,Escriturado' %}
+                            <i class="bi bi-check-lg"></i>
+                        {% else %}<i class="bi bi-circle"></i>{% endif %}
+                    </div>
+                    <span class="tl-label">Radicada</span>
+                </div>
+            </div>
+        </div>
+
+        {# ── Acción: subir documentación (PRE_APROBADO) #}
+        {% if puede_subir_documentacion %}
+            {% if documentacion_subida %}
+            <div class="doc-enviado-block">
+                <i class="bi bi-file-earmark-check-fill"></i>
+                <div style="flex:1;">
+                    <strong style="color:#15803D; display:block;">Documentación enviada correctamente</strong>
+                    <p style="margin:0.25rem 0 0; font-size:0.85rem; color:#4B5563;">
+                        La administración está revisando tu proyecto. Recibirás una notificación cuando se tome la decisión final.
+                    </p>
+                    <form method="post" action="{% url 'core:subir_documentacion' %}" enctype="multipart/form-data" class="mt-2">
+                        {% csrf_token %}
+                        <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                            {{ form_documentacion.documentacion_proyecto }}
+                            <button type="submit" class="btn-verde" style="padding:0.4rem 0.9rem; font-size:0.85rem;">
+                                <i class="bi bi-arrow-repeat"></i> Reemplazar archivo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <div class="doc-upload-block">
+                <h5><i class="bi bi-upload"></i> ¡Acción requerida! Subí la documentación de tu proyecto</h5>
+                <p>
+                    Tu solicitud fue <strong>pre-aprobada</strong>. Para avanzar a la adjudicación de un lote,
+                    debés adjuntar la documentación completa de tu proyecto.
+                </p>
+                <form method="post" action="{% url 'core:subir_documentacion' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                        {{ form_documentacion.documentacion_proyecto }}
+                        <small style="color:#3B82F6; font-size:0.8rem;">
+                            Formatos aceptados: PDF, ZIP, RAR, DOCX. Máximo 20 MB.
+                        </small>
+                    </div>
+                    <button type="submit" class="btn-verde" id="btn-subir-documentacion" style="margin-top:0.5rem;">
+                        <i class="bi bi-cloud-upload"></i> Subir Documentación del Proyecto
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        {% endif %}
+
+        {# ── Bloque descartada #}
+        {% if empresa.estado == 'Descartada' %}
+        <div class="descartada-block">
+            <h5><i class="bi bi-x-circle-fill"></i> Solicitud Descartada</h5>
+            {% if empresa.motivo_descarte %}
+            <p style="color:#374151; font-size:0.9rem; margin:0;">
+                <strong>Motivo:</strong> {{ empresa.motivo_descarte }}
+            </p>
+            {% else %}
+            <p style="color:#6B7280; font-size:0.9rem; margin:0; font-style:italic;">Sin motivo registrado.</p>
             {% endif %}
         </div>
         {% endif %}
@@ -201,8 +348,6 @@
         </div>
         {% endif %}
 
-
-
         {% if avances %}
         <div class="gpiv-card mb-3">
             <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Avances Constructivos</h5>
@@ -261,8 +406,7 @@
                     {% if t.usuario %} por {{ t.usuario.get_full_name|default:t.usuario.username }}{% endif %}
                 </span>
                 {% if t.justificacion_resolucion %}
-                <p style="margin:0.3rem 0 0;font-size:0.85rem;color:var(--gris-suave);">{{ t.justificacion_resolucion }}
-                </p>
+                <p style="margin:0.3rem 0 0;font-size:0.85rem;color:var(--gris-suave);">{{ t.justificacion_resolucion }}</p>
                 {% endif %}
             </div>
             {% endfor %}
@@ -271,6 +415,5 @@
 
         {% endif %}
     </div>
-
 </div>
 {% endblock %}

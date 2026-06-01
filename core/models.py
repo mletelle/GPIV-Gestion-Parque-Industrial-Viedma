@@ -96,15 +96,17 @@ class CustomUser(AbstractUser):
 class Empresa(models.Model):
     # Enums de estado y clasificaciones
     class Estado(models.TextChoices):
-        EN_EVALUACION = 'EnEvaluacion', _('En Evaluación')
-        PRE_APROBADO = 'PreAprobado', _('Pre-Aprobado')
-        RECHAZADO = 'Rechazado', _('Rechazado')
-        RADICADA = 'Radicada', _('Radicada')
-        EN_CONSTRUCCION = 'EnConstruccion', _('En Construcción')
-        FINALIZADO = 'Finalizado', _('Finalizado')
-        ESCRITURADO = 'Escriturado', _('Escriturado')
-        CADUCADO = 'Caducado', _('Caducado')
-        HISTORICO_BAJA = 'Historico_Baja', _('Clausurado / Baja')
+        EN_EVALUACION    = 'EnEvaluacion',    _('En Evaluación')
+        PRE_APROBADO     = 'PreAprobado',     _('Pre-Aprobado')
+        LISTO_ADJUDICAR  = 'ListoAdjudicar',  _('Listo para Adjudicar')
+        RECHAZADO        = 'Rechazado',        _('Rechazado')
+        DESCARTADA       = 'Descartada',       _('Descartada')
+        RADICADA         = 'Radicada',         _('Radicada')
+        EN_CONSTRUCCION  = 'EnConstruccion',   _('En Construcción')
+        FINALIZADO       = 'Finalizado',       _('Finalizado')
+        ESCRITURADO      = 'Escriturado',      _('Escriturado')
+        CADUCADO         = 'Caducado',         _('Caducado')
+        HISTORICO_BAJA   = 'Historico_Baja',   _('Clausurado / Baja')
 
     class TipoEmpresa(models.TextChoices):
         NUEVA = 'Nueva', _('Nueva')
@@ -265,6 +267,25 @@ class Empresa(models.Model):
         help_text=_('Fecha del último aviso de vencimiento enviado. Evita duplicados.'),
     )
     escritura_pdf = models.FileField(upload_to='escrituras/', blank=True, null=True)
+
+    # Documentación del proyecto (habilitada cuando estado == PRE_APROBADO)
+    documentacion_proyecto = models.FileField(
+        upload_to='documentacion_proyecto/',
+        blank=True,
+        null=True,
+        validators=[FileExtensionValidator(['pdf', 'zip', 'rar', 'docx', 'doc'])],
+        verbose_name=_('Documentación del proyecto'),
+        help_text=_(
+            'La empresa adjunta la documentación completa del proyecto cuando '
+            'está en estado Pre-Aprobado. Requerida para avanzar a Listo para Adjudicar.'
+        ),
+    )
+    motivo_descarte = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('Motivo de descarte'),
+        help_text=_('Obligatorio al descartar una empresa. Queda registrado en la bandeja de descartadas.'),
+    )
 
     history = HistoricalRecords()
 

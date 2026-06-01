@@ -1204,3 +1204,72 @@ class AdminAsignarColaboradorForm(forms.Form):
             ).exists():
                 self.add_error('rol_interno', 'La empresa seleccionada ya tiene un Titular activo.')
         return cleaned
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Flujo: Preaprobación → Documentación → Adjudicación / Descarte
+# ──────────────────────────────────────────────────────────────────────────────
+
+class SubirDocumentacionForm(forms.ModelForm):
+    """
+    Formulario para que la empresa suba la documentación completa del proyecto.
+
+    Solo disponible cuando el estado de la empresa es PRE_APROBADO.
+    Acepta PDF, ZIP, RAR y DOCX. La vista verifica el estado antes de procesar.
+    """
+
+    class Meta:
+        model = Empresa
+        fields = ['documentacion_proyecto']
+        widgets = {
+            'documentacion_proyecto': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': '.pdf,.zip,.rar,.docx,.doc',
+                'id': 'id_documentacion_proyecto',
+            }),
+        }
+        labels = {
+            'documentacion_proyecto': 'Archivo del proyecto (PDF, ZIP, RAR, DOCX)',
+        }
+        help_texts = {
+            'documentacion_proyecto': (
+                'Adjuntá el documento completo del proyecto. '
+                'Formatos aceptados: PDF, ZIP, RAR, DOCX. Máximo 20 MB.'
+            ),
+        }
+
+    def clean_documentacion_proyecto(self):
+        archivo = self.cleaned_data.get('documentacion_proyecto')
+        if not archivo:
+            raise forms.ValidationError(
+                'Debés adjuntar al menos un archivo con la documentación del proyecto.'
+            )
+        # Validar tamaño (máx. 20 MB)
+        max_size = 20 * 1024 * 1024
+        if hasattr(archivo, 'size') and archivo.size > max_size:
+            raise forms.ValidationError('El archivo no puede superar los 20 MB.')
+        return archivo
+
+
+class DescartarEmpresaForm(forms.Form):
+    """
+    Formulario para que el admin descarte una empresa en estado PRE_APROBADO
+    (con o sin documentación subida).
+
+    El motivo es obligatorio y queda registrado en Empresa.motivo_descarte
+    y en el historial de transiciones (TransicionEstado).
+    """
+
+    motivo = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': (
+                'Describa el motivo del descarte. '
+                'Será visible en el historial de la empresa y en la bandeja de descartadas.'
+            ),
+        }),
+        min_length=10,
+        label='Motivo del descarte',
+        help_text='Mínimo 10 caracteres. Quedará registrado de forma permanente.',
+    )
