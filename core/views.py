@@ -1217,8 +1217,8 @@ class DescargarDocumentoView(LoginRequiredMixin, View):
 
         doc = get_object_or_404(DocumentoProyecto, pk=pk)
 
-        # Verificar permiso: admin o miembro de la empresa
-        es_admin = request.user.groups.filter(name='ADMIN_ENREPAVI').exists()
+        # Verificar permiso: superusuario, miembro de ADMIN_ENREPAVI, o titular de la empresa
+        es_admin = request.user.is_superuser or request.user.groups.filter(name='ADMIN_ENREPAVI').exists()
         es_de_empresa = (
             hasattr(request.user, 'empresa') and request.user.empresa == doc.empresa
         )
