@@ -104,3 +104,22 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const input = document.getElementById('id_porcentaje_declarado');
+        if (!input) return;
+
+        const clampAvance = function () {
+            const valor = parseFloat(input.value);
+            if (Number.isNaN(valor)) return;
+            if (valor > 100) input.value = '100';
+            if (valor < 0) input.value = '0';
+        };
+
+        input.addEventListener('input', clampAvance);
+        input.addEventListener('blur', clampAvance);
+    });
+</script>
+{% endblock %}

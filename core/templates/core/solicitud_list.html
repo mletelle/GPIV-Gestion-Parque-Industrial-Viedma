@@ -134,7 +134,12 @@
                 <button type="submit" class="btn-verde" style="padding:0.3rem 0.8rem;font-size:0.82rem;">
                     <i class="bi bi-funnel"></i> Filtrar
                 </button>
-                {% if filtro_estado %}
+                {% if filtro_grupo %}
+                <span style="font-size:0.82rem;color:var(--gris-suave);">
+                    Vista rápida: <strong>{{ filtro_grupo_label }}</strong>
+                </span>
+                {% endif %}
+                {% if filtro_estado or filtro_grupo %}
                 <a href="{% url 'core:solicitud_list' %}" style="font-size:0.82rem;color:var(--gris-suave);">Limpiar</a>
                 {% endif %}
             </form>

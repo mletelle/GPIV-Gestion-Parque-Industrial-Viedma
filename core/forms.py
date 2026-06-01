@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, SetPasswordForm
 from django.contrib.auth.models import Group
 from django import forms
@@ -216,26 +218,41 @@ class RechazarSolicitudForm(forms.Form):
 
 class AvanceConstructivoForm(forms.ModelForm):
     """Formulario para que la empresa registre un avance de obra con certificado PDF."""
+    porcentaje_declarado = forms.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        label='Porcentaje de avance (%)',
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'min': '0',
+            'max': '100',
+            'step': '0.01',
+            'placeholder': 'Ej: 25.00',
+        }),
+    )
+
     class Meta:
         model = AvanceConstructivo
         fields = ['porcentaje_declarado', 'certificado_pdf']
         widgets = {
-            'porcentaje_declarado': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'min': '0',
-                'max': '100',
-                'step': '0.01',
-                'placeholder': 'Ej: 25.00',
-            }),
             'certificado_pdf': forms.ClearableFileInput(attrs={
                 'class': 'form-control',
                 'accept': '.pdf',
             }),
         }
         labels = {
-            'porcentaje_declarado': 'Porcentaje de avance (%)',
             'certificado_pdf': 'Certificado del Director de Obra (PDF)',
         }
+
+    def clean_porcentaje_declarado(self):
+        porcentaje = self.cleaned_data.get('porcentaje_declarado')
+        if porcentaje is None:
+            return porcentaje
+        if porcentaje > 100:
+            return Decimal('100.00')
+        if porcentaje < 0:
+            raise forms.ValidationError('El porcentaje no puede ser menor a 0.')
+        return porcentaje
 
     def clean_certificado_pdf(self):
         archivo = self.cleaned_data.get('certificado_pdf')

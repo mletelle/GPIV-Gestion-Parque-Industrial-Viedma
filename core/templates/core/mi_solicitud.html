@@ -110,6 +110,21 @@
         </div>
         <div class="sec-line"></div>
 
+        {% if puede_cargar_avance or puede_pedir_prorroga %}
+        <div class="d-flex gap-2 mb-3">
+            {% if puede_cargar_avance %}
+            <a href="{% url 'core:avance_create' %}" class="btn-verde">
+                <i class="bi bi-bar-chart-steps"></i> Registrar Avance
+            </a>
+            {% endif %}
+            {% if puede_pedir_prorroga %}
+            <a href="{% url 'core:prorroga_create' %}" class="btn-verde" style="background:var(--azul);">
+                <i class="bi bi-calendar-plus"></i> Solicitar Prórroga
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <div class="gpiv-card mb-3">
             <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Información Fiscal</h5>
             <div class="dato-row"><span class="dato-label">Razón Social</span><span>{{ empresa.razon_social }}</span></div>
@@ -186,20 +201,7 @@
         </div>
         {% endif %}
 
-        {% if puede_cargar_avance or puede_pedir_prorroga %}
-        <div class="d-flex gap-2 mb-3">
-            {% if puede_cargar_avance %}
-            <a href="{% url 'core:avance_create' %}" class="btn-verde">
-                <i class="bi bi-bar-chart-steps"></i> Registrar Avance
-            </a>
-            {% endif %}
-            {% if puede_pedir_prorroga %}
-            <a href="{% url 'core:prorroga_create' %}" class="btn-verde" style="background:var(--azul);">
-                <i class="bi bi-calendar-plus"></i> Solicitar Prórroga
-            </a>
-            {% endif %}
-        </div>
-        {% endif %}
+
 
         {% if avances %}
         <div class="gpiv-card mb-3">
