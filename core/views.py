@@ -23,7 +23,7 @@ from django_ratelimit.decorators import ratelimit
 from django_ratelimit.exceptions import Ratelimited
 
 from .models import (
-    Lote, Empresa, TransicionEstado, AvanceConstructivo,
+    Lote, Empresa, DocumentoProyecto, TransicionEstado, AvanceConstructivo,
     SolicitudProrroga, CustomUser, ConsumoServicio,
     Ticket, MensajeTicket,
     ActivoInventario,
@@ -831,7 +831,8 @@ class MiSolicitudView(EmpresaMixin, TemplateView):
             ctx['puede_pedir_prorroga'] = empresa.estado == Empresa.Estado.EN_CONSTRUCCION
             # flujo preaprobación → documentación
             ctx['puede_subir_documentacion'] = empresa.estado == Empresa.Estado.PRE_APROBADO
-            ctx['documentacion_subida'] = bool(empresa.documentacion_proyecto)
+            ctx['documentacion_subida'] = empresa.documentacion_subida
+            ctx['documentos_proyecto'] = empresa.documentos_proyecto.all()
             ctx['form_documentacion'] = SubirDocumentacionForm()
         return ctx
 
@@ -954,10 +955,11 @@ class SolicitudDetailView(AdminEnrepaviMixin, DetailView):
             porcentaje_declarado=100, validado_admin=True,
         ).exists()
         # flujo preaprobación → documentación
-        ctx['documentacion_subida'] = bool(self.object.documentacion_proyecto)
+        ctx['documentos_proyecto'] = self.object.documentos_proyecto.all()
+        ctx['documentacion_subida'] = self.object.documentacion_subida
         ctx['puede_tomar_decision'] = (
             self.object.estado == Empresa.Estado.PRE_APROBADO
-            and bool(self.object.documentacion_proyecto)
+            and self.object.documentacion_subida
         )
         return ctx
 
@@ -1002,13 +1004,12 @@ class SolicitudRechazarView(AdminEnrepaviMixin, View):
 
 class SubirDocumentacionView(EmpresaMixin, View):
     """
-    La empresa sube la documentación completa del proyecto cuando está PRE_APROBADO.
+    La empresa sube uno o varios archivos de documentación del proyecto.
 
-    Validación en dispatch:
+    Restricciones:
     - Estado debe ser PRE_APROBADO.
-    - Si la empresa ya subió documentación, igualmente puede reemplazarla.
-
-    Una vez subida, el admin puede tomar la decisión final desde DecisionFinalView.
+    - Cada archivo se guarda como un DocumentoProyecto independiente.
+    - El admin puede ver y descargar todos los archivos desde DecisionFinalView.
     """
 
     def dispatch(self, request, *args, **kwargs):
@@ -1025,24 +1026,57 @@ class SubirDocumentacionView(EmpresaMixin, View):
 
     def post(self, request):
         empresa = request.user.empresa
-        form = SubirDocumentacionForm(request.POST, request.FILES, instance=empresa)
-        if form.is_valid():
+        archivos = request.FILES.getlist('archivos')
+
+        if not archivos:
+            messages.error(request, 'Debés seleccionar al menos un archivo.')
+            return redirect('core:mi_solicitud')
+
+        extensiones_ok = DocumentoProyecto.EXTENSIONES_PERMITIDAS
+        errores = []
+        documentos_nuevos = []
+
+        for archivo in archivos:
+            ext = archivo.name.rsplit('.', 1)[-1].lower() if '.' in archivo.name else ''
+            if ext not in extensiones_ok:
+                errores.append(f'Formato no permitido: {archivo.name} (.{ext})')
+                continue
+            if archivo.size > 20 * 1024 * 1024:  # 20 MB por archivo
+                errores.append(f'Archivo demasiado grande (máx. 20 MB): {archivo.name}')
+                continue
+            documentos_nuevos.append(archivo)
+
+        if errores:
+            for e in errores:
+                messages.error(request, e)
+
+        if documentos_nuevos:
             with transaction.atomic():
-                form.save()
+                import os
+                for archivo in documentos_nuevos:
+                    DocumentoProyecto.objects.create(
+                        empresa=empresa,
+                        archivo=archivo,
+                        nombre_original=os.path.basename(archivo.name),
+                        subido_por=request.user,
+                    )
                 TransicionEstado.objects.create(
                     empresa=empresa,
                     estado_anterior=empresa.estado,
-                    estado_nuevo=empresa.estado,  # no cambia el estado, solo se registra el hecho
+                    estado_nuevo=empresa.estado,
                     usuario=request.user,
-                    justificacion_resolucion='Documentación del proyecto subida por la empresa.',
+                    justificacion_resolucion=(
+                        f'Documentación subida por la empresa: '
+                        f'{", ".join(a.name for a in documentos_nuevos)}.'
+                    ),
                 )
+            n = len(documentos_nuevos)
             messages.success(
                 request,
-                'Documentación subida correctamente. La administración la revisará a la brevedad.'
+                f'{n} archivo{"s" if n > 1 else ""} subido{"s" if n > 1 else ""} correctamente. '
+                'La administración los revisará a la brevedad.'
             )
-        else:
-            for error in form.errors.values():
-                messages.error(request, error.as_text())
+
         return redirect('core:mi_solicitud')
 
 
@@ -1055,34 +1089,35 @@ class DecisionFinalView(AdminEnrepaviMixin, View):
     Admin: tomá la decisión final sobre una empresa en estado PRE_APROBADO que
     ya subió su documentación.
 
-    Acciones posibles:
-    - aprobar → LISTO_ADJUDICAR (la empresa queda lista para adjudicación de lote).
-    - descartar → DESCARTADA (se registra motivo, queda en bandeja de descartadas).
+    Acciones:
+    - aprobar → LISTO_ADJUDICAR
+    - descartar → DESCARTADA (motivo obligatorio)
 
     Validación crítica (backend):
-    - Si la empresa no tiene documentacion_proyecto cargado, no se puede aprobar.
-      (PermissionDenied como defensa en profundidad).
+    - Si la empresa no tiene ningún DocumentoProyecto, no se puede aprobar.
     """
 
     def _get_empresa(self, pk):
-        """Retorna la empresa solo si está en PRE_APROBADO."""
         return get_object_or_404(Empresa, pk=pk, estado=Empresa.Estado.PRE_APROBADO)
 
     def get(self, request, pk):
         empresa = self._get_empresa(pk)
+        documentos = empresa.documentos_proyecto.all()
         return render(request, 'core/decision_final.html', {
             'empresa': empresa,
             'form_descartar': DescartarEmpresaForm(),
-            'documentacion_subida': bool(empresa.documentacion_proyecto),
+            'documentos': documentos,
+            'documentacion_subida': documentos.exists(),
         })
 
     def post(self, request, pk):
         empresa = self._get_empresa(pk)
         accion = request.POST.get('accion')
+        documentos = empresa.documentos_proyecto.all()
 
         if accion == 'aprobar':
-            # ── Validación crítica: la empresa DEBE haber subido documentación ──
-            if not empresa.documentacion_proyecto:
+            # ── Validación crítica: debe haber al menos un documento subido ──
+            if not documentos.exists():
                 messages.error(
                     request,
                     'No se puede aprobar: la empresa todavía no subió la documentación del proyecto.'
@@ -1094,7 +1129,7 @@ class DecisionFinalView(AdminEnrepaviMixin, View):
                     empresa,
                     Empresa.Estado.LISTO_ADJUDICAR,
                     request.user,
-                    'Proyecto aprobado por administración. Listo para adjudicación de lote.',
+                    f'Proyecto aprobado ({documentos.count()} archivo(s)). Listo para adjudicación.',
                 )
             messages.success(
                 request,
@@ -1120,14 +1155,13 @@ class DecisionFinalView(AdminEnrepaviMixin, View):
                     f'{empresa.razon_social} descartada. Quedó registrada en la bandeja de descartadas.'
                 )
                 return redirect('core:solicitudes_descartadas')
-            # form inválido: volver a renderizar con errores
             return render(request, 'core/decision_final.html', {
                 'empresa': empresa,
                 'form_descartar': form,
-                'documentacion_subida': bool(empresa.documentacion_proyecto),
+                'documentos': documentos,
+                'documentacion_subida': documentos.exists(),
             })
 
-        # accion desconocida
         messages.error(request, 'Acción no reconocida.')
         return redirect('core:decision_final', pk=pk)
 

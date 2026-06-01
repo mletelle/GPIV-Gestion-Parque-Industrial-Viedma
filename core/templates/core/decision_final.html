@@ -246,20 +246,31 @@
             </div>
         </div>
 
-        <!-- Documentación del proyecto -->
+        <!-- documentación del proyecto -->
         {% if documentacion_subida %}
-        <div class="doc-card">
-            <span class="doc-icon"><i class="bi bi-file-earmark-check-fill"></i></span>
-            <div class="doc-info">
-                <strong>Documentación del proyecto adjuntada</strong>
-                <small>La empresa subió el archivo del proyecto. Podés descargarlo para revisarlo.</small>
+        <div class="doc-card" style="flex-direction: column; align-items: stretch; gap: 0.5rem;">
+            <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.25rem;">
+                <span class="doc-icon"><i class="bi bi-folder2-open"></i></span>
+                <div class="doc-info">
+                    <strong>{{ documentos.count }} archivo{{ documentos.count|pluralize:"s" }} adjuntado{{ documentos.count|pluralize:"s" }}</strong>
+                    <small>La empresa subió la documentación del proyecto. Podés descargar cada archivo para revisarlo.</small>
+                </div>
             </div>
-            <a href="{{ empresa.documentacion_proyecto.url }}"
-               target="_blank"
-               style="background: #16A34A; color: #fff; padding: 0.4rem 0.9rem; border-radius: 7px;
-                      text-decoration: none; font-size: 0.85rem; font-weight: 600; white-space: nowrap;">
-                <i class="bi bi-download"></i> Descargar
-            </a>
+            <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:0.4rem;">
+                {% for doc in documentos %}
+                <li style="display:flex; align-items:center; gap:0.75rem; background:#F0FDF4; border:1px solid #86EFAC; border-radius:8px; padding:0.5rem 0.75rem;">
+                    <i class="bi bi-file-earmark-text" style="color:#15803D; font-size:1.1rem; flex-shrink:0;"></i>
+                    <span style="flex:1; font-size:0.88rem; color:#1F2937; font-weight:500;">{{ doc.nombre_original }}</span>
+                    <span style="color:#9CA3AF; font-size:0.78rem; white-space:nowrap;">{{ doc.fecha_subida|date:"d/m/Y H:i" }}</span>
+                    <a href="{{ doc.archivo.url }}"
+                       target="_blank"
+                       style="background:#15803D; color:#fff; padding:0.25rem 0.7rem; border-radius:6px;
+                              text-decoration:none; font-size:0.8rem; font-weight:600; white-space:nowrap; flex-shrink:0;">
+                        <i class="bi bi-download"></i> Descargar
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
         </div>
         {% else %}
         <div class="no-doc-card">

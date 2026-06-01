@@ -1210,45 +1210,30 @@ class AdminAsignarColaboradorForm(forms.Form):
 # Flujo: Preaprobación → Documentación → Adjudicación / Descarte
 # ──────────────────────────────────────────────────────────────────────────────
 
-class SubirDocumentacionForm(forms.ModelForm):
+class SubirDocumentacionForm(forms.Form):
     """
-    Formulario para que la empresa suba la documentación completa del proyecto.
+    Formulario para que la empresa suba uno o más archivos de documentación del proyecto.
+
+    El input acepta selección múltiple. La vista procesa cada archivo con
+    request.FILES.getlist('archivos') y crea un DocumentoProyecto por cada uno.
 
     Solo disponible cuando el estado de la empresa es PRE_APROBADO.
-    Acepta PDF, ZIP, RAR y DOCX. La vista verifica el estado antes de procesar.
     """
 
-    class Meta:
-        model = Empresa
-        fields = ['documentacion_proyecto']
-        widgets = {
-            'documentacion_proyecto': forms.FileInput(attrs={
-                'class': 'form-control',
-                'accept': '.pdf,.zip,.rar,.docx,.doc',
-                'id': 'id_documentacion_proyecto',
-            }),
-        }
-        labels = {
-            'documentacion_proyecto': 'Archivo del proyecto (PDF, ZIP, RAR, DOCX)',
-        }
-        help_texts = {
-            'documentacion_proyecto': (
-                'Adjuntá el documento completo del proyecto. '
-                'Formatos aceptados: PDF, ZIP, RAR, DOCX. Máximo 20 MB.'
-            ),
-        }
+    archivos = forms.FileField(
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': '.pdf,.zip,.rar,.docx,.doc,.xlsx,.xls,.dwg',
+            'multiple': True,
+            'id': 'id_archivos_proyecto',
+        }),
+        label='Archivos del proyecto',
+        help_text=(
+            'Podés seleccionar varios archivos a la vez. '
+            'Formatos: PDF, ZIP, RAR, DOCX, DOC, XLSX, XLS, DWG. Máximo 20 MB por archivo.'
+        ),
+    )
 
-    def clean_documentacion_proyecto(self):
-        archivo = self.cleaned_data.get('documentacion_proyecto')
-        if not archivo:
-            raise forms.ValidationError(
-                'Debés adjuntar al menos un archivo con la documentación del proyecto.'
-            )
-        # Validar tamaño (máx. 20 MB)
-        max_size = 20 * 1024 * 1024
-        if hasattr(archivo, 'size') and archivo.size > max_size:
-            raise forms.ValidationError('El archivo no puede superar los 20 MB.')
-        return archivo
 
 
 class DescartarEmpresaForm(forms.Form):

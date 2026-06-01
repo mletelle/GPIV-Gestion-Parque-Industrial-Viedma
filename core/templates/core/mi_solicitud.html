@@ -220,43 +220,61 @@
             <div class="doc-enviado-block">
                 <i class="bi bi-file-earmark-check-fill"></i>
                 <div style="flex:1;">
-                    <strong style="color:#15803D; display:block;">Documentación enviada correctamente</strong>
+                    <strong style="color:#15803D; display:block;">
+                        {{ documentos_proyecto.count }} archivo{{ documentos_proyecto.count|pluralize:"s" }} enviado{{ documentos_proyecto.count|pluralize:"s" }}
+                    </strong>
                     <p style="margin:0.25rem 0 0; font-size:0.85rem; color:#4B5563;">
-                        La administración está revisando tu proyecto. Recibirás una notificación cuando se tome la decisión final.
+                        La administración está revisando tu documentación.
                     </p>
-                    <form method="post" action="{% url 'core:subir_documentacion' %}" enctype="multipart/form-data" class="mt-2">
-                        {% csrf_token %}
-                        <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-                            {{ form_documentacion.documentacion_proyecto }}
-                            <button type="submit" class="btn-verde" style="padding:0.4rem 0.9rem; font-size:0.85rem;">
-                                <i class="bi bi-arrow-repeat"></i> Reemplazar archivo
-                            </button>
-                        </div>
-                    </form>
+                    {# Lista de archivos subidos #}
+                    <ul style="margin:0.75rem 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:0.35rem;">
+                        {% for doc in documentos_proyecto %}
+                        <li style="display:flex; align-items:center; gap:0.5rem; font-size:0.83rem;">
+                            <i class="bi bi-file-earmark" style="color:#6B7280;"></i>
+                            <span style="flex:1; color:#374151;">{{ doc.nombre_original }}</span>
+                            <span style="color:#9CA3AF; font-size:0.78rem;">{{ doc.fecha_subida|date:"d/m/Y H:i" }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
                 </div>
             </div>
-            {% else %}
-            <div class="doc-upload-block">
+            {% endif %}
+
+            {# Formulario para agregar más archivos (siempre visible si está PRE_APROBADO) #}
+            <div class="doc-upload-block" {% if documentacion_subida %}style="border-color:#BBF7D0; background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);"{% endif %}>
+                {% if documentacion_subida %}
+                <h5 style="color:#15803D;"><i class="bi bi-plus-circle"></i> Agregar más archivos</h5>
+                <p style="color:#4B5563;">Podés sumar más documentos a tu presentación.</p>
+                {% else %}
                 <h5><i class="bi bi-upload"></i> ¡Acción requerida! Subí la documentación de tu proyecto</h5>
                 <p>
                     Tu solicitud fue <strong>pre-aprobada</strong>. Para avanzar a la adjudicación de un lote,
                     debés adjuntar la documentación completa de tu proyecto.
                 </p>
+                {% endif %}
                 <form method="post" action="{% url 'core:subir_documentacion' %}" enctype="multipart/form-data">
                     {% csrf_token %}
                     <div class="mb-2">
-                        {{ form_documentacion.documentacion_proyecto }}
-                        <small style="color:#3B82F6; font-size:0.8rem;">
-                            Formatos aceptados: PDF, ZIP, RAR, DOCX. Máximo 20 MB.
+                        <input type="file"
+                               name="archivos"
+                               id="id_archivos_proyecto"
+                               class="form-control"
+                               accept=".pdf,.zip,.rar,.docx,.doc,.xlsx,.xls,.dwg"
+                               multiple>
+                        <small style="color:#6B7280; font-size:0.8rem; display:block; margin-top:0.3rem;">
+                            <i class="bi bi-info-circle"></i>
+                            Podés seleccionar varios archivos a la vez con Ctrl+Click o Shift+Click.
+                            Formatos: PDF, ZIP, RAR, DOCX, XLSX, DWG. Máximo 20 MB por archivo.
                         </small>
                     </div>
                     <button type="submit" class="btn-verde" id="btn-subir-documentacion" style="margin-top:0.5rem;">
-                        <i class="bi bi-cloud-upload"></i> Subir Documentación del Proyecto
+                        <i class="bi bi-cloud-upload"></i>
+                        {% if documentacion_subida %}Agregar Archivos{% else %}Subir Documentación{% endif %}
                     </button>
                 </form>
             </div>
-            {% endif %}
         {% endif %}
+
 
         {# ── Bloque descartada #}
         {% if empresa.estado == 'Descartada' %}

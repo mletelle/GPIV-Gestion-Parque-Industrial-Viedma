@@ -268,18 +268,7 @@ class Empresa(models.Model):
     )
     escritura_pdf = models.FileField(upload_to='escrituras/', blank=True, null=True)
 
-    # Documentación del proyecto (habilitada cuando estado == PRE_APROBADO)
-    documentacion_proyecto = models.FileField(
-        upload_to='documentacion_proyecto/',
-        blank=True,
-        null=True,
-        validators=[FileExtensionValidator(['pdf', 'zip', 'rar', 'docx', 'doc'])],
-        verbose_name=_('Documentación del proyecto'),
-        help_text=_(
-            'La empresa adjunta la documentación completa del proyecto cuando '
-            'está en estado Pre-Aprobado. Requerida para avanzar a Listo para Adjudicar.'
-        ),
-    )
+    # Motivo de descarte (cuando el admin descarta la solicitud)
     motivo_descarte = models.TextField(
         blank=True,
         null=True,
@@ -288,6 +277,11 @@ class Empresa(models.Model):
     )
 
     history = HistoricalRecords()
+
+    @property
+    def documentacion_subida(self):
+        """True si la empresa tiene al menos un documento del proyecto subido."""
+        return self.documentos_proyecto.exists()
 
     class Meta:
         verbose_name = _("Empresa")
@@ -322,8 +316,63 @@ class Empresa(models.Model):
         RangoNecesidadM2.MAS_5000: 5000,
     }
 
+
     def get_necesidad_m2_minimo(self):
         return self._RANGO_M2_MINIMO.get(self.necesidad_m2, 0)
+
+
+class DocumentoProyecto(models.Model):
+    """
+    Archivo individual de la documentación del proyecto de una empresa.
+
+    Una empresa puede subir múltiples documentos cuando está en estado PRE_APROBADO.
+    El admin puede consultarlos y descargarlos antes de tomar la decisión final.
+    """
+    EXTENSIONES_PERMITIDAS = ['pdf', 'zip', 'rar', 'docx', 'doc', 'xlsx', 'xls', 'dwg']
+
+    empresa = models.ForeignKey(
+        'Empresa',
+        on_delete=models.CASCADE,
+        related_name='documentos_proyecto',
+        verbose_name=_('Empresa'),
+    )
+    archivo = models.FileField(
+        upload_to='documentacion_proyecto/',
+        validators=[FileExtensionValidator(EXTENSIONES_PERMITIDAS)],
+        verbose_name=_('Archivo'),
+    )
+    nombre_original = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name=_('Nombre original del archivo'),
+        help_text=_('Guardado automáticamente al subir.'),
+    )
+    fecha_subida = models.DateTimeField(auto_now_add=True, verbose_name=_('Fecha de subida'))
+    subido_por = models.ForeignKey(
+        'CustomUser',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='documentos_subidos',
+        verbose_name=_('Subido por'),
+    )
+
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = _('Documento del Proyecto')
+        verbose_name_plural = _('Documentos del Proyecto')
+        ordering = ['-fecha_subida']
+
+    def __str__(self):
+        return f"{self.empresa.razon_social} — {self.nombre_original or self.archivo.name}"
+
+    def save(self, *args, **kwargs):
+        # Guardar el nombre original del archivo si está vacío
+        if not self.nombre_original and self.archivo:
+            import os
+            self.nombre_original = os.path.basename(self.archivo.name)
+        super().save(*args, **kwargs)
 
 
 class Lote(models.Model):
