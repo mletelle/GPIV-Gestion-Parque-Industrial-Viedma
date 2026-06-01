@@ -327,29 +327,40 @@
             {% endif %}
         </div>
 
-        <!-- documentación del proyecto (PRE_APROBADO / LISTO_ADJUDICAR) -->
-        {% if empresa.estado in 'PreAprobado,ListoAdjudicar' or documentacion_subida %}
-        <div class="{% if documentacion_subida %}doc-proyecto-card con-doc{% else %}doc-proyecto-card sin-doc{% endif %} mb-3">
-            {% if documentacion_subida %}
-            <i class="bi bi-file-earmark-check-fill"></i>
-            <div style="flex:1;">
-                <strong style="color:#15803D;font-size:0.9rem;">Documentación del proyecto adjuntada</strong>
-                <br>
-                <a href="{{ empresa.documentacion_proyecto.url }}" target="_blank"
-                   style="font-size:0.83rem;color:#166534;font-weight:600;">
-                    <i class="bi bi-download"></i> Descargar archivo
-                </a>
+        <!-- estado de documentación del proyecto -->
+        {% if empresa.estado == 'PreAprobado' %}
+        {% if documentacion_subida %}
+        <div class="doc-proyecto-card con-doc mb-3" style="justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+            <div style="display:flex; align-items:center; gap:0.75rem;">
+                <i class="bi bi-folder2-open" style="color:#16A34A; font-size:1.5rem; flex-shrink:0;"></i>
+                <div>
+                    <strong style="color:#15803D; font-size:0.9rem; display:block;">
+                        La empresa subió {{ documentos_proyecto.count }} archivo{{ documentos_proyecto.count|pluralize:"s" }} del proyecto
+                    </strong>
+                    <span style="font-size:0.82rem; color:#4B5563;">
+                        Podés revisar y descargar los archivos en la página de decisión final.
+                    </span>
+                </div>
             </div>
-            {% else %}
-            <i class="bi bi-exclamation-triangle-fill"></i>
+            <a href="{% url 'core:decision_final' empresa.pk %}"
+               style="background:#7C3AED; color:#fff; padding:0.45rem 1rem; border-radius:7px;
+                      text-decoration:none; font-size:0.85rem; font-weight:600;
+                      display:inline-flex; align-items:center; gap:0.4rem; white-space:nowrap; flex-shrink:0;">
+                <i class="bi bi-check2-square"></i> Tomar Decisión Final
+            </a>
+        </div>
+        {% else %}
+        <div class="doc-proyecto-card sin-doc mb-3">
+            <i class="bi bi-hourglass-split"></i>
             <div>
-                <strong style="color:#92400E;font-size:0.9rem;">La empresa aún no subió la documentación</strong>
+                <strong style="color:#92400E;font-size:0.9rem;">Esperando documentación de la empresa</strong>
                 <p style="margin:0;font-size:0.82rem;color:#78350F;">
-                    El botón de decisión final se habilitará cuando la empresa suba el archivo.
+                    La empresa debe subir el proyecto desde su portal. El botón de decisión final
+                    se habilitará una vez que suba al menos un archivo.
                 </p>
             </div>
-            {% endif %}
         </div>
+        {% endif %}
         {% endif %}
 
         <!-- motivo de descarte -->
