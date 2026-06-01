@@ -330,24 +330,16 @@
         <!-- estado de documentación del proyecto -->
         {% if empresa.estado == 'PreAprobado' %}
         {% if documentacion_subida %}
-        <div class="doc-proyecto-card con-doc mb-3" style="justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
-            <div style="display:flex; align-items:center; gap:0.75rem;">
-                <i class="bi bi-folder2-open" style="color:#16A34A; font-size:1.5rem; flex-shrink:0;"></i>
-                <div>
-                    <strong style="color:#15803D; font-size:0.9rem; display:block;">
-                        La empresa subió {{ documentos_proyecto.count }} archivo{{ documentos_proyecto.count|pluralize:"s" }} del proyecto
-                    </strong>
-                    <span style="font-size:0.82rem; color:#4B5563;">
-                        Podés revisar y descargar los archivos en la página de decisión final.
-                    </span>
-                </div>
+        <div class="doc-proyecto-card con-doc mb-3">
+            <i class="bi bi-folder2-open" style="color:#16A34A; font-size:1.5rem; flex-shrink:0;"></i>
+            <div>
+                <strong style="color:#15803D; font-size:0.9rem; display:block;">
+                    La empresa subió {{ documentos_proyecto.count }} archivo{{ documentos_proyecto.count|pluralize:"s" }} del proyecto
+                </strong>
+                <span style="font-size:0.82rem; color:#4B5563;">
+                    Podés revisar y descargar los archivos desde el botón de arriba.
+                </span>
             </div>
-            <a href="{% url 'core:decision_final' empresa.pk %}"
-               style="background:#7C3AED; color:#fff; padding:0.45rem 1rem; border-radius:7px;
-                      text-decoration:none; font-size:0.85rem; font-weight:600;
-                      display:inline-flex; align-items:center; gap:0.4rem; white-space:nowrap; flex-shrink:0;">
-                <i class="bi bi-check2-square"></i> Tomar Decisión Final
-            </a>
         </div>
         {% else %}
         <div class="doc-proyecto-card sin-doc mb-3">
