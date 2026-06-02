@@ -294,7 +294,7 @@
             <div class="accion-card aprobar">
                 <h5><i class="bi bi-check-circle-fill"></i> Aprobar Proyecto</h5>
                 <p>
-                    La empresa quedará en estado <strong>Listo para Adjudicar</strong>.
+                    La empresa quedará en estado <strong>Aprobada</strong>.
                     Podrás asignarle un lote disponible.
                 </p>
                 {% if not documentacion_subida %}
@@ -311,7 +311,7 @@
                             class="btn-aprobar"
                             id="btn-aprobar-proyecto"
                             {% if not documentacion_subida %}disabled{% endif %}>
-                        <i class="bi bi-check2-circle"></i> Aprobar → Listo para Adjudicar
+                        <i class="bi bi-check2-circle"></i> Aprobar → Aprobada
                     </button>
                 </form>
             </div>
@@ -320,7 +320,7 @@
             <div class="accion-card descartar">
                 <h5><i class="bi bi-x-circle-fill"></i> Descartar Solicitud</h5>
                 <p>
-                    La empresa pasará a estado <strong>Descartada</strong>.
+                    La empresa pasará a estado <strong>Rechazada</strong>.
                     Quedará visible en la bandeja de descartadas con el motivo registrado.
                 </p>
                 <form method="post" action="{% url 'core:decision_final' empresa.pk %}"

@@ -967,7 +967,7 @@ class SolicitudDetailView(AdminEnrepaviMixin, DetailView):
 class SolicitudPreAprobarView(AdminEnrepaviMixin, View):
     """accion: EnEvaluacion -> PreAprobado.
     A partir de aquí, la empresa debe subir la documentación del proyecto.
-    El admin solo puede avanzar a ListoAdjudicar o Descartada desde DecisionFinalView.
+    El admin puede aprobar (→ ListoAdjudicar/Aprobada) o rechazar con motivo (→ Rechazado) desde DecisionFinalView.
     """
     def post(self, request, pk):
         empresa = get_object_or_404(Empresa, pk=pk, estado=Empresa.Estado.EN_EVALUACION)
@@ -1090,8 +1090,8 @@ class DecisionFinalView(AdminEnrepaviMixin, View):
     ya subió su documentación.
 
     Acciones:
-    - aprobar → LISTO_ADJUDICAR
-    - descartar → DESCARTADA (motivo obligatorio)
+    - aprobar → LISTO_ADJUDICAR (label "Aprobada")
+    - descartar → RECHAZADO con motivo_descarte obligatorio
 
     Validación crítica (backend):
     - Si la empresa no tiene ningún DocumentoProyecto, no se puede aprobar.
@@ -1146,13 +1146,13 @@ class DecisionFinalView(AdminEnrepaviMixin, View):
                     empresa.save(update_fields=['motivo_descarte'])
                     registrar_transicion(
                         empresa,
-                        Empresa.Estado.DESCARTADA,
+                        Empresa.Estado.RECHAZADO,
                         request.user,
-                        f'Empresa descartada. Motivo: {motivo}',
+                        f'Empresa rechazada en decisión final. Motivo: {motivo}',
                     )
                 messages.warning(
                     request,
-                    f'{empresa.razon_social} descartada. Quedó registrada en la bandeja de descartadas.'
+                    f'{empresa.razon_social} rechazada. Quedó registrada en la bandeja de descartadas.'
                 )
                 return redirect('core:solicitudes_descartadas')
             return render(request, 'core/decision_final.html', {
@@ -1172,10 +1172,12 @@ class DecisionFinalView(AdminEnrepaviMixin, View):
 
 class EmpresasDescartadasView(AdminEnrepaviMixin, ListView):
     """
-    Admin: listado de empresas en estado DESCARTADA.
+    Admin: listado de empresas rechazadas en la decisión final del proceso de radicación.
 
-    Permite consultar quiénes fueron descartadas, cuándo y por qué motivo,
-    cumpliendo el requerimiento de trazabilidad y auditoría del flujo.
+    Filtra por estado RECHAZADO con motivo_descarte presente, lo que distingue a las
+    empresas descartadas en la decisión final de las rechazadas en etapas tempranas
+    (EnEvaluacion / PreAprobado) que no poseen ese campo.
+    Cumple el requerimiento de trazabilidad y auditoría del flujo.
     """
     model = Empresa
     template_name = 'core/solicitudes_descartadas.html'
@@ -1185,16 +1187,23 @@ class EmpresasDescartadasView(AdminEnrepaviMixin, ListView):
     def get_queryset(self):
         return (
             Empresa.objects
-            .filter(estado=Empresa.Estado.DESCARTADA)
+            .filter(
+                estado=Empresa.Estado.RECHAZADO,
+                motivo_descarte__isnull=False,
+            )
+            .exclude(motivo_descarte='')
             .prefetch_related('historial_estados')
             .order_by('-pk')
         )
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['total_descartadas'] = Empresa.objects.filter(
-            estado=Empresa.Estado.DESCARTADA
-        ).count()
+        ctx['total_descartadas'] = (
+            Empresa.objects
+            .filter(estado=Empresa.Estado.RECHAZADO, motivo_descarte__isnull=False)
+            .exclude(motivo_descarte='')
+            .count()
+        )
         return ctx
 
 

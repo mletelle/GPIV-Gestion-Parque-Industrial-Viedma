@@ -180,16 +180,16 @@
                 </div>
                 {% endif %}
 
-                {# Paso 3: Listo para Adjudicar / Descartada #}
+                {# Paso 3: Aprobada / Rechazada en decisión final #}
                 {% if empresa.estado == 'ListoAdjudicar' %}
                 <div class="tl-step activo">
                     <div class="tl-dot"><i class="bi bi-geo-alt"></i></div>
-                    <span class="tl-label">Lista para Adjudicar</span>
+                    <span class="tl-label">Aprobada</span>
                 </div>
-                {% elif empresa.estado == 'Descartada' %}
+                {% elif empresa.estado == 'Rechazado' and empresa.motivo_descarte %}
                 <div class="tl-step error">
                     <div class="tl-dot"><i class="bi bi-x-lg"></i></div>
-                    <span class="tl-label">Descartada</span>
+                    <span class="tl-label">Rechazada</span>
                 </div>
                 {% else %}
                 <div class="tl-step {% if empresa.estado in 'Radicada,EnConstruccion,Finalizado,Escriturado' %}completado{% else %}pendiente{% endif %}">
@@ -198,7 +198,7 @@
                             <i class="bi bi-check-lg"></i>
                         {% else %}<i class="bi bi-circle"></i>{% endif %}
                     </div>
-                    <span class="tl-label">Lista para Adjudicar</span>
+                    <span class="tl-label">Aprobada</span>
                 </div>
                 {% endif %}
 
@@ -276,17 +276,13 @@
         {% endif %}
 
 
-        {# ── Bloque descartada #}
-        {% if empresa.estado == 'Descartada' %}
+        {# ── Bloque rechazada en decisión final (con motivo_descarte) #}
+        {% if empresa.estado == 'Rechazado' and empresa.motivo_descarte %}
         <div class="descartada-block">
-            <h5><i class="bi bi-x-circle-fill"></i> Solicitud Descartada</h5>
-            {% if empresa.motivo_descarte %}
+            <h5><i class="bi bi-x-circle-fill"></i> Solicitud Rechazada</h5>
             <p style="color:#374151; font-size:0.9rem; margin:0;">
                 <strong>Motivo:</strong> {{ empresa.motivo_descarte }}
             </p>
-            {% else %}
-            <p style="color:#6B7280; font-size:0.9rem; margin:0; font-style:italic;">Sin motivo registrado.</p>
-            {% endif %}
         </div>
         {% endif %}
 

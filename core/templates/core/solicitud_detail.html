@@ -308,9 +308,9 @@
                 <i class="bi bi-geo-alt"></i> Adjudicar Lote
             </a>
 
-            {% elif empresa.estado == 'Descartada' %}
+            {% elif empresa.estado == 'Rechazado' %}
             <span style="font-size:0.85rem;color:#DC2626;font-weight:600;">
-                <i class="bi bi-x-circle-fill"></i> Solicitud Descartada
+                <i class="bi bi-x-circle-fill"></i> Solicitud Rechazada
             </span>
 
             {% elif empresa.estado == 'EnConstruccion' %}
@@ -358,9 +358,9 @@
         {% endif %}
 
         <!-- motivo de descarte -->
-        {% if empresa.estado == 'Descartada' and empresa.motivo_descarte %}
+        {% if empresa.estado == 'Rechazado' and empresa.motivo_descarte %}
         <div style="background:#FFF5F5;border:1.5px solid #FCA5A5;border-radius:10px;padding:1rem 1.25rem;margin-bottom:0.75rem;">
-            <strong style="color:#DC2626;font-size:0.88rem;"><i class="bi bi-x-circle"></i> Motivo del descarte:</strong>
+            <strong style="color:#DC2626;font-size:0.88rem;"><i class="bi bi-x-circle"></i> Motivo del rechazo:</strong>
             <p style="margin:0.3rem 0 0;font-size:0.88rem;color:#374151;">{{ empresa.motivo_descarte }}</p>
         </div>
         {% endif %}

@@ -98,9 +98,8 @@ class Empresa(models.Model):
     class Estado(models.TextChoices):
         EN_EVALUACION    = 'EnEvaluacion',    _('En Evaluación')
         PRE_APROBADO     = 'PreAprobado',     _('Pre-Aprobado')
-        LISTO_ADJUDICAR  = 'ListoAdjudicar',  _('Listo para Adjudicar')
+        LISTO_ADJUDICAR  = 'ListoAdjudicar',  _('Aprobada')
         RECHAZADO        = 'Rechazado',        _('Rechazado')
-        DESCARTADA       = 'Descartada',       _('Descartada')
         RADICADA         = 'Radicada',         _('Radicada')
         EN_CONSTRUCCION  = 'EnConstruccion',   _('En Construcción')
         FINALIZADO       = 'Finalizado',       _('Finalizado')
@@ -268,12 +267,13 @@ class Empresa(models.Model):
     )
     escritura_pdf = models.FileField(upload_to='escrituras/', blank=True, null=True)
 
-    # Motivo de descarte (cuando el admin descarta la solicitud)
+    # Motivo de descarte/rechazo en decisión final (cuando el admin rechaza luego del pre-aprobado)
+    # Su presencia distingue un rechazo en decisión final de un rechazo temprano en evaluación.
     motivo_descarte = models.TextField(
         blank=True,
         null=True,
-        verbose_name=_('Motivo de descarte'),
-        help_text=_('Obligatorio al descartar una empresa. Queda registrado en la bandeja de descartadas.'),
+        verbose_name=_('Motivo de rechazo en decisión final'),
+        help_text=_('Obligatorio al rechazar una empresa desde la decisión final. Queda registrado en la bandeja de descartadas.'),
     )
 
     history = HistoricalRecords()
