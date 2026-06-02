@@ -3,9 +3,12 @@ from decimal import Decimal
 from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, SetPasswordForm
 from django.contrib.auth.models import Group
 from django import forms
-from django.core.validators import FileExtensionValidator
 from django.utils import timezone
-from .models import Lote, Empresa, CustomUser, AvanceConstructivo, SolicitudProrroga, ConsumoServicio, Ticket, MensajeTicket, ActivoInventario, SolicitudAcceso
+from .models import (
+    Lote, Empresa, DocumentoProyecto, CustomUser, AvanceConstructivo,
+    SolicitudProrroga, ConsumoServicio, Ticket, MensajeTicket,
+    ActivoInventario, SolicitudAcceso,
+)
 from .services import SERVICIO_CAMPOS
 
 
@@ -213,6 +216,19 @@ class RechazarSolicitudForm(forms.Form):
         }),
         min_length=10,
         label='Justificación del rechazo',
+    )
+
+
+class PreAprobarSolicitudForm(forms.Form):
+    observaciones = forms.CharField(
+        required=False,
+        max_length=1000,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': 'Observaciones técnicas opcionales',
+        }),
+        label='Observaciones técnicas',
     )
 
 
@@ -1206,64 +1222,38 @@ class AdminAsignarColaboradorForm(forms.Form):
         return cleaned
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Flujo: Preaprobación → Documentación → Adjudicación / Descarte
-# ──────────────────────────────────────────────────────────────────────────────
-
 class MultipleFileInput(forms.FileInput):
-    """
-    Widget para selección múltiple de archivos.
-    Django 4.2+ requiere allow_multiple_selected = True en el widget;
-    de lo contrario FileInput lanza ValueError al instanciar el form.
-    """
     allow_multiple_selected = True
 
 
+class MultipleFileField(forms.FileField):
+    def clean(self, data, initial=None):
+        limpiar_un_archivo = super().clean
+        if isinstance(data, (list, tuple)):
+            if not data and self.required:
+                raise forms.ValidationError(self.error_messages['required'], code='required')
+            return [limpiar_un_archivo(archivo, initial) for archivo in data]
+        return [limpiar_un_archivo(data, initial)]
+
+
 class SubirDocumentacionForm(forms.Form):
-    """
-    Formulario para que la empresa suba uno o más archivos de documentación del proyecto.
-
-    El input acepta selección múltiple. La vista procesa cada archivo con
-    request.FILES.getlist('archivos') y crea un DocumentoProyecto por cada uno.
-
-    Solo disponible cuando el estado de la empresa es PRE_APROBADO.
-    """
-
-    archivos = forms.FileField(
+    archivos = MultipleFileField(
         widget=MultipleFileInput(attrs={
             'class': 'form-control',
-            'accept': '.pdf,.zip,.rar,.docx,.doc,.xlsx,.xls,.dwg',
+            'accept': DocumentoProyecto.extensiones_accept(),
             'multiple': True,
             'id': 'id_archivos_proyecto',
         }),
         label='Archivos del proyecto',
         help_text=(
             'Podés seleccionar varios archivos a la vez. '
-            'Formatos: PDF, ZIP, RAR, DOCX, DOC, XLSX, XLS, DWG. Máximo 20 MB por archivo.'
-        ),
+            f'Formatos: {", ".join(DocumentoProyecto.EXTENSIONES_PERMITIDAS).upper()}. '
+            f'Máximo {DocumentoProyecto.MAX_TAMANO_MB} MB por archivo.'
+        )
     )
 
-
-
-class DescartarEmpresaForm(forms.Form):
-    """
-    Formulario para que el admin descarte una empresa en estado PRE_APROBADO
-    (con o sin documentación subida).
-
-    El motivo es obligatorio y queda registrado en Empresa.motivo_descarte
-    y en el historial de transiciones (TransicionEstado).
-    """
-
-    motivo = forms.CharField(
-        widget=forms.Textarea(attrs={
-            'class': 'form-control',
-            'rows': 4,
-            'placeholder': (
-                'Describa el motivo del descarte. '
-                'Será visible en el historial de la empresa y en la bandeja de descartadas.'
-            ),
-        }),
-        min_length=10,
-        label='Motivo del descarte',
-        help_text='Mínimo 10 caracteres. Quedará registrado de forma permanente.',
-    )
+    def clean_archivos(self):
+        archivos = self.cleaned_data['archivos']
+        for archivo in archivos:
+            DocumentoProyecto.validar_archivo(archivo)
+        return archivos

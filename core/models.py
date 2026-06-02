@@ -1,4 +1,7 @@
+import os
+
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db import IntegrityError
 from django.db.models import Q
@@ -98,9 +101,7 @@ class Empresa(models.Model):
     class Estado(models.TextChoices):
         EN_EVALUACION    = 'EnEvaluacion',    _('En Evaluación')
         PRE_APROBADO     = 'PreAprobado',     _('Pre-Aprobado')
-        LISTO_ADJUDICAR  = 'ListoAdjudicar',  _('Listo para Adjudicar')
         RECHAZADO        = 'Rechazado',        _('Rechazado')
-        DESCARTADA       = 'Descartada',       _('Descartada')
         RADICADA         = 'Radicada',         _('Radicada')
         EN_CONSTRUCCION  = 'EnConstruccion',   _('En Construcción')
         FINALIZADO       = 'Finalizado',       _('Finalizado')
@@ -268,14 +269,6 @@ class Empresa(models.Model):
     )
     escritura_pdf = models.FileField(upload_to='escrituras/', blank=True, null=True)
 
-    # Motivo de descarte (cuando el admin descarta la solicitud)
-    motivo_descarte = models.TextField(
-        blank=True,
-        null=True,
-        verbose_name=_('Motivo de descarte'),
-        help_text=_('Obligatorio al descartar una empresa. Queda registrado en la bandeja de descartadas.'),
-    )
-
     history = HistoricalRecords()
 
     @property
@@ -329,6 +322,8 @@ class DocumentoProyecto(models.Model):
     El admin puede consultarlos y descargarlos antes de tomar la decisión final.
     """
     EXTENSIONES_PERMITIDAS = ['pdf', 'zip', 'rar', 'docx', 'doc', 'xlsx', 'xls', 'dwg']
+    MAX_TAMANO_MB = 20
+    MAX_TAMANO_BYTES = MAX_TAMANO_MB * 1024 * 1024
 
     empresa = models.ForeignKey(
         'Empresa',
@@ -367,10 +362,24 @@ class DocumentoProyecto(models.Model):
     def __str__(self):
         return f"{self.empresa.razon_social} — {self.nombre_original or self.archivo.name}"
 
+    @classmethod
+    def extensiones_accept(cls):
+        return ','.join(f'.{extension}' for extension in cls.EXTENSIONES_PERMITIDAS)
+
+    @classmethod
+    def validar_archivo(cls, archivo):
+        nombre = getattr(archivo, 'name', '')
+        ext = nombre.rsplit('.', 1)[-1].lower() if '.' in nombre else ''
+        if ext not in cls.EXTENSIONES_PERMITIDAS:
+            raise ValidationError(f'Formato no permitido: {nombre or "archivo sin nombre"}.')
+        if archivo.size > cls.MAX_TAMANO_BYTES:
+            raise ValidationError(
+                f'El archivo {nombre} no puede superar los {cls.MAX_TAMANO_MB} MB.'
+            )
+
     def save(self, *args, **kwargs):
-        # Guardar el nombre original del archivo si está vacío
+        # guardar el nombre original del archivo si esta vacio
         if not self.nombre_original and self.archivo:
-            import os
             self.nombre_original = os.path.basename(self.archivo.name)
         super().save(*args, **kwargs)
 

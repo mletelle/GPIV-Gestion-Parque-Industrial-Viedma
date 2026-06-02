@@ -69,17 +69,6 @@
         color: #475569;
     }
 
-    .estado-badge.listoadjudicar {
-        background: #DCFCE7;
-        color: #166534;
-    }
-
-    .estado-badge.descartada {
-        background: #FEE2E2;
-        color: #991B1B;
-    }
-
-    /* ── bloque documento proyecto ── */
     .doc-proyecto-card {
         border-radius: 10px;
         padding: 1rem 1.25rem;
@@ -99,11 +88,6 @@
     .doc-proyecto-card i { font-size: 1.4rem; flex-shrink: 0; }
     .doc-proyecto-card.con-doc i { color: #16A34A; }
     .doc-proyecto-card.sin-doc i  { color: #D97706; }
-
-    .btn-decision {
-        background: #7C3AED;
-        color: #fff;
-    }
 
     .seccion-card {
         background: #fff;
@@ -248,6 +232,78 @@
     .historial-item:last-child {
         border-bottom: none;
     }
+
+    /* modales de accion */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.45);
+        z-index: 1050;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+    .modal-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 1.75rem;
+        width: 100%;
+        max-width: 480px;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+        animation: modal-in 0.2s ease;
+    }
+    @keyframes modal-in {
+        from { opacity: 0; transform: translateY(-10px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .modal-card h4 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+    .modal-card .modal-sub {
+        font-size: 0.88rem;
+        color: var(--gris-suave);
+        margin-bottom: 1.25rem;
+    }
+    .modal-card textarea {
+        width: 100%;
+        border: 1px solid var(--borde);
+        border-radius: 8px;
+        padding: 0.65rem;
+        font-size: 0.9rem;
+        resize: vertical;
+        font-family: inherit;
+    }
+    .modal-card textarea:focus {
+        outline: none;
+        border-color: var(--azul);
+        box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+    }
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        margin-top: 1.25rem;
+    }
+    .btn-modal-cancelar {
+        background: #F3F4F6;
+        color: #374151;
+        border: none;
+        padding: 0.5rem 1.1rem;
+        border-radius: 7px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .btn-modal-cancelar:hover { background: #E5E7EB; }
+    .modal-error {
+        color: #DC2626;
+        font-size: 0.82rem;
+        margin-top: 0.3rem;
+        display: none;
+    }
 </style>
 {% endblock %}
 
@@ -270,43 +326,27 @@
         <!-- acciones segun estado -->
         <div class="acciones-bar mb-3">
             {% if empresa.estado == 'EnEvaluacion' %}
-            <form method="post" action="{% url 'core:solicitud_preaprobar' empresa.pk %}" style="display:inline;">
-                {% csrf_token %}
-                <button type="submit" class="btn-accion btn-preaprobar"
-                    onclick="return confirm('¿Pre-aprobar esta solicitud? La empresa deberá subir la documentación del proyecto.')">
-                    <i class="bi bi-check2-circle"></i> Pre-aprobar
-                </button>
-            </form>
-            <a href="{% url 'core:solicitud_rechazar' empresa.pk %}" class="btn-accion btn-rechazar">
+            <button type="button" class="btn-accion btn-preaprobar" onclick="document.getElementById('modal-preaprobar').style.display='flex'">
+                <i class="bi bi-check2-circle"></i> Pre-aprobar
+            </button>
+            <button type="button" class="btn-accion btn-rechazar" onclick="document.getElementById('modal-rechazar').style.display='flex'">
                 <i class="bi bi-x-circle"></i> Rechazar
-            </a>
+            </button>
 
             {% elif empresa.estado == 'PreAprobado' %}
-            {# Admin no puede adjudicar directamente; requiere doc + decisión final #}
-            {% if puede_tomar_decision %}
-            <a href="{% url 'core:decision_final' empresa.pk %}" class="btn-accion btn-decision"
-               id="btn-aprobar-solicitud">
-                <i class="bi bi-check2-circle"></i> Aprobar
+            {% if puede_adjudicar %}
+            <a href="{% url 'core:adjudicacion' empresa.pk %}" class="btn-accion btn-adjudicar"
+               id="btn-adjudicar-lote">
+                <i class="bi bi-geo-alt"></i> Adjudicar Lote
             </a>
             {% else %}
             <span class="btn-accion" style="background:#F3F4F6;color:#9CA3AF;cursor:default;" title="Esperando documentación de la empresa">
                 <i class="bi bi-hourglass-split"></i> Esperando documentación...
             </span>
             {% endif %}
-            <a href="{% url 'core:solicitud_rechazar' empresa.pk %}" class="btn-accion btn-rechazar">
+            <button type="button" class="btn-accion btn-rechazar" onclick="document.getElementById('modal-rechazar').style.display='flex'">
                 <i class="bi bi-x-circle"></i> Rechazar
-            </a>
-
-            {% elif empresa.estado == 'ListoAdjudicar' %}
-            <a href="{% url 'core:adjudicacion' empresa.pk %}" class="btn-accion btn-adjudicar"
-               id="btn-adjudicar-lote">
-                <i class="bi bi-geo-alt"></i> Adjudicar Lote
-            </a>
-
-            {% elif empresa.estado == 'Descartada' %}
-            <span style="font-size:0.85rem;color:#DC2626;font-weight:600;">
-                <i class="bi bi-x-circle-fill"></i> Solicitud Descartada
-            </span>
+            </button>
 
             {% elif empresa.estado == 'EnConstruccion' %}
             <a href="{% url 'core:baja_empresa' empresa.pk %}" class="btn-accion btn-baja">
@@ -336,6 +376,17 @@
                 <strong style="color:#15803D; font-size:0.9rem; display:block;">
                     La empresa subió {{ documentos_proyecto.count }} archivo{{ documentos_proyecto.count|pluralize:"s" }} del proyecto
                 </strong>
+                <ul style="margin:0.65rem 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:0.35rem;">
+                    {% for doc in documentos_proyecto %}
+                    <li style="font-size:0.84rem;">
+                        <a href="{% url 'core:descargar_documento' doc.pk %}"
+                           style="color:var(--azul);text-decoration:none;font-weight:600;">
+                            <i class="bi bi-download"></i> {{ doc.nombre_original }}
+                        </a>
+                        <span style="color:#6B7280;">— {{ doc.fecha_subida|date:"d/m/Y H:i" }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
             </div>
         </div>
         {% else %}
@@ -344,20 +395,12 @@
             <div>
                 <strong style="color:#92400E;font-size:0.9rem;">Esperando documentación de la empresa</strong>
                 <p style="margin:0;font-size:0.82rem;color:#78350F;">
-                    La empresa debe subir el proyecto desde su portal. El botón de Aprobar
+                    La empresa debe subir el proyecto desde su portal. El botón de adjudicación
                     se habilitará una vez que suba al menos un archivo.
                 </p>
             </div>
         </div>
         {% endif %}
-        {% endif %}
-
-        <!-- motivo de descarte -->
-        {% if empresa.estado == 'Descartada' and empresa.motivo_descarte %}
-        <div style="background:#FFF5F5;border:1.5px solid #FCA5A5;border-radius:10px;padding:1rem 1.25rem;margin-bottom:0.75rem;">
-            <strong style="color:#DC2626;font-size:0.88rem;"><i class="bi bi-x-circle"></i> Motivo del descarte:</strong>
-            <p style="margin:0.3rem 0 0;font-size:0.88rem;color:#374151;">{{ empresa.motivo_descarte }}</p>
-        </div>
         {% endif %}
 
         <!-- lote asignado -->
@@ -447,8 +490,7 @@
             {% for t in historial %}
             <div class="historial-item">
                 <strong>{{ t.get_estado_nuevo_display }}</strong>
-                {% if t.estado_anterior %}<span style="color:var(--gris-suave);"> (desde {{
-                    t.get_estado_anterior_display }})</span>{% endif %}
+                {% if t.estado_anterior %}<span style="color:var(--gris-suave);"> (desde {{ t.get_estado_anterior_display }})</span>{% endif %}
                 <span style="color:var(--gris-suave);font-size:0.82rem;">
                     — {{ t.fecha_cambio|date:"d/m/Y H:i" }}
                     {% if t.usuario %} por {{ t.usuario.get_full_name|default:t.usuario.username }}{% endif %}
@@ -463,4 +505,60 @@
         {% endif %}
     </div>
 </div>
+
+{% if empresa.estado == 'EnEvaluacion' %}
+<!-- modal preaprobar -->
+<div class="modal-overlay" id="modal-preaprobar" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal-card">
+        <h4 style="color:#2563EB;"><i class="bi bi-check2-circle"></i> Pre-aprobar solicitud</h4>
+        <p class="modal-sub">{{ empresa.razon_social }} ({{ empresa.cuit }})</p>
+        <form method="post" action="{% url 'core:solicitud_preaprobar' empresa.pk %}">
+            {% csrf_token %}
+            <label for="modal-obs" style="font-size:0.84rem;font-weight:600;color:var(--gris-suave);">
+                Observaciones técnicas <span style="font-weight:400;">(opcional)</span>
+            </label>
+            <textarea id="modal-obs" name="observaciones" rows="3" placeholder="Observaciones técnicas opcionales" maxlength="1000"></textarea>
+            <div class="modal-footer">
+                <button type="button" class="btn-modal-cancelar" onclick="document.getElementById('modal-preaprobar').style.display='none'">Cancelar</button>
+                <button type="submit" class="btn-accion btn-preaprobar"><i class="bi bi-check2-circle"></i> Pre-aprobar</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if empresa.estado == 'EnEvaluacion' or empresa.estado == 'PreAprobado' %}
+<!-- modal rechazar -->
+<div class="modal-overlay" id="modal-rechazar" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal-card">
+        <h4 style="color:#DC2626;"><i class="bi bi-x-circle"></i> Rechazar solicitud</h4>
+        <p class="modal-sub">{{ empresa.razon_social }} ({{ empresa.cuit }})</p>
+        <form method="post" action="{% url 'core:solicitud_rechazar' empresa.pk %}" id="form-rechazar">
+            {% csrf_token %}
+            <label for="modal-just" style="font-size:0.84rem;font-weight:600;color:var(--gris-suave);">Justificación del rechazo</label>
+            <textarea id="modal-just" name="justificacion" rows="4" placeholder="Motivo del rechazo (obligatorio, mínimo 10 caracteres)" required minlength="10"></textarea>
+            <div class="modal-error" id="rechazar-error">Ingresá al menos 10 caracteres como justificación.</div>
+            <div class="modal-footer">
+                <button type="button" class="btn-modal-cancelar" onclick="document.getElementById('modal-rechazar').style.display='none'">Cancelar</button>
+                <button type="submit" class="btn-accion btn-rechazar"><i class="bi bi-x-circle"></i> Rechazar</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+// validacion minima del lado cliente para el rechazo
+document.getElementById('form-rechazar').addEventListener('submit', function(e) {
+    var val = document.getElementById('modal-just').value.trim();
+    if (val.length < 10) {
+        e.preventDefault();
+        document.getElementById('rechazar-error').style.display = 'block';
+        document.getElementById('modal-just').focus();
+    }
+});
+// ocultar error al tipear
+document.getElementById('modal-just').addEventListener('input', function() {
+    document.getElementById('rechazar-error').style.display = 'none';
+});
+</script>
+{% endif %}
 {% endblock %}

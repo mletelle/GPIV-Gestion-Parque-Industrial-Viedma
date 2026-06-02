@@ -23,7 +23,7 @@ from simple_history.models import HistoricalRecords
 
 from core.forms import RegistroColaboradorForm, RegistroEmpresaWizardForm
 from core.models import (
-    Empresa, Lote, TransicionEstado, AvanceConstructivo,
+    Empresa, DocumentoProyecto, Lote, TransicionEstado, AvanceConstructivo,
     SolicitudProrroga, ConsumoServicio, Ticket, MensajeTicket,
     ActivoInventario, SolicitudAcceso, AvisoVencimiento,
     CaducidadRegistro, CustomUser,
@@ -1417,6 +1417,19 @@ def lote(
     return Lote.objects.create(**datos)
 
 
+def documento_proyecto(emp, usuario=None, nombre="proyecto.pdf"):
+    archivo = SimpleUploadedFile(
+        nombre,
+        b"%PDF-1.4 proyecto",
+        content_type="application/pdf",
+    )
+    return DocumentoProyecto.objects.create(
+        empresa=emp,
+        archivo=archivo,
+        subido_por=usuario,
+    )
+
+
 def payload_registro(**overrides):
     datos = {
         "razon_social": "Nueva Radicacion SRL",
@@ -1549,7 +1562,8 @@ class EvaluacionSolicitudTests(TestCase):
         self.client.force_login(self.admin)
 
         response = self.client.post(
-            reverse("core:solicitud_preaprobar", args=[solicitud.pk])
+            reverse("core:solicitud_preaprobar", args=[solicitud.pk]),
+            {"observaciones": "Viabilidad tecnica inicial favorable"},
         )
 
         self.assertRedirects(response, reverse("core:solicitud_detail", args=[solicitud.pk]))
@@ -1561,6 +1575,7 @@ class EvaluacionSolicitudTests(TestCase):
                 estado_anterior=Empresa.Estado.EN_EVALUACION,
                 estado_nuevo=Empresa.Estado.PRE_APROBADO,
                 usuario=self.admin,
+                justificacion_resolucion__icontains="Viabilidad tecnica",
             ).exists()
         )
 
@@ -1572,7 +1587,8 @@ class EvaluacionSolicitudTests(TestCase):
             reverse("core:solicitud_rechazar", args=[solicitud.pk]),
             {"justificacion": "corta"},
         )
-        self.assertEqual(response_invalida.status_code, 200)
+        # falla validacion, redirige al detalle con mensaje de error
+        self.assertRedirects(response_invalida, reverse("core:solicitud_detail", args=[solicitud.pk]))
         solicitud.refresh_from_db()
         self.assertEqual(solicitud.estado, Empresa.Estado.EN_EVALUACION)
 
@@ -1592,7 +1608,103 @@ class EvaluacionSolicitudTests(TestCase):
         )
 
 
-class AdjudicacionLoteTests(TestCase):
+class DocumentacionProyectoTests(TempMediaMixin, TestCase):
+    def setUp(self):
+        self.usuario_empresa = user("empresa-documentacion", "EMPRESA")
+        self.empresa = empresa(
+            razon_social="Proyecto Documentado",
+            cuit="30-00000015-5",
+            estado=Empresa.Estado.PRE_APROBADO,
+            usuario=self.usuario_empresa,
+        )
+
+    def test_empresa_preaprobada_sube_documentacion(self):
+        self.client.force_login(self.usuario_empresa)
+        archivo = SimpleUploadedFile(
+            "proyecto.pdf",
+            b"%PDF-1.4 proyecto",
+            content_type="application/pdf",
+        )
+
+        response = self.client.post(
+            reverse("core:subir_documentacion"),
+            {"archivos": archivo},
+        )
+
+        self.assertRedirects(response, reverse("core:mi_solicitud"))
+        doc = DocumentoProyecto.objects.get(empresa=self.empresa)
+        self.assertEqual(doc.nombre_original, "proyecto.pdf")
+        self.assertEqual(doc.subido_por, self.usuario_empresa)
+        self.assertTrue(
+            TransicionEstado.objects.filter(
+                empresa=self.empresa,
+                estado_anterior=Empresa.Estado.PRE_APROBADO,
+                estado_nuevo=Empresa.Estado.PRE_APROBADO,
+                usuario=self.usuario_empresa,
+                justificacion_resolucion__icontains="proyecto.pdf",
+            ).exists()
+        )
+
+    def test_subida_rechaza_extension_no_permitida(self):
+        self.client.force_login(self.usuario_empresa)
+        archivo = SimpleUploadedFile(
+            "proyecto.exe",
+            b"binario",
+            content_type="application/octet-stream",
+        )
+
+        response = self.client.post(
+            reverse("core:subir_documentacion"),
+            {"archivos": archivo},
+        )
+
+        self.assertRedirects(response, reverse("core:mi_solicitud"))
+        self.assertFalse(DocumentoProyecto.objects.filter(empresa=self.empresa).exists())
+
+    def test_superuser_descarga_documento(self):
+        doc = documento_proyecto(self.empresa, self.usuario_empresa)
+        superuser = CustomUser.objects.create_superuser(
+            username="super-docs",
+            password=PASSWORD,
+        )
+        self.client.force_login(superuser)
+
+        response = self.client.get(reverse("core:descargar_documento", args=[doc.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("attachment", response["Content-Disposition"])
+
+    def test_usuario_de_otra_empresa_no_descarga_documento(self):
+        doc = documento_proyecto(self.empresa, self.usuario_empresa)
+        otro_usuario = user("empresa-ajena", "EMPRESA")
+        empresa(
+            razon_social="Otra empresa",
+            cuit="30-00000016-6",
+            estado=Empresa.Estado.PRE_APROBADO,
+            usuario=otro_usuario,
+        )
+        self.client.force_login(otro_usuario)
+
+        response = self.client.get(reverse("core:descargar_documento", args=[doc.pk]))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_rechazar_preaprobada_con_documentacion_usa_flujo_unico(self):
+        documento_proyecto(self.empresa, self.usuario_empresa)
+        admin = user("admin-rechaza-docs", "ADMIN_ENREPAVI")
+        self.client.force_login(admin)
+
+        response = self.client.post(
+            reverse("core:solicitud_rechazar", args=[self.empresa.pk]),
+            {"justificacion": "La documentacion ampliada no cumple requisitos"},
+        )
+
+        self.assertRedirects(response, reverse("core:solicitud_list"))
+        self.empresa.refresh_from_db()
+        self.assertEqual(self.empresa.estado, Empresa.Estado.RECHAZADO)
+
+
+class AdjudicacionLoteTests(TempMediaMixin, TestCase):
     def setUp(self):
         self.admin = user("admin-adjudicacion", "ADMIN_ENREPAVI")
         self.client.force_login(self.admin)
@@ -1604,6 +1716,7 @@ class AdjudicacionLoteTests(TestCase):
             estado=Empresa.Estado.PRE_APROBADO,
             necesidad_m2=Empresa.RangoNecesidadM2.DE_500_A_1000,
         )
+        documento_proyecto(solicitud, self.admin)
         parcela = lote(nro_parcela=10, superficie_m2=Decimal("800.00"))
 
         response = self.client.post(
@@ -1626,12 +1739,33 @@ class AdjudicacionLoteTests(TestCase):
             ).exists()
         )
 
+    def test_no_permite_adjudicar_sin_documentacion_del_proyecto(self):
+        solicitud = empresa(
+            cuit="30-00000014-4",
+            estado=Empresa.Estado.PRE_APROBADO,
+            necesidad_m2=Empresa.RangoNecesidadM2.DE_500_A_1000,
+        )
+        parcela = lote(nro_parcela=13, superficie_m2=Decimal("800.00"))
+
+        response = self.client.post(
+            reverse("core:adjudicacion", args=[solicitud.pk]),
+            {"lote_id": parcela.pk},
+        )
+
+        self.assertRedirects(response, reverse("core:solicitud_detail", args=[solicitud.pk]))
+        solicitud.refresh_from_db()
+        parcela.refresh_from_db()
+        self.assertEqual(solicitud.estado, Empresa.Estado.PRE_APROBADO)
+        self.assertEqual(parcela.estado, Lote.Estado.DISPONIBLE)
+        self.assertIsNone(parcela.empresa)
+
     def test_no_permite_elegir_lote_no_disponible_o_con_superficie_insuficiente(self):
         solicitud = empresa(
             cuit="30-00000005-5",
             estado=Empresa.Estado.PRE_APROBADO,
             necesidad_m2=Empresa.RangoNecesidadM2.DE_500_A_1000,
         )
+        documento_proyecto(solicitud, self.admin)
         lote_chico = lote(nro_parcela=11, superficie_m2=Decimal("250.00"))
         lote_ocupado = lote(
             nro_parcela=12,
