@@ -872,7 +872,9 @@ class SolicitudListView(AdminEnrepaviMixin, ListView):
     }
 
     def get_queryset(self):
-        qs = Empresa.objects.prefetch_related('empleados').order_by('-pk')
+        qs = Empresa.objects.prefetch_related('empleados').exclude(
+            estado=Empresa.Estado.RECHAZADO,
+        ).order_by('-pk')
         grupo = self.request.GET.get('grupo')
         estado = self.request.GET.get('estado')
         hoy = timezone.now().date()
