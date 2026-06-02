@@ -1,0 +1,359 @@
+{% extends 'base.html' %}
+
+{% block title %}Aprobar Solicitud — {{ empresa.razon_social }} — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .decision-wrap {
+        padding: 2rem 0;
+    }
+
+    .decision-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .estado-badge {
+        font-size: 0.85rem;
+        font-weight: 700;
+        padding: 0.35rem 0.9rem;
+        border-radius: 6px;
+        display: inline-block;
+    }
+
+    .estado-badge.preaprobado { background: #DBEAFE; color: #1E40AF; }
+    .estado-badge.listoadjudicar { background: #DCFCE7; color: #166534; }
+    .estado-badge.descartada { background: #FEE2E2; color: #991B1B; }
+
+    .doc-card {
+        background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
+        border: 1.5px solid #86EFAC;
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .doc-card .doc-icon {
+        font-size: 2rem;
+        color: #16A34A;
+        flex-shrink: 0;
+    }
+
+    .doc-card .doc-info {
+        flex: 1;
+    }
+
+    .doc-card .doc-info strong {
+        color: #15803D;
+        display: block;
+        font-size: 0.95rem;
+    }
+
+    .doc-card .doc-info small {
+        color: #4B5563;
+        font-size: 0.83rem;
+    }
+
+    .no-doc-card {
+        background: #FEF9C3;
+        border: 1.5px solid #FDE047;
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .no-doc-card .warn-icon {
+        font-size: 2rem;
+        color: #D97706;
+        flex-shrink: 0;
+    }
+
+    .accion-cards {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
+        margin-top: 1.5rem;
+    }
+
+    @media (max-width: 640px) {
+        .accion-cards { grid-template-columns: 1fr; }
+    }
+
+    .accion-card {
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 1.5px solid;
+    }
+
+    .accion-card.aprobar {
+        border-color: #86EFAC;
+        background: #F0FDF4;
+    }
+
+    .accion-card.descartar {
+        border-color: #FCA5A5;
+        background: #FFF5F5;
+    }
+
+    .accion-card h5 {
+        font-weight: 700;
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .accion-card.aprobar h5 { color: #15803D; }
+    .accion-card.descartar h5 { color: #DC2626; }
+
+    .accion-card p {
+        font-size: 0.88rem;
+        color: #4B5563;
+        margin-bottom: 1rem;
+    }
+
+    .btn-aprobar {
+        background: #16A34A;
+        color: #fff;
+        border: none;
+        padding: 0.55rem 1.4rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        transition: background 0.2s;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .btn-aprobar:hover { background: #15803D; }
+    .btn-aprobar:disabled {
+        background: #9CA3AF;
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+
+    .btn-descartar {
+        background: #DC2626;
+        color: #fff;
+        border: none;
+        padding: 0.55rem 1.4rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        transition: background 0.2s;
+        width: 100%;
+        justify-content: center;
+        margin-top: 0.75rem;
+    }
+
+    .btn-descartar:hover { background: #B91C1C; }
+
+    .empresa-info-row {
+        display: flex;
+        padding: 0.4rem 0;
+        border-bottom: 1px solid #E5E7EB;
+        font-size: 0.9rem;
+    }
+
+    .empresa-info-row:last-child { border-bottom: none; }
+
+    .empresa-info-label {
+        font-weight: 600;
+        min-width: 200px;
+        color: #6B7280;
+    }
+
+    .breadcrumb-link {
+        font-size: 0.87rem;
+        color: #6B7280;
+        text-decoration: none;
+    }
+
+    .breadcrumb-link:hover { color: var(--verde); }
+
+    .alerta-sin-doc {
+        background: #FEF9C3;
+        border: 1px solid #FDE047;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        font-size: 0.87rem;
+        color: #92400E;
+        margin-bottom: 0.75rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="decision-wrap">
+    <div class="container" style="max-width: 800px;">
+        <!-- Breadcrumb -->
+        <a href="{% url 'core:solicitud_detail' empresa.pk %}" class="breadcrumb-link">
+            <i class="bi bi-arrow-left"></i> Volver al detalle de {{ empresa.razon_social }}
+        </a>
+
+        <!-- Header -->
+        <div class="decision-header mt-3">
+            <div>
+                <h2 class="sec-title mb-0">Aprobar Solicitud</h2>
+                <p style="color: #6B7280; margin: 0.25rem 0 0; font-size: 0.92rem;">
+                    {{ empresa.razon_social }}
+                    {% if empresa.nombre_fantasia %}<span style="color:#9CA3AF"> · {{ empresa.nombre_fantasia }}</span>{% endif %}
+                </p>
+            </div>
+            <span class="estado-badge preaprobado">Pre-Aprobado</span>
+        </div>
+
+        <!-- Datos de la empresa -->
+        <div class="gpiv-card mb-3">
+            <h5 style="color: var(--verde); font-weight: 700; margin-bottom: 1rem; font-size: 0.95rem;">
+                <i class="bi bi-building"></i> Datos de la Empresa
+            </h5>
+            <div class="empresa-info-row">
+                <span class="empresa-info-label">CUIT</span>
+                <span>{{ empresa.cuit }}</span>
+            </div>
+            <div class="empresa-info-row">
+                <span class="empresa-info-label">Rubro</span>
+                <span>{{ empresa.get_rubro_display }}</span>
+            </div>
+            <div class="empresa-info-row">
+                <span class="empresa-info-label">Actividad principal</span>
+                <span>{{ empresa.actividad_principal }}</span>
+            </div>
+            <div class="empresa-info-row">
+                <span class="empresa-info-label">Persona referente</span>
+                <span>{{ empresa.persona_referente }}</span>
+            </div>
+            <div class="empresa-info-row">
+                <span class="empresa-info-label">Correo electrónico</span>
+                <span>{{ empresa.correo_electronico }}</span>
+            </div>
+        </div>
+
+        <!-- documentación del proyecto -->
+        {% if documentacion_subida %}
+        <div class="doc-card" style="flex-direction: column; align-items: stretch; gap: 0.5rem;">
+            <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.25rem;">
+                <span class="doc-icon"><i class="bi bi-folder2-open"></i></span>
+                <div class="doc-info">
+                    <strong>{{ documentos.count }} archivo{{ documentos.count|pluralize:"s" }} adjuntado{{ documentos.count|pluralize:"s" }}</strong>
+                    <small>La empresa subió la documentación del proyecto. Podés descargar cada archivo para revisarlo.</small>
+                </div>
+            </div>
+            <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:0.4rem;">
+                {% for doc in documentos %}
+                <li style="display:flex; align-items:center; gap:0.75rem; background:#F0FDF4; border:1px solid #86EFAC; border-radius:8px; padding:0.5rem 0.75rem;">
+                    <i class="bi bi-file-earmark-text" style="color:#15803D; font-size:1.1rem; flex-shrink:0;"></i>
+                    <span style="flex:1; font-size:0.88rem; color:#1F2937; font-weight:500;">{{ doc.nombre_original }}</span>
+                    <span style="color:#9CA3AF; font-size:0.78rem; white-space:nowrap;">{{ doc.fecha_subida|date:"d/m/Y H:i" }}</span>
+                    <a href="{% url 'core:descargar_documento' doc.pk %}"
+                       style="background:#15803D; color:#fff; padding:0.25rem 0.7rem; border-radius:6px;
+                              text-decoration:none; font-size:0.8rem; font-weight:600; white-space:nowrap; flex-shrink:0;">
+                        <i class="bi bi-download"></i> Descargar
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% else %}
+        <div class="no-doc-card">
+            <span class="warn-icon"><i class="bi bi-exclamation-triangle-fill"></i></span>
+            <div>
+                <strong style="color: #92400E;">La empresa aún no subió la documentación del proyecto.</strong>
+                <p style="color: #78350F; font-size: 0.87rem; margin: 0.25rem 0 0;">
+                    No podrás aprobar la solicitud hasta que la empresa suba el archivo.
+                    Podés descartar la solicitud si lo considerás necesario.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Acciones -->
+        <h5 style="font-weight: 700; color: #1F2937; margin-bottom: 0.75rem; font-size: 0.95rem;">
+            <i class="bi bi-check2-circle"></i> Revisión y aprobación
+        </h5>
+
+        <div class="accion-cards">
+            <!-- Aprobar -->
+            <div class="accion-card aprobar">
+                <h5><i class="bi bi-check-circle-fill"></i> Aprobar Proyecto</h5>
+                <p>
+                    La empresa quedará en estado <strong>Aprobada</strong>.
+                    Podrás asignarle un lote disponible.
+                </p>
+                {% if not documentacion_subida %}
+                <div class="alerta-sin-doc">
+                    <i class="bi bi-lock-fill"></i>
+                    Bloqueado hasta que la empresa suba la documentación.
+                </div>
+                {% endif %}
+                <form method="post" action="{% url 'core:decision_final' empresa.pk %}"
+                      onsubmit="return confirm('¿Confirmar aprobación del proyecto de {{ empresa.razon_social }}?')">
+                    {% csrf_token %}
+                    <input type="hidden" name="accion" value="aprobar">
+                    <button type="submit"
+                            class="btn-aprobar"
+                            id="btn-aprobar-proyecto"
+                            {% if not documentacion_subida %}disabled{% endif %}>
+                        <i class="bi bi-check2-circle"></i> Aprobar → Aprobada
+                    </button>
+                </form>
+            </div>
+
+            <!-- Descartar -->
+            <div class="accion-card descartar">
+                <h5><i class="bi bi-x-circle-fill"></i> Descartar Solicitud</h5>
+                <p>
+                    La empresa pasará a estado <strong>Rechazada</strong>.
+                    Quedará visible en la bandeja de descartadas con el motivo registrado.
+                </p>
+                <form method="post" action="{% url 'core:decision_final' empresa.pk %}"
+                      id="form-descartar">
+                    {% csrf_token %}
+                    <input type="hidden" name="accion" value="descartar">
+                    <div class="mb-2">
+                        <label for="{{ form_descartar.motivo.id_for_label }}"
+                               style="font-size:0.85rem; font-weight:600; color:#991B1B; display:block; margin-bottom:0.35rem;">
+                            Motivo del descarte <span style="color:#DC2626">*</span>
+                        </label>
+                        {{ form_descartar.motivo }}
+                        {% if form_descartar.motivo.errors %}
+                        <div style="color:#DC2626; font-size:0.82rem; margin-top:0.25rem;">
+                            {{ form_descartar.motivo.errors.as_text }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <button type="submit"
+                            class="btn-descartar"
+                            id="btn-descartar-empresa"
+                            onclick="return confirm('¿Confirmar descarte de {{ empresa.razon_social }}? Esta acción quedará registrada.')">
+                        <i class="bi bi-x-circle"></i> Descartar Solicitud
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Nota de auditoría -->
+        <p style="font-size: 0.82rem; color: #9CA3AF; margin-top: 1.5rem; text-align: center;">
+            <i class="bi bi-shield-lock"></i>
+            Toda decisión queda registrada con fecha, hora y usuario responsable en el historial de la empresa.
+        </p>
+    </div>
+</div>
+{% endblock %}

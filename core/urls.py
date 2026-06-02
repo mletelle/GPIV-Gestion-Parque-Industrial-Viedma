@@ -27,6 +27,11 @@ from .views import (
     SolicitudPreAprobarView,
     SolicitudRechazarView,
     AdjudicacionView,
+    # flujo preaprobación → documentación → adjudicación/descarte
+    SubirDocumentacionView,
+    DecisionFinalView,
+    EmpresasDescartadasView,
+    DescargarDocumentoView,
     # etapa 2
     AvanceCreateView,
     AvancesPendientesView,
@@ -142,6 +147,7 @@ urlpatterns = [
     # empresa: solicitud
     path('solicitud/nueva/', SolicitudCreateView.as_view(), name='solicitud_create'),
     path('mi-solicitud/', MiSolicitudView.as_view(), name='mi_solicitud'),
+    path('mi-solicitud/documentacion/', SubirDocumentacionView.as_view(), name='subir_documentacion'),
     path('mis-consumos/', MisConsumosView.as_view(), name='mis_consumos'),
 
     # empresa: avance constructivo
@@ -165,13 +171,17 @@ urlpatterns = [
 
     # admin: evaluacion de solicitudes
     path('solicitudes/', SolicitudListView.as_view(), name='solicitud_list'),
+    path('solicitudes/descartadas/', EmpresasDescartadasView.as_view(), name='solicitudes_descartadas'),
     path('solicitudes/<int:pk>/', SolicitudDetailView.as_view(), name='solicitud_detail'),
     path('solicitudes/<int:pk>/pre-aprobar/', SolicitudPreAprobarView.as_view(), name='solicitud_preaprobar'),
     path('solicitudes/<int:pk>/rechazar/', SolicitudRechazarView.as_view(), name='solicitud_rechazar'),
+    path('solicitudes/<int:pk>/decision-final/', DecisionFinalView.as_view(), name='decision_final'),
     path('solicitudes/<int:pk>/adjudicar/', AdjudicacionView.as_view(), name='adjudicacion'),
     path('solicitudes/<int:pk>/finalizar/', FinalizarObraView.as_view(), name='finalizar_obra'),
     path('solicitudes/<int:pk>/escriturar/', EscrituracionView.as_view(), name='escrituracion'),
     path('solicitudes/<int:pk>/baja/', BajaEmpresaView.as_view(), name='baja_empresa'),
+    # descarga protegida de documentos del proyecto
+    path('documentos/<int:pk>/descargar/', DescargarDocumentoView.as_view(), name='descargar_documento'),
 
     # admin: avances pendientes
     path('avances/pendientes/', AvancesPendientesView.as_view(), name='avances_pendientes'),

@@ -96,15 +96,16 @@ class CustomUser(AbstractUser):
 class Empresa(models.Model):
     # Enums de estado y clasificaciones
     class Estado(models.TextChoices):
-        EN_EVALUACION = 'EnEvaluacion', _('En Evaluación')
-        PRE_APROBADO = 'PreAprobado', _('Pre-Aprobado')
-        RECHAZADO = 'Rechazado', _('Rechazado')
-        RADICADA = 'Radicada', _('Radicada')
-        EN_CONSTRUCCION = 'EnConstruccion', _('En Construcción')
-        FINALIZADO = 'Finalizado', _('Finalizado')
-        ESCRITURADO = 'Escriturado', _('Escriturado')
-        CADUCADO = 'Caducado', _('Caducado')
-        HISTORICO_BAJA = 'Historico_Baja', _('Clausurado / Baja')
+        EN_EVALUACION    = 'EnEvaluacion',    _('En Evaluación')
+        PRE_APROBADO     = 'PreAprobado',     _('Pre-Aprobado')
+        LISTO_ADJUDICAR  = 'ListoAdjudicar',  _('Aprobada')
+        RECHAZADO        = 'Rechazado',        _('Rechazado')
+        RADICADA         = 'Radicada',         _('Radicada')
+        EN_CONSTRUCCION  = 'EnConstruccion',   _('En Construcción')
+        FINALIZADO       = 'Finalizado',       _('Finalizado')
+        ESCRITURADO      = 'Escriturado',      _('Escriturado')
+        CADUCADO         = 'Caducado',         _('Caducado')
+        HISTORICO_BAJA   = 'Historico_Baja',   _('Clausurado / Baja')
 
     class TipoEmpresa(models.TextChoices):
         NUEVA = 'Nueva', _('Nueva')
@@ -266,7 +267,21 @@ class Empresa(models.Model):
     )
     escritura_pdf = models.FileField(upload_to='escrituras/', blank=True, null=True)
 
+    # Motivo de descarte/rechazo en decisión final (cuando el admin rechaza luego del pre-aprobado)
+    # Su presencia distingue un rechazo en decisión final de un rechazo temprano en evaluación.
+    motivo_descarte = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('Motivo de rechazo en decisión final'),
+        help_text=_('Obligatorio al rechazar una empresa desde la decisión final. Queda registrado en la bandeja de descartadas.'),
+    )
+
     history = HistoricalRecords()
+
+    @property
+    def documentacion_subida(self):
+        """True si la empresa tiene al menos un documento del proyecto subido."""
+        return self.documentos_proyecto.exists()
 
     class Meta:
         verbose_name = _("Empresa")
@@ -301,8 +316,63 @@ class Empresa(models.Model):
         RangoNecesidadM2.MAS_5000: 5000,
     }
 
+
     def get_necesidad_m2_minimo(self):
         return self._RANGO_M2_MINIMO.get(self.necesidad_m2, 0)
+
+
+class DocumentoProyecto(models.Model):
+    """
+    Archivo individual de la documentación del proyecto de una empresa.
+
+    Una empresa puede subir múltiples documentos cuando está en estado PRE_APROBADO.
+    El admin puede consultarlos y descargarlos antes de tomar la decisión final.
+    """
+    EXTENSIONES_PERMITIDAS = ['pdf', 'zip', 'rar', 'docx', 'doc', 'xlsx', 'xls', 'dwg']
+
+    empresa = models.ForeignKey(
+        'Empresa',
+        on_delete=models.CASCADE,
+        related_name='documentos_proyecto',
+        verbose_name=_('Empresa'),
+    )
+    archivo = models.FileField(
+        upload_to='documentacion_proyecto/',
+        validators=[FileExtensionValidator(EXTENSIONES_PERMITIDAS)],
+        verbose_name=_('Archivo'),
+    )
+    nombre_original = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name=_('Nombre original del archivo'),
+        help_text=_('Guardado automáticamente al subir.'),
+    )
+    fecha_subida = models.DateTimeField(auto_now_add=True, verbose_name=_('Fecha de subida'))
+    subido_por = models.ForeignKey(
+        'CustomUser',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='documentos_subidos',
+        verbose_name=_('Subido por'),
+    )
+
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = _('Documento del Proyecto')
+        verbose_name_plural = _('Documentos del Proyecto')
+        ordering = ['-fecha_subida']
+
+    def __str__(self):
+        return f"{self.empresa.razon_social} — {self.nombre_original or self.archivo.name}"
+
+    def save(self, *args, **kwargs):
+        # Guardar el nombre original del archivo si está vacío
+        if not self.nombre_original and self.archivo:
+            import os
+            self.nombre_original = os.path.basename(self.archivo.name)
+        super().save(*args, **kwargs)
 
 
 class Lote(models.Model):

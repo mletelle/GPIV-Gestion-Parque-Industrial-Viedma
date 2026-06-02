@@ -1204,3 +1204,66 @@ class AdminAsignarColaboradorForm(forms.Form):
             ).exists():
                 self.add_error('rol_interno', 'La empresa seleccionada ya tiene un Titular activo.')
         return cleaned
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Flujo: Preaprobación → Documentación → Adjudicación / Descarte
+# ──────────────────────────────────────────────────────────────────────────────
+
+class MultipleFileInput(forms.FileInput):
+    """
+    Widget para selección múltiple de archivos.
+    Django 4.2+ requiere allow_multiple_selected = True en el widget;
+    de lo contrario FileInput lanza ValueError al instanciar el form.
+    """
+    allow_multiple_selected = True
+
+
+class SubirDocumentacionForm(forms.Form):
+    """
+    Formulario para que la empresa suba uno o más archivos de documentación del proyecto.
+
+    El input acepta selección múltiple. La vista procesa cada archivo con
+    request.FILES.getlist('archivos') y crea un DocumentoProyecto por cada uno.
+
+    Solo disponible cuando el estado de la empresa es PRE_APROBADO.
+    """
+
+    archivos = forms.FileField(
+        widget=MultipleFileInput(attrs={
+            'class': 'form-control',
+            'accept': '.pdf,.zip,.rar,.docx,.doc,.xlsx,.xls,.dwg',
+            'multiple': True,
+            'id': 'id_archivos_proyecto',
+        }),
+        label='Archivos del proyecto',
+        help_text=(
+            'Podés seleccionar varios archivos a la vez. '
+            'Formatos: PDF, ZIP, RAR, DOCX, DOC, XLSX, XLS, DWG. Máximo 20 MB por archivo.'
+        ),
+    )
+
+
+
+class DescartarEmpresaForm(forms.Form):
+    """
+    Formulario para que el admin descarte una empresa en estado PRE_APROBADO
+    (con o sin documentación subida).
+
+    El motivo es obligatorio y queda registrado en Empresa.motivo_descarte
+    y en el historial de transiciones (TransicionEstado).
+    """
+
+    motivo = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': (
+                'Describa el motivo del descarte. '
+                'Será visible en el historial de la empresa y en la bandeja de descartadas.'
+            ),
+        }),
+        min_length=10,
+        label='Motivo del descarte',
+        help_text='Mínimo 10 caracteres. Quedará registrado de forma permanente.',
+    )

@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+
+{% block title %}Empresas Descartadas — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .descartadas-wrap {
+        padding: 2rem 0;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .counter-badge {
+        background: #FEE2E2;
+        color: #991B1B;
+        font-size: 0.82rem;
+        font-weight: 700;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+    }
+
+    .desc-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+
+    .desc-table thead th {
+        background: #F9FAFB;
+        border-bottom: 2px solid #E5E7EB;
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #6B7280;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .desc-table tbody tr {
+        border-bottom: 1px solid #F3F4F6;
+        transition: background 0.15s;
+    }
+
+    .desc-table tbody tr:hover {
+        background: #FFF5F5;
+    }
+
+    .desc-table tbody td {
+        padding: 0.85rem 1rem;
+        vertical-align: top;
+    }
+
+    .empresa-nombre {
+        font-weight: 700;
+        color: #1F2937;
+        display: block;
+    }
+
+    .empresa-cuit {
+        color: #9CA3AF;
+        font-size: 0.82rem;
+    }
+
+    .motivo-text {
+        color: #374151;
+        font-size: 0.87rem;
+        max-width: 300px;
+    }
+
+    .motivo-truncado {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .fecha-descarte {
+        color: #6B7280;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    .usuario-responsable {
+        font-size: 0.82rem;
+        color: #9CA3AF;
+    }
+
+    .btn-ver {
+        background: transparent;
+        border: 1.5px solid #E5E7EB;
+        color: #374151;
+        padding: 0.3rem 0.75rem;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 0.82rem;
+        font-weight: 600;
+        transition: all 0.15s;
+        white-space: nowrap;
+    }
+
+    .btn-ver:hover {
+        border-color: var(--verde);
+        color: var(--verde);
+        background: #F0FDF4;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: #9CA3AF;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        display: block;
+        margin-bottom: 1rem;
+        color: #D1D5DB;
+    }
+
+    .breadcrumb-link {
+        font-size: 0.87rem;
+        color: #6B7280;
+        text-decoration: none;
+    }
+
+    .breadcrumb-link:hover { color: var(--verde); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="descartadas-wrap">
+    <div class="container" style="max-width: 1000px;">
+        <a href="{% url 'core:solicitud_list' %}" class="breadcrumb-link">
+            <i class="bi bi-arrow-left"></i> Volver a solicitudes
+        </a>
+
+        <div class="page-header mt-3">
+            <div>
+                <h2 class="sec-title mb-0">
+                    <i class="bi bi-x-circle-fill" style="color: #DC2626;"></i>
+                    Empresas Descartadas
+                </h2>
+                <p style="color: #6B7280; font-size: 0.9rem; margin: 0.25rem 0 0;">
+                    Solicitudes rechazadas en la decisión final del proceso de radicación.
+                    Registro auditable con motivo y trazabilidad completa.
+                </p>
+            </div>
+            {% if total_descartadas > 0 %}
+            <span class="counter-badge">{{ total_descartadas }} descartada{{ total_descartadas|pluralize:"s" }}</span>
+            {% endif %}
+        </div>
+
+        <div class="gpiv-card" style="padding: 0; overflow: hidden;">
+            {% if empresas %}
+            <table class="desc-table">
+                <thead>
+                    <tr>
+                        <th>Empresa</th>
+                        <th>Motivo del Descarte</th>
+                        <th>Fecha</th>
+                        <th>Responsable</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for empresa in empresas %}
+                    {% with ultima_transicion=empresa.historial_estados.first %}
+                    <tr>
+                        <td>
+                            <span class="empresa-nombre">{{ empresa.razon_social }}</span>
+                            <span class="empresa-cuit">CUIT: {{ empresa.cuit }}</span>
+                            {% if empresa.nombre_fantasia %}
+                            <span style="color: #9CA3AF; font-size: 0.8rem; display:block;">{{ empresa.nombre_fantasia }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="motivo-text">
+                                {% if empresa.motivo_descarte %}
+                                <span class="motivo-truncado">{{ empresa.motivo_descarte }}</span>
+                                {% else %}
+                                <span style="color: #9CA3AF; font-style: italic;">Sin motivo registrado</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if ultima_transicion %}
+                            <span class="fecha-descarte">{{ ultima_transicion.fecha_cambio|date:"d/m/Y" }}</span>
+                            <span style="color: #9CA3AF; font-size: 0.8rem; display: block;">{{ ultima_transicion.fecha_cambio|date:"H:i" }}</span>
+                            {% else %}
+                            <span style="color: #9CA3AF;">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ultima_transicion and ultima_transicion.usuario %}
+                            <span class="usuario-responsable">
+                                {{ ultima_transicion.usuario.get_full_name|default:ultima_transicion.usuario.username }}
+                            </span>
+                            {% else %}
+                            <span style="color: #9CA3AF; font-size: 0.82rem;">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'core:solicitud_detail' empresa.pk %}"
+                               class="btn-ver"
+                               id="ver-descartada-{{ empresa.pk }}">
+                                <i class="bi bi-eye"></i> Ver
+                            </a>
+                        </td>
+                    </tr>
+                    {% endwith %}
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- Paginación -->
+            {% if is_paginated %}
+            <div style="padding: 1rem 1.5rem; border-top: 1px solid #F3F4F6; display:flex; justify-content:center; gap:0.5rem;">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}"
+                   style="text-decoration:none; color: var(--verde); font-size: 0.87rem;">
+                    <i class="bi bi-chevron-left"></i> Anterior
+                </a>
+                {% endif %}
+                <span style="font-size:0.87rem; color:#6B7280;">
+                    Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                </span>
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}"
+                   style="text-decoration:none; color: var(--verde); font-size: 0.87rem;">
+                    Siguiente <i class="bi bi-chevron-right"></i>
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="empty-state">
+                <i class="bi bi-check-circle-fill" style="color: #4ADE80;"></i>
+                <p style="font-size: 1.05rem; font-weight: 700; color: #374151; margin-bottom: 0.5rem;">
+                    No hay empresas descartadas
+                </p>
+                <p style="font-size: 0.9rem; color: #9CA3AF;">
+                    Las empresas que sean rechazadas en la decisión final aparecerán aquí.
+                </p>
+                <a href="{% url 'core:solicitud_list' %}" style="color: var(--verde); font-size: 0.9rem; text-decoration: none;">
+                    <i class="bi bi-arrow-left"></i> Volver a la lista de solicitudes
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

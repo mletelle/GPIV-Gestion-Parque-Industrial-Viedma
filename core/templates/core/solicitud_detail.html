@@ -69,6 +69,42 @@
         color: #475569;
     }
 
+    .estado-badge.listoadjudicar {
+        background: #DCFCE7;
+        color: #166534;
+    }
+
+    .estado-badge.descartada {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    /* ── bloque documento proyecto ── */
+    .doc-proyecto-card {
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+    .doc-proyecto-card.con-doc {
+        background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
+        border: 1.5px solid #86EFAC;
+    }
+    .doc-proyecto-card.sin-doc {
+        background: #FEF9C3;
+        border: 1.5px solid #FDE047;
+    }
+    .doc-proyecto-card i { font-size: 1.4rem; flex-shrink: 0; }
+    .doc-proyecto-card.con-doc i { color: #16A34A; }
+    .doc-proyecto-card.sin-doc i  { color: #D97706; }
+
+    .btn-decision {
+        background: #7C3AED;
+        color: #fff;
+    }
+
     .seccion-card {
         background: #fff;
         border: 1px solid var(--borde);
@@ -237,20 +273,46 @@
             <form method="post" action="{% url 'core:solicitud_preaprobar' empresa.pk %}" style="display:inline;">
                 {% csrf_token %}
                 <button type="submit" class="btn-accion btn-preaprobar"
-                    onclick="return confirm('¿Pre-aprobar esta solicitud?')">
+                    onclick="return confirm('¿Pre-aprobar esta solicitud? La empresa deberá subir la documentación del proyecto.')">
                     <i class="bi bi-check2-circle"></i> Pre-aprobar
                 </button>
             </form>
             <a href="{% url 'core:solicitud_rechazar' empresa.pk %}" class="btn-accion btn-rechazar">
                 <i class="bi bi-x-circle"></i> Rechazar
             </a>
+
             {% elif empresa.estado == 'PreAprobado' %}
-            <a href="{% url 'core:adjudicacion' empresa.pk %}" class="btn-accion btn-adjudicar">
-                <i class="bi bi-geo-alt"></i> Adjudicar Lote
+            {# Con documentación: ambas acciones pasan por decision_final (aprobación o descarte con motivo) #}
+            {% if puede_tomar_decision %}
+            <a href="{% url 'core:decision_final' empresa.pk %}" class="btn-accion btn-decision"
+               id="btn-aprobar-solicitud">
+                <i class="bi bi-check2-circle"></i> Aprobar
             </a>
+            <a href="{% url 'core:decision_final' empresa.pk %}" class="btn-accion btn-rechazar"
+               id="btn-descartar-solicitud">
+                <i class="bi bi-x-circle"></i> Descartar
+            </a>
+            {% else %}
+            {# Sin documentación: solo se puede rechazar por la vía normal (empresa no cumplió) #}
+            <span class="btn-accion" style="background:#F3F4F6;color:#9CA3AF;cursor:default;" title="Esperando documentación de la empresa">
+                <i class="bi bi-hourglass-split"></i> Esperando documentación...
+            </span>
             <a href="{% url 'core:solicitud_rechazar' empresa.pk %}" class="btn-accion btn-rechazar">
                 <i class="bi bi-x-circle"></i> Rechazar
             </a>
+            {% endif %}
+
+            {% elif empresa.estado == 'ListoAdjudicar' %}
+            <a href="{% url 'core:adjudicacion' empresa.pk %}" class="btn-accion btn-adjudicar"
+               id="btn-adjudicar-lote">
+                <i class="bi bi-geo-alt"></i> Adjudicar Lote
+            </a>
+
+            {% elif empresa.estado == 'Rechazado' %}
+            <span style="font-size:0.85rem;color:#DC2626;font-weight:600;">
+                <i class="bi bi-x-circle-fill"></i> Solicitud Rechazada
+            </span>
+
             {% elif empresa.estado == 'EnConstruccion' %}
             <a href="{% url 'core:baja_empresa' empresa.pk %}" class="btn-accion btn-baja">
                 <i class="bi bi-x-circle"></i> Dar de Baja
@@ -269,6 +331,39 @@
             </a>
             {% endif %}
         </div>
+
+        <!-- estado de documentación del proyecto -->
+        {% if empresa.estado == 'PreAprobado' %}
+        {% if documentacion_subida %}
+        <div class="doc-proyecto-card con-doc mb-3">
+            <i class="bi bi-folder2-open" style="color:#16A34A; font-size:1.5rem; flex-shrink:0;"></i>
+            <div>
+                <strong style="color:#15803D; font-size:0.9rem; display:block;">
+                    La empresa subió {{ documentos_proyecto.count }} archivo{{ documentos_proyecto.count|pluralize:"s" }} del proyecto
+                </strong>
+            </div>
+        </div>
+        {% else %}
+        <div class="doc-proyecto-card sin-doc mb-3">
+            <i class="bi bi-hourglass-split"></i>
+            <div>
+                <strong style="color:#92400E;font-size:0.9rem;">Esperando documentación de la empresa</strong>
+                <p style="margin:0;font-size:0.82rem;color:#78350F;">
+                    La empresa debe subir el proyecto desde su portal. El botón de Aprobar
+                    se habilitará una vez que suba al menos un archivo.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        <!-- motivo de descarte -->
+        {% if empresa.estado == 'Rechazado' and empresa.motivo_descarte %}
+        <div style="background:#FFF5F5;border:1.5px solid #FCA5A5;border-radius:10px;padding:1rem 1.25rem;margin-bottom:0.75rem;">
+            <strong style="color:#DC2626;font-size:0.88rem;"><i class="bi bi-x-circle"></i> Motivo del rechazo:</strong>
+            <p style="margin:0.3rem 0 0;font-size:0.88rem;color:#374151;">{{ empresa.motivo_descarte }}</p>
+        </div>
+        {% endif %}
 
         <!-- lote asignado -->
         {% if lote %}

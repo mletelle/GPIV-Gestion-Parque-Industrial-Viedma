@@ -23,7 +23,7 @@ from django_ratelimit.decorators import ratelimit
 from django_ratelimit.exceptions import Ratelimited
 
 from .models import (
-    Lote, Empresa, TransicionEstado, AvanceConstructivo,
+    Lote, Empresa, DocumentoProyecto, TransicionEstado, AvanceConstructivo,
     SolicitudProrroga, CustomUser, ConsumoServicio,
     Ticket, MensajeTicket,
     ActivoInventario,
@@ -48,6 +48,7 @@ from .forms import (
     SolicitudAccesoForm, RegistroEmpresaWizardForm,
     RegistroColaboradorForm,
     AdminCrearUsuarioForm, AdminAsignarColaboradorForm,
+    SubirDocumentacionForm, DescartarEmpresaForm,
 )
 from django import forms as django_forms
 
@@ -828,6 +829,11 @@ class MiSolicitudView(EmpresaMixin, TemplateView):
             ]
             # puede pedir prorroga si esta en construccion
             ctx['puede_pedir_prorroga'] = empresa.estado == Empresa.Estado.EN_CONSTRUCCION
+            # flujo preaprobación → documentación
+            ctx['puede_subir_documentacion'] = empresa.estado == Empresa.Estado.PRE_APROBADO
+            ctx['documentacion_subida'] = empresa.documentacion_subida
+            ctx['documentos_proyecto'] = empresa.documentos_proyecto.all()
+            ctx['form_documentacion'] = SubirDocumentacionForm()
         return ctx
 
 
@@ -948,15 +954,25 @@ class SolicitudDetailView(AdminEnrepaviMixin, DetailView):
         ctx['tiene_avance_100_validado'] = self.object.avances_constructivos.filter(
             porcentaje_declarado=100, validado_admin=True,
         ).exists()
+        # flujo preaprobación → documentación
+        ctx['documentos_proyecto'] = self.object.documentos_proyecto.all()
+        ctx['documentacion_subida'] = self.object.documentacion_subida
+        ctx['puede_tomar_decision'] = (
+            self.object.estado == Empresa.Estado.PRE_APROBADO
+            and self.object.documentacion_subida
+        )
         return ctx
 
 
 class SolicitudPreAprobarView(AdminEnrepaviMixin, View):
-    """accion: EnEvaluacion -> PreAprobado"""
+    """accion: EnEvaluacion -> PreAprobado.
+    A partir de aquí, la empresa debe subir la documentación del proyecto.
+    El admin puede aprobar (→ ListoAdjudicar/Aprobada) o rechazar con motivo (→ Rechazado) desde DecisionFinalView.
+    """
     def post(self, request, pk):
         empresa = get_object_or_404(Empresa, pk=pk, estado=Empresa.Estado.EN_EVALUACION)
         registrar_transicion(empresa, Empresa.Estado.PRE_APROBADO, request.user, 'Pre-aprobada por administración')
-        messages.success(request, f'{empresa.razon_social} pre-aprobada.')
+        messages.success(request, f'{empresa.razon_social} pre-aprobada. La empresa debe subir la documentación del proyecto.')
         return redirect('core:solicitud_detail', pk=pk)
 
 
@@ -982,13 +998,271 @@ class SolicitudRechazarView(AdminEnrepaviMixin, View):
         return render(request, 'core/solicitud_rechazar.html', {'empresa': empresa, 'form': form})
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# EMPRESA: Subir documentación del proyecto (estado PRE_APROBADO)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class SubirDocumentacionView(EmpresaMixin, View):
+    """
+    La empresa sube uno o varios archivos de documentación del proyecto.
+
+    Restricciones:
+    - Estado debe ser PRE_APROBADO.
+    - Cada archivo se guarda como un DocumentoProyecto independiente.
+    - El admin puede ver y descargar todos los archivos desde DecisionFinalView.
+    """
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        empresa = getattr(request.user, 'empresa', None)
+        if empresa is None or empresa.estado != Empresa.Estado.PRE_APROBADO:
+            messages.error(
+                request,
+                'La subida de documentación solo está habilitada cuando tu solicitud está pre-aprobada.'
+            )
+            return redirect('core:mi_solicitud')
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request):
+        empresa = request.user.empresa
+        archivos = request.FILES.getlist('archivos')
+
+        if not archivos:
+            messages.error(request, 'Debés seleccionar al menos un archivo.')
+            return redirect('core:mi_solicitud')
+
+        extensiones_ok = DocumentoProyecto.EXTENSIONES_PERMITIDAS
+        errores = []
+        documentos_nuevos = []
+
+        for archivo in archivos:
+            ext = archivo.name.rsplit('.', 1)[-1].lower() if '.' in archivo.name else ''
+            if ext not in extensiones_ok:
+                errores.append(f'Formato no permitido: {archivo.name} (.{ext})')
+                continue
+            if archivo.size > 20 * 1024 * 1024:  # 20 MB por archivo
+                errores.append(f'Archivo demasiado grande (máx. 20 MB): {archivo.name}')
+                continue
+            documentos_nuevos.append(archivo)
+
+        if errores:
+            for e in errores:
+                messages.error(request, e)
+
+        if documentos_nuevos:
+            with transaction.atomic():
+                import os
+                for archivo in documentos_nuevos:
+                    DocumentoProyecto.objects.create(
+                        empresa=empresa,
+                        archivo=archivo,
+                        nombre_original=os.path.basename(archivo.name),
+                        subido_por=request.user,
+                    )
+                TransicionEstado.objects.create(
+                    empresa=empresa,
+                    estado_anterior=empresa.estado,
+                    estado_nuevo=empresa.estado,
+                    usuario=request.user,
+                    justificacion_resolucion=(
+                        f'Documentación subida por la empresa: '
+                        f'{", ".join(a.name for a in documentos_nuevos)}.'
+                    ),
+                )
+            n = len(documentos_nuevos)
+            messages.success(
+                request,
+                f'{n} archivo{"s" if n > 1 else ""} subido{"s" if n > 1 else ""} correctamente. '
+                'La administración los revisará a la brevedad.'
+            )
+
+        return redirect('core:mi_solicitud')
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ADMIN: Decisión final (PRE_APROBADO + doc → LISTO_ADJUDICAR o DESCARTADA)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class DecisionFinalView(AdminEnrepaviMixin, View):
+    """
+    Admin: tomá la decisión final sobre una empresa en estado PRE_APROBADO que
+    ya subió su documentación.
+
+    Acciones:
+    - aprobar → LISTO_ADJUDICAR (label "Aprobada")
+    - descartar → RECHAZADO con motivo_descarte obligatorio
+
+    Validación crítica (backend):
+    - Si la empresa no tiene ningún DocumentoProyecto, no se puede aprobar.
+    """
+
+    def _get_empresa(self, pk):
+        return get_object_or_404(Empresa, pk=pk, estado=Empresa.Estado.PRE_APROBADO)
+
+    def get(self, request, pk):
+        empresa = self._get_empresa(pk)
+        documentos = empresa.documentos_proyecto.all()
+        return render(request, 'core/decision_final.html', {
+            'empresa': empresa,
+            'form_descartar': DescartarEmpresaForm(),
+            'documentos': documentos,
+            'documentacion_subida': documentos.exists(),
+        })
+
+    def post(self, request, pk):
+        empresa = self._get_empresa(pk)
+        accion = request.POST.get('accion')
+        documentos = empresa.documentos_proyecto.all()
+
+        if accion == 'aprobar':
+            # ── Validación crítica: debe haber al menos un documento subido ──
+            if not documentos.exists():
+                messages.error(
+                    request,
+                    'No se puede aprobar: la empresa todavía no subió la documentación del proyecto.'
+                )
+                return redirect('core:decision_final', pk=pk)
+
+            with transaction.atomic():
+                registrar_transicion(
+                    empresa,
+                    Empresa.Estado.LISTO_ADJUDICAR,
+                    request.user,
+                    f'Proyecto aprobado ({documentos.count()} archivo(s)). Listo para adjudicación.',
+                )
+            messages.success(
+                request,
+                f'{empresa.razon_social} aprobada. Queda lista para adjudicación de lote.'
+            )
+            return redirect('core:solicitud_detail', pk=pk)
+
+        if accion == 'descartar':
+            form = DescartarEmpresaForm(request.POST)
+            if form.is_valid():
+                motivo = form.cleaned_data['motivo']
+                with transaction.atomic():
+                    empresa.motivo_descarte = motivo
+                    empresa.save(update_fields=['motivo_descarte'])
+                    registrar_transicion(
+                        empresa,
+                        Empresa.Estado.RECHAZADO,
+                        request.user,
+                        f'Empresa rechazada en decisión final. Motivo: {motivo}',
+                    )
+                messages.warning(
+                    request,
+                    f'{empresa.razon_social} rechazada. Quedó registrada en la bandeja de descartadas.'
+                )
+                return redirect('core:solicitudes_descartadas')
+            return render(request, 'core/decision_final.html', {
+                'empresa': empresa,
+                'form_descartar': form,
+                'documentos': documentos,
+                'documentacion_subida': documentos.exists(),
+            })
+
+        messages.error(request, 'Acción no reconocida.')
+        return redirect('core:decision_final', pk=pk)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ADMIN: Bandeja de empresas descartadas
+# ──────────────────────────────────────────────────────────────────────────────
+
+class EmpresasDescartadasView(AdminEnrepaviMixin, ListView):
+    """
+    Admin: listado de empresas rechazadas en la decisión final del proceso de radicación.
+
+    Filtra por estado RECHAZADO con motivo_descarte presente, lo que distingue a las
+    empresas descartadas en la decisión final de las rechazadas en etapas tempranas
+    (EnEvaluacion / PreAprobado) que no poseen ese campo.
+    Cumple el requerimiento de trazabilidad y auditoría del flujo.
+    """
+    model = Empresa
+    template_name = 'core/solicitudes_descartadas.html'
+    context_object_name = 'empresas'
+    paginate_by = 20
+
+    def get_queryset(self):
+        return (
+            Empresa.objects
+            .filter(
+                estado=Empresa.Estado.RECHAZADO,
+                motivo_descarte__isnull=False,
+            )
+            .exclude(motivo_descarte='')
+            .prefetch_related('historial_estados')
+            .order_by('-pk')
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['total_descartadas'] = (
+            Empresa.objects
+            .filter(estado=Empresa.Estado.RECHAZADO, motivo_descarte__isnull=False)
+            .exclude(motivo_descarte='')
+            .count()
+        )
+        return ctx
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# DESCARGA PROTEGIDA de documentos del proyecto
+# ──────────────────────────────────────────────────────────────────────────────
+
+class DescargarDocumentoView(LoginRequiredMixin, View):
+    """
+    Sirve un DocumentoProyecto con autenticación.
+
+    Permiso: admin (grupo ADMIN_ENREPAVI) o usuario perteneciente a la empresa propietaria.
+    Usa FileResponse con as_attachment=True para forzar la descarga del archivo.
+    """
+
+    def get(self, request, pk):
+        from django.http import FileResponse, Http404
+        from django.core.exceptions import PermissionDenied
+        import os
+
+        doc = get_object_or_404(DocumentoProyecto, pk=pk)
+
+        # Verificar permiso: superusuario, miembro de ADMIN_ENREPAVI, o titular de la empresa
+        es_admin = request.user.is_superuser or request.user.groups.filter(name='ADMIN_ENREPAVI').exists()
+        es_de_empresa = (
+            hasattr(request.user, 'empresa') and request.user.empresa == doc.empresa
+        )
+        if not (es_admin or es_de_empresa):
+            raise PermissionDenied
+
+        # Abrir y servir el archivo
+        if not doc.archivo:
+            raise Http404('El archivo no existe.')
+
+        nombre = doc.nombre_original or os.path.basename(doc.archivo.name)
+        try:
+            response = FileResponse(
+                doc.archivo.open('rb'),
+                as_attachment=True,
+                filename=nombre,
+            )
+            return response
+        except FileNotFoundError:
+            raise Http404('El archivo no se encontró en el servidor.')
+
+
  # adjudicacion de lote
 
 class AdjudicacionView(AdminEnrepaviMixin, View):
-    """adjudicar un lote a una empresa pre-aprobada"""
+    """
+    Adjudicar un lote a una empresa en estado LISTO_ADJUDICAR.
+
+    IMPORTANTE: el estado requerido cambió de PRE_APROBADO a LISTO_ADJUDICAR.
+    Para llegar a este estado la empresa debe haber subido la documentación
+    y el admin debe haberla aprobado desde DecisionFinalView.
+    """
 
     def get(self, request, pk):
-        empresa = get_object_or_404(Empresa, pk=pk, estado=Empresa.Estado.PRE_APROBADO)
+        empresa = get_object_or_404(Empresa, pk=pk, estado=Empresa.Estado.LISTO_ADJUDICAR)
         m2_min = empresa.get_necesidad_m2_minimo()
         lotes = list(Lote.objects.filter(
             estado=Lote.Estado.DISPONIBLE,
@@ -1023,7 +1297,14 @@ class AdjudicacionView(AdminEnrepaviMixin, View):
         })
 
     def post(self, request, pk):
-        empresa = get_object_or_404(Empresa, pk=pk, estado=Empresa.Estado.PRE_APROBADO)
+        empresa = get_object_or_404(Empresa, pk=pk, estado=Empresa.Estado.LISTO_ADJUDICAR)
+        # Defensa en profundidad: verificar que la empresa subió documentación
+        # (usa la property documentacion_subida → documentos_proyecto.exists())
+        if not empresa.documentacion_subida:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied(
+                'No se puede adjudicar: la empresa no tiene documentación del proyecto registrada.'
+            )
         lote_id = request.POST.get('lote_id')
         m2_min = empresa.get_necesidad_m2_minimo()
         lote = get_object_or_404(
