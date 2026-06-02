@@ -248,6 +248,34 @@
     .historial-item:last-child {
         border-bottom: none;
     }
+
+    /* Accordion personalizado para secciones de datos */
+    .accordion-detail .accordion-button {
+        background: var(--fondo-tarjeta, #fff);
+        color: var(--verde);
+        font-weight: 700;
+        font-size: 0.95rem;
+        padding: 0.85rem 1rem;
+        border: none;
+        box-shadow: none;
+    }
+    .accordion-detail .accordion-button:not(.collapsed) {
+        background: var(--fondo-tarjeta, #fff);
+        color: var(--verde);
+        box-shadow: none;
+    }
+    .accordion-detail .accordion-button::after {
+        filter: invert(42%) sepia(93%) saturate(401%) hue-rotate(87deg) brightness(95%) contrast(90%);
+    }
+    .accordion-detail .accordion-item {
+        border: 1px solid var(--borde, #e2e8f0);
+        border-radius: 10px !important;
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+    }
+    .accordion-detail .accordion-body {
+        padding: 0.5rem 1rem 1rem;
+    }
 </style>
 {% endblock %}
 
@@ -432,18 +460,36 @@
         </div>
         {% endif %}
 
-        <!-- datos por seccion -->
-        {% for titulo, filas in secciones %}
-        <div class="seccion-card">
-            <h5>{{ titulo }}</h5>
-            {% for label, valor in filas %}
-            <div class="dato-row">
-                <span class="dato-label">{{ label }}</span>
-                <span>{{ valor }}</span>
+        <!-- datos por seccion (accordion colapsable) -->
+        <div class="accordion accordion-detail" id="accordionSolicitudDetail">
+            {% for titulo, filas in secciones %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingDetail-{{ forloop.counter }}">
+                    <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#collapseDetail-{{ forloop.counter }}"
+                            aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+                            aria-controls="collapseDetail-{{ forloop.counter }}">
+                        {{ titulo }}
+                    </button>
+                </h2>
+                <div id="collapseDetail-{{ forloop.counter }}"
+                     class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+                     aria-labelledby="headingDetail-{{ forloop.counter }}"
+                     data-bs-parent="#accordionSolicitudDetail">
+                    <div class="accordion-body">
+                        {% for label, valor in filas %}
+                        <div class="dato-row">
+                            <span class="dato-label">{{ label }}</span>
+                            <span>{{ valor }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
             {% endfor %}
         </div>
-        {% endfor %}
 
         <!-- historial -->
         {% if historial %}
