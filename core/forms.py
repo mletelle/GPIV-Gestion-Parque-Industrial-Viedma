@@ -1,6 +1,5 @@
 from decimal import Decimal
 
-# pyrefly: ignore [missing-import]
 from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, SetPasswordForm
 from django.contrib.auth.models import Group
 from django import forms
