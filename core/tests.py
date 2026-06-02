@@ -1422,7 +1422,7 @@ def payload_registro(**overrides):
         "razon_social": "Nueva Radicacion SRL",
         "cuit": "30-12345678-9",
         "direccion": "Ruta 1",
-        "telefono": "2920123456",
+        "telefono": "+54 9 2920 123456",
         "correo_electronico": "nueva@example.com",
         "tipo_societario": Empresa.TipoSocietario.SRL,
         "nombre_fantasia": "Nueva Radicacion",
@@ -1465,7 +1465,7 @@ def payload_registro(**overrides):
         "representante_dni": "30123456",
         "representante_cargo": "Socio gerente",
         "representante_email": "representante@example.com",
-        "representante_telefono": "2920654321",
+        "representante_telefono": "+54 9 2920 654321",
         "username": "empresa-nueva",
         "password1": PASSWORD,
         "password2": PASSWORD,
@@ -2659,7 +2659,7 @@ class EmpresaPerfilEditTest(TestCase):
     def test_contacto_acepta_telefono_internacional(self):
         """Telefonos con formato internacional valido pasan la validacion."""
         self.client.login(username='user_perfil', password='TestPass123!')
-        for tel in ['+54 9 2920 412345', '+55 11 912345678', '+1 514 1234567', '2920-412345']:
+        for tel in ['+54 9 2920 412345', '+55 11 912345678', '+1 514 1234567', '+598 2 1234567']:
             resp = self.client.post(
                 reverse('core:empresa_perfil_contacto'),
                 {

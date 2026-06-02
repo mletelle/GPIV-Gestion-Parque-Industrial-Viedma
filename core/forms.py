@@ -203,16 +203,19 @@ class SolicitudRadicacionForm(forms.ModelForm):
             yield titulo, [self[c] for c in campos]
 
 
-# Validador de teléfono: acepta formato internacional con prefijo de país
-# (+54, +55, +1, etc.), código de área y número local.
-# Permite espacios, guiones y paréntesis como separadores.
-# Ejemplos válidos: +54 9 2920 412345, 2920-412345, (2920) 412345
+# Validador de teléfono: exige prefijo de país (+54, +55, +1, etc.), código de área y número local.
+# Ejemplos válidos: +54 9 2920 412345, +1 514 1234567
 _validar_telefono = RegexValidator(
-    regex=r'^\+?[\d\s\-\(\)]{7,20}$',
-    message='Ingrese un teléfono válido (7 a 15 dígitos). Ej: +54 9 2920 412345 o 2920-412345',
+    regex=r'^\+\d{1,3}\s?\d{1,4}\s?[\d\s\-]{6,12}$',
+    message='Ingrese un teléfono válido con código de país y área. Ej: +54 9 2920 412345 (Argentina), +55 11 91234-5678 (Brasil), +1 514 1234567 (Canadá)',
 )
 
-_TELEFONO_ERROR = 'El teléfono debe tener entre 7 y 15 dígitos.'
+_validar_dni = RegexValidator(
+    regex=r'^\d{1,2}\.?\d{3}\.?\d{3}$',
+    message='Ingrese un DNI válido (7 u 8 dígitos). Ej: 30.123.456 o 30123456',
+)
+
+_TELEFONO_ERROR = 'El teléfono debe tener entre 7 y 15 dígitos numéricos en total.'
 
 
 class EmpresaPerfilContactoForm(forms.ModelForm):
@@ -303,6 +306,7 @@ class EmpresaPerfilContactoForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['telefono'].validators.append(_validar_telefono)
         self.fields['representante_telefono'].validators.append(_validar_telefono)
+        self.fields['representante_dni'].validators.append(_validar_dni)
 
     def _validate_digit_count(self, value):
         """Valida que el teléfono tenga entre 7 y 15 dígitos."""
@@ -998,6 +1002,7 @@ class RegistroEmpresaWizardForm(forms.Form):
     )
     telefono = forms.CharField(
         label='Teléfono', max_length=30,
+        validators=[_validar_telefono],
         widget=forms.TextInput(attrs=_TXT),
     )
     correo_electronico = forms.EmailField(
@@ -1152,6 +1157,7 @@ class RegistroEmpresaWizardForm(forms.Form):
     )
     representante_dni = forms.CharField(
         label='DNI', max_length=20,
+        validators=[_validar_dni],
         widget=forms.TextInput(attrs=_TXT),
     )
     representante_cargo = forms.CharField(
@@ -1164,6 +1170,7 @@ class RegistroEmpresaWizardForm(forms.Form):
     )
     representante_telefono = forms.CharField(
         label='Teléfono', max_length=30,
+        validators=[_validar_telefono],
         widget=forms.TextInput(attrs=_TXT),
     )
 
