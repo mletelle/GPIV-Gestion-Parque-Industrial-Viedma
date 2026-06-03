@@ -1544,6 +1544,35 @@ class EvaluacionSolicitudTests(TestCase):
         response_empresa = self.client.get(reverse("core:solicitud_list"))
         self.assertEqual(response_empresa.status_code, 403)
 
+    def test_solicitud_list_muestra_descarte_final_y_filtro_rechazado(self):
+        solicitud = empresa(
+            razon_social="Solicitud Descartada",
+            cuit="30-00000021-1",
+            estado=Empresa.Estado.PRE_APROBADO,
+        )
+        motivo = "No cumple con condiciones finales del proyecto"
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("core:decision_final", args=[solicitud.pk]),
+            {"accion": "descartar", "motivo": motivo},
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse("core:solicitud_list"))
+        solicitud.refresh_from_db()
+        self.assertEqual(solicitud.estado, Empresa.Estado.RECHAZADO)
+        self.assertEqual(solicitud.motivo_descarte, motivo)
+        self.assertContains(response, "Solicitud Descartada")
+        self.assertContains(response, motivo)
+
+        response_filtrada = self.client.get(
+            reverse("core:solicitud_list"),
+            {"estado": Empresa.Estado.RECHAZADO},
+        )
+        self.assertContains(response_filtrada, "Solicitud Descartada")
+        self.assertContains(response_filtrada, motivo)
+
     def test_preaprobar_cambia_estado_y_registra_transicion(self):
         solicitud = empresa(cuit="30-00000002-2")
         self.client.force_login(self.admin)
