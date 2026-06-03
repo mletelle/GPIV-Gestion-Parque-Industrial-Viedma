@@ -122,13 +122,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     const firstError = document.querySelector('.errorlist');
     if (firstError) {
-        // Expandir el acordeón padre si está colapsado
-        const accordionCollapse = firstError.closest('.accordion-collapse');
-        if (accordionCollapse && !accordionCollapse.classList.contains('show')) {
-            const bsCollapse = new bootstrap.Collapse(accordionCollapse, { toggle: false });
-            bsCollapse.show();
-        }
-        
         // Scrollear hacia el error de forma suave
         setTimeout(() => {
             const container = firstError.closest('.campo-grupo') || firstError.closest('.campo-check') || firstError;
