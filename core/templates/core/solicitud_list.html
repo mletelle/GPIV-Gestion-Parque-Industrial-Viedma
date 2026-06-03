@@ -173,11 +173,6 @@
                     <tr>
                         <td>
                             <strong>{{ emp.razon_social }}</strong>
-                            {% if emp.estado == 'Rechazado' and emp.motivo_descarte %}
-                            <br><small class="text-muted" style="font-size:0.78rem;">
-                                <i class="bi bi-info-circle"></i> {{ emp.motivo_descarte|truncatechars:80 }}
-                            </small>
-                            {% endif %}
                         </td>
                         <td>{{ emp.cuit }}</td>
                         <td>{{ emp.get_rubro_display }}</td>

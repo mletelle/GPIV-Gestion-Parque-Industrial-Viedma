@@ -1544,7 +1544,7 @@ class EvaluacionSolicitudTests(TestCase):
         response_empresa = self.client.get(reverse("core:solicitud_list"))
         self.assertEqual(response_empresa.status_code, 403)
 
-    def test_solicitud_list_muestra_descarte_final_y_filtro_rechazado(self):
+    def test_solicitud_list_oculta_motivo_y_detalle_lo_muestra(self):
         solicitud = empresa(
             razon_social="Solicitud Descartada",
             cuit="30-00000021-1",
@@ -1564,14 +1564,20 @@ class EvaluacionSolicitudTests(TestCase):
         self.assertEqual(solicitud.estado, Empresa.Estado.RECHAZADO)
         self.assertEqual(solicitud.motivo_descarte, motivo)
         self.assertContains(response, "Solicitud Descartada")
-        self.assertContains(response, motivo)
+        self.assertNotContains(response, motivo)
 
         response_filtrada = self.client.get(
             reverse("core:solicitud_list"),
             {"estado": Empresa.Estado.RECHAZADO},
         )
         self.assertContains(response_filtrada, "Solicitud Descartada")
-        self.assertContains(response_filtrada, motivo)
+        self.assertNotContains(response_filtrada, motivo)
+
+        response_detalle = self.client.get(
+            reverse("core:solicitud_detail", args=[solicitud.pk]),
+        )
+        self.assertContains(response_detalle, "Motivo del rechazo")
+        self.assertContains(response_detalle, motivo)
 
     def test_preaprobar_cambia_estado_y_registra_transicion(self):
         solicitud = empresa(cuit="30-00000002-2")
