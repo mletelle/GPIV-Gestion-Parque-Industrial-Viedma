@@ -205,17 +205,37 @@ class SolicitudRadicacionForm(forms.ModelForm):
 
 # Validador de teléfono: exige prefijo de país (+54, +55, +1, etc.), código de área y número local.
 # Ejemplos válidos: +54 9 2920 412345, +1 514 1234567
-_validar_telefono = RegexValidator(
-    regex=r'^\+\d{1,3}\s?\d{1,4}\s?[\d\s\-]{6,12}$',
-    message='Ingrese un teléfono válido con código de país y área. Ej: +54 9 2920 412345 (Argentina), +55 11 91234-5678 (Brasil), +1 514 1234567 (Canadá)',
-)
+def _validar_telefono(value):
+    import re
+    from django.core.exceptions import ValidationError
+    
+    # Primero validar con regex el formato basico
+    if not re.match(r'^\+\d{1,3}\s?\d{1,4}\s?[\d\s\-]{6,12}$', value):
+        raise ValidationError('Ingrese un teléfono válido con código de país y área. Ej: +54 9 2920 412345 (Argentina), +55 11 91234-5678 (Brasil), +1 514 1234567 (Canadá)')
+    
+    digits = re.sub(r'\D', '', value)
+    
+    if value.startswith('+54'):
+        # Argentina: 54 + 10 u 11 digitos = 12 o 13 total
+        if not (12 <= len(digits) <= 13):
+            raise ValidationError('Los teléfonos de Argentina deben tener 10 u 11 dígitos (sin contar el +54). Ej: +54 9 2920 412345')
+    elif value.startswith('+55'):
+        # Brasil: 55 + 10 u 11 digitos = 12 o 13 total
+        if not (12 <= len(digits) <= 13):
+            raise ValidationError('Los teléfonos de Brasil deben tener 10 u 11 dígitos (sin contar el +55). Ej: +55 11 91234-5678')
+    elif value.startswith('+1'):
+        # Norteamerica: 1 + 10 digitos = 11 total
+        if len(digits) != 11:
+            raise ValidationError('Los teléfonos de Norteamérica deben tener 10 dígitos (sin contar el +1). Ej: +1 514 1234567')
+    else:
+        # Fallback sensato
+        if not (10 <= len(digits) <= 15):
+            raise ValidationError('El teléfono debe tener entre 10 y 15 dígitos numéricos en total.')
 
 _validar_dni = RegexValidator(
-    regex=r'^\d{1,2}\.?\d{3}\.?\d{3}$',
-    message='Ingrese un DNI válido (7 u 8 dígitos). Ej: 30.123.456 o 30123456',
+    regex=r'^\d{2}\.?\d{3}\.?\d{3}$',
+    message='Ingrese un DNI válido (exactamente 8 dígitos). Ej: 30.123.456 o 30123456',
 )
-
-_TELEFONO_ERROR = 'El teléfono debe tener entre 7 y 15 dígitos numéricos en total.'
 
 
 class EmpresaPerfilContactoForm(forms.ModelForm):
@@ -308,22 +328,6 @@ class EmpresaPerfilContactoForm(forms.ModelForm):
         self.fields['representante_telefono'].validators.append(_validar_telefono)
         self.fields['representante_dni'].validators.append(_validar_dni)
 
-    def _validate_digit_count(self, value):
-        """Valida que el teléfono tenga entre 7 y 15 dígitos."""
-        import re
-        digits = re.sub(r'\D', '', value)
-        if not (7 <= len(digits) <= 15):
-            raise forms.ValidationError(_TELEFONO_ERROR)
-        return value
-
-    def clean_telefono(self):
-        return self._validate_digit_count(self.cleaned_data['telefono'])
-
-    def clean_representante_telefono(self):
-        value = self.cleaned_data.get('representante_telefono')
-        if value:
-            return self._validate_digit_count(value)
-        return value
 
     def get_secciones(self):
         for titulo, campos in self.SECCIONES:
