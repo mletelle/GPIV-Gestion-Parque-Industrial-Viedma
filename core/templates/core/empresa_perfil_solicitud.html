@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Datos de Solicitud — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .perfil-wrap {
+        padding: 2rem 0;
+    }
+
+    .perfil-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+    }
+
+    .perfil-header h2 {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: var(--oscuro);
+        margin: 0;
+    }
+
+    .nota-info {
+        font-size: 0.82rem;
+        color: var(--gris-suave);
+        background: #F0FDF4;
+        border: 1px solid #BBF7D0;
+        border-radius: 8px;
+        padding: 0.6rem 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .nota-info i {
+        color: var(--verde);
+    }
+
+    /* Accordion personalizado para secciones */
+    .accordion-gpiv .accordion-button {
+        background: var(--fondo-tarjeta, #fff);
+        color: var(--verde);
+        font-weight: 700;
+        font-size: 1rem;
+        padding: 0.8rem 1rem;
+        border: none;
+        box-shadow: none;
+    }
+
+    .accordion-gpiv .accordion-button:not(.collapsed) {
+        background: var(--fondo-tarjeta, #fff);
+        color: var(--verde);
+        box-shadow: none;
+    }
+
+    .accordion-gpiv .accordion-button::after {
+        filter: invert(42%) sepia(93%) saturate(401%) hue-rotate(87deg) brightness(95%) contrast(90%);
+    }
+
+    .accordion-gpiv .accordion-item {
+        border: 1px solid var(--borde, #e2e8f0);
+        border-radius: 10px !important;
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+    }
+
+    .accordion-gpiv .accordion-body {
+        padding: 0.5rem 1rem 1rem;
+    }
+
+    .campo-grupo {
+        margin-bottom: 1rem;
+    }
+
+    .campo-grupo label {
+        font-weight: 600;
+        font-size: 0.88rem;
+        color: var(--oscuro);
+        margin-bottom: 0.25rem;
+    }
+
+    .campo-grupo .form-text {
+        font-size: 0.78rem;
+        color: var(--gris-suave);
+    }
+
+    .campo-grupo .errorlist {
+        list-style: none;
+        padding: 0;
+        margin: 0.25rem 0 0;
+        font-size: 0.82rem;
+        color: #dc3545;
+    }
+
+    .campo-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .campo-check label {
+        font-weight: 500;
+        font-size: 0.9rem;
+        margin: 0;
+    }
+
+    .acciones-form {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        margin-top: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="perfil-wrap">
+    <div class="container" style="max-width:780px;">
+
+        <div class="perfil-header">
+            <h2><i class="bi bi-pencil-square me-2"></i>Editar Datos de Solicitud</h2>
+        </div>
+        <div class="sec-line mb-3"></div>
+
+        <div class="gpiv-card mb-3" style="padding:0.8rem 1rem;">
+            <div style="font-size:0.85rem;color:var(--gris-suave);">
+                <i class="bi bi-building me-1"></i>
+                <strong>{{ empresa.razon_social }}</strong> · {{ empresa.cuit }}
+            </div>
+        </div>
+
+        <div class="nota-info">
+            <i class="bi bi-info-circle me-1"></i>
+            La razón social y el CUIT no pueden ser modificados desde aquí.
+            Contacte a la administración si necesita corregirlos.
+        </div>
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            <div class="accordion accordion-gpiv" id="accordionSolicitud">
+                {% for titulo, campos in secciones %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading-{{ forloop.counter }}">
+                        <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#collapse-{{ forloop.counter }}"
+                            aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+                            aria-controls="collapse-{{ forloop.counter }}">
+                            {{ titulo }}
+                        </button>
+                    </h2>
+                    <div id="collapse-{{ forloop.counter }}"
+                        class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+                        aria-labelledby="heading-{{ forloop.counter }}" data-bs-parent="#accordionSolicitud">
+                        <div class="accordion-body">
+                            {% for field in campos %}
+                            {% if field.field.widget.input_type == 'checkbox' %}
+                            <div class="campo-check">
+                                {{ field }}
+                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            </div>
+                            {% else %}
+                            <div class="campo-grupo">
+                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                <div class="form-text">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% if field.errors %}
+                                <ul class="errorlist">
+                                    {% for e in field.errors %}<li>{{ e }}</li>{% endfor %}
+                                </ul>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="acciones-form">
+                <button type="submit" class="btn-verde">
+                    <i class="bi bi-check-lg"></i> Guardar cambios
+                </button>
+                <a href="{% url 'core:mi_solicitud' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> Volver
+                </a>
+            </div>
+        </form>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const firstError = document.querySelector('.errorlist');
+    if (firstError) {
+        // Expandir el acordeón padre si está colapsado
+        const accordionCollapse = firstError.closest('.accordion-collapse');
+        if (accordionCollapse && !accordionCollapse.classList.contains('show')) {
+            const bsCollapse = new bootstrap.Collapse(accordionCollapse, { toggle: false });
+            bsCollapse.show();
+        }
+        
+        // Scrollear hacia el error de forma suave
+        setTimeout(() => {
+            const container = firstError.closest('.campo-grupo') || firstError.closest('.campo-check') || firstError;
+            container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 150);
+    }
+});
+</script>
+{% endblock %}

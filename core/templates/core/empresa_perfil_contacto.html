@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Datos de Contacto — GPIV{% endblock %}
+
+{% block extra_css %}
+<style>
+    .perfil-wrap {
+        padding: 2rem 0;
+    }
+
+    .perfil-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+    }
+
+    .perfil-header h2 {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: var(--oscuro);
+        margin: 0;
+    }
+
+    .seccion-titulo {
+        color: var(--verde);
+        font-weight: 700;
+        font-size: 1.05rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.4rem;
+        border-bottom: 2px solid var(--verde);
+    }
+
+    .campo-grupo {
+        margin-bottom: 1rem;
+    }
+
+    .campo-grupo label {
+        font-weight: 600;
+        font-size: 0.88rem;
+        color: var(--oscuro);
+        margin-bottom: 0.25rem;
+    }
+
+    .campo-grupo .form-text {
+        font-size: 0.78rem;
+        color: var(--gris-suave);
+    }
+
+    .campo-grupo .errorlist {
+        list-style: none;
+        padding: 0;
+        margin: 0.25rem 0 0;
+        font-size: 0.82rem;
+        color: #dc3545;
+    }
+
+    .acciones-form {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        margin-top: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="perfil-wrap">
+    <div class="container" style="max-width:720px;">
+
+        <div class="perfil-header">
+            <h2><i class="bi bi-person-lines-fill me-2"></i>Editar Datos de Contacto</h2>
+        </div>
+        <div class="sec-line mb-3"></div>
+
+        <div class="gpiv-card mb-3" style="padding:0.8rem 1rem;">
+            <div style="font-size:0.85rem;color:var(--gris-suave);">
+                <i class="bi bi-building me-1"></i>
+                <strong>{{ empresa.razon_social }}</strong> · {{ empresa.cuit }}
+            </div>
+        </div>
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% for titulo, campos in secciones %}
+            <div class="gpiv-card mb-3">
+                <h5 class="seccion-titulo">{{ titulo }}</h5>
+                {% for field in campos %}
+                <div class="campo-grupo">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                    <div class="form-text">{{ field.help_text }}</div>
+                    {% endif %}
+                    {% if field.errors %}
+                    <ul class="errorlist">
+                        {% for e in field.errors %}<li>{{ e }}</li>{% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+
+            <div class="acciones-form">
+                <button type="submit" class="btn-verde">
+                    <i class="bi bi-check-lg"></i> Guardar cambios
+                </button>
+                <a href="{% url 'core:mi_solicitud' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> Volver
+                </a>
+            </div>
+        </form>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const firstError = document.querySelector('.errorlist');
+    if (firstError) {
+        // Scrollear hacia el error de forma suave
+        setTimeout(() => {
+            const container = firstError.closest('.campo-grupo') || firstError.closest('.campo-check') || firstError;
+            container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 150);
+    }
+});
+</script>
+{% endblock %}

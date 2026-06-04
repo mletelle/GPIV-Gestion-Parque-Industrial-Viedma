@@ -1,9 +1,9 @@
 from decimal import Decimal
 
-from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, SetPasswordForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, SetPasswordForm, UserCreationForm
 from django.contrib.auth.models import Group
 from django import forms
-from django.core.validators import FileExtensionValidator
+from django.core.validators import FileExtensionValidator, RegexValidator
 from django.utils import timezone
 from .models import Lote, Empresa, CustomUser, AvanceConstructivo, SolicitudProrroga, ConsumoServicio, Ticket, MensajeTicket, ActivoInventario, SolicitudAcceso
 from .services import SERVICIO_CAMPOS
@@ -195,6 +195,238 @@ class SolicitudRadicacionForm(forms.ModelForm):
             else:
                 widget.attrs.setdefault('class', 'form-control')
             # impedir negativos en los inputs numericos del lado cliente
+            if name in self.NUMERICOS_NO_NEGATIVOS:
+                widget.attrs['min'] = '0'
+
+    def get_secciones(self):
+        for titulo, campos in self.SECCIONES:
+            yield titulo, [self[c] for c in campos]
+
+
+# Validador de teléfono: exige prefijo de país (+54, +55, +1, etc.), código de área y número local.
+# Ejemplos válidos: +54 9 2920 412345, +1 514 1234567
+def _validar_telefono(value):
+    import re
+    from django.core.exceptions import ValidationError
+    
+    # Primero validar con regex el formato basico
+    if not re.match(r'^\+\d{1,3}\s?\d{1,4}\s?[\d\s\-]{6,12}$', value):
+        raise ValidationError('Ingrese un teléfono válido con código de país y área. Ej: +54 9 2920 412345 (Argentina), +55 11 91234-5678 (Brasil), +1 514 1234567 (Canadá)')
+    
+    digits = re.sub(r'\D', '', value)
+    
+    if value.startswith('+54'):
+        # Argentina: 54 + 10 u 11 digitos = 12 o 13 total
+        if not (12 <= len(digits) <= 13):
+            raise ValidationError('Los teléfonos de Argentina deben tener 10 u 11 dígitos (sin contar el +54). Ej: +54 9 2920 412345')
+    elif value.startswith('+55'):
+        # Brasil: 55 + 10 u 11 digitos = 12 o 13 total
+        if not (12 <= len(digits) <= 13):
+            raise ValidationError('Los teléfonos de Brasil deben tener 10 u 11 dígitos (sin contar el +55). Ej: +55 11 91234-5678')
+    elif value.startswith('+1'):
+        # Norteamerica: 1 + 10 digitos = 11 total
+        if len(digits) != 11:
+            raise ValidationError('Los teléfonos de Norteamérica deben tener 10 dígitos (sin contar el +1). Ej: +1 514 1234567')
+    else:
+        # Fallback sensato
+        if not (10 <= len(digits) <= 15):
+            raise ValidationError('El teléfono debe tener entre 10 y 15 dígitos numéricos en total.')
+
+_validar_dni = RegexValidator(
+    regex=r'^\d{2}\.?\d{3}\.?\d{3}$',
+    message='Ingrese un DNI válido (exactamente 8 dígitos). Ej: 30.123.456 o 30123456',
+)
+
+
+class EmpresaPerfilContactoForm(forms.ModelForm):
+    """Formulario para que la empresa edite sus datos de contacto.
+
+    Excluye campos críticos (razón social, CUIT, estado) que solo puede
+    modificar la administración. Los cambios quedan auditados vía
+    django-simple-history (HistoricalRecords en Empresa).
+    """
+
+    class Meta:
+        model = Empresa
+        fields = [
+            'direccion',
+            'persona_referente',
+            'telefono',
+            'correo_electronico',
+            'representante_nombre',
+            'representante_dni',
+            'representante_cargo',
+            'representante_email',
+            'representante_telefono',
+        ]
+        widgets = {
+            'direccion': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Domicilio legal',
+            }),
+            'persona_referente': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Nombre de la persona de contacto',
+            }),
+            'telefono': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej: +54 9 2920 412345',
+                'maxlength': '20',
+            }),
+            'correo_electronico': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'correo@empresa.com',
+            }),
+            'representante_nombre': forms.TextInput(attrs={
+                'class': 'form-control',
+            }),
+            'representante_dni': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej: 30.123.456',
+            }),
+            'representante_cargo': forms.TextInput(attrs={
+                'class': 'form-control',
+            }),
+            'representante_email': forms.EmailInput(attrs={
+                'class': 'form-control',
+            }),
+            'representante_telefono': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej: +54 9 2920 412345',
+                'maxlength': '20',
+            }),
+        }
+        labels = {
+            'direccion': 'Dirección',
+            'persona_referente': 'Persona referente',
+            'telefono': 'Teléfono',
+            'correo_electronico': 'Correo electrónico',
+            'representante_nombre': 'Representante: nombre y apellido',
+            'representante_dni': 'Representante: DNI',
+            'representante_cargo': 'Representante: cargo',
+            'representante_email': 'Representante: email',
+            'representante_telefono': 'Representante: teléfono',
+        }
+        help_texts = {
+            'telefono': 'Formato: +54 9 2920 412345 (Argentina), +55 11 91234-5678 (Brasil), +1 514 1234567 (Canadá)',
+            'representante_telefono': 'Formato: +54 9 2920 412345 (Argentina), +55 11 91234-5678 (Brasil), +1 514 1234567 (Canadá)',
+        }
+
+    SECCIONES = [
+        ('Información de Contacto', [
+            'direccion', 'persona_referente', 'telefono', 'correo_electronico',
+        ]),
+        ('Representante Legal', [
+            'representante_nombre', 'representante_dni', 'representante_cargo',
+            'representante_email', 'representante_telefono',
+        ]),
+    ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['telefono'].validators.append(_validar_telefono)
+        self.fields['representante_telefono'].validators.append(_validar_telefono)
+        self.fields['representante_dni'].validators.append(_validar_dni)
+
+
+    def get_secciones(self):
+        for titulo, campos in self.SECCIONES:
+            yield titulo, [self[c] for c in campos]
+
+
+class EmpresaSolicitudEditForm(forms.ModelForm):
+    """Formulario para que la empresa edite datos de solicitud que pueden
+    variar en el tiempo (proyecto, infraestructura, servicios, etc.).
+
+    Excluye campos inmutables:
+    - razon_social, cuit: identificación fiscal (solo admin)
+    - estado, fecha_limite_obra, escritura_pdf: flujo administrativo
+    - ultimo_aviso_vencimiento: automático del sistema
+
+    Los datos de contacto se editan desde EmpresaPerfilContactoForm.
+    """
+
+    NUMERICOS_NO_NEGATIVOS = [
+        'personal_jerarquico', 'personal_produccion', 'personal_administrativo',
+        'personal_a_ocupar', 'superficie_cubierta_trabajo_m2',
+        'superficie_cubierta_deposito_m2', 'superficie_futura_expansion_m2',
+        'superficie_estacionamiento_m2',
+    ]
+
+    class Meta:
+        model = Empresa
+        fields = [
+            # información fiscal editable (sin razón social ni CUIT)
+            'nombre_fantasia', 'ingresos_brutos',
+            'tipo_empresa', 'objetivo_proyecto', 'rubro',
+            'actividad_principal', 'actividad_secundaria', 'descripcion_actividad',
+            # detalle del proyecto
+            'emplazamiento_actual',
+            'personal_jerarquico', 'personal_administrativo',
+            'personal_produccion', 'personal_a_ocupar',
+            'materias_primas', 'destino_produccion',
+            # infraestructura
+            'necesidad_m2', 'superficie_cubierta_trabajo_m2',
+            'superficie_cubierta_deposito_m2', 'superficie_futura_expansion_m2',
+            'superficie_estacionamiento_m2', 'tiene_planos', 'tiempo_radicacion_meses',
+            # servicios
+            'energia_tension', 'energia_potencia_rango',
+            'consumo_estimado_agua_potable', 'consumo_estimado_agua_cruda',
+            'gas', 'requiere_internet',
+            'necesidad_balanza_publica', 'necesidad_comedor', 'necesidad_salon_multiuso',
+            # impacto ambiental
+            'categoria_industrial', 'maneja_inflamables',
+            'genera_residuos', 'residuos_efluentes', 'tratamiento_en_planta',
+            # tipo societario
+            'tipo_societario',
+        ]
+
+    SECCIONES = [
+        ('Información Fiscal', [
+            'nombre_fantasia', 'ingresos_brutos',
+            'tipo_empresa', 'objetivo_proyecto', 'rubro',
+            'actividad_principal', 'actividad_secundaria', 'descripcion_actividad',
+        ]),
+        ('Detalle del Proyecto', [
+            'emplazamiento_actual',
+            'personal_jerarquico', 'personal_administrativo',
+            'personal_produccion', 'personal_a_ocupar',
+            'materias_primas', 'destino_produccion',
+        ]),
+        ('Requerimientos de Infraestructura', [
+            'necesidad_m2', 'tiempo_radicacion_meses',
+            'superficie_cubierta_trabajo_m2', 'superficie_cubierta_deposito_m2',
+            'superficie_futura_expansion_m2', 'superficie_estacionamiento_m2',
+            'tiene_planos',
+        ]),
+        ('Requerimientos de Servicios', [
+            'energia_tension', 'energia_potencia_rango',
+            'consumo_estimado_agua_potable', 'consumo_estimado_agua_cruda',
+            'gas', 'requiere_internet',
+            'necesidad_balanza_publica', 'necesidad_comedor', 'necesidad_salon_multiuso',
+        ]),
+        ('Impacto Ambiental', [
+            'categoria_industrial', 'maneja_inflamables',
+            'genera_residuos', 'residuos_efluentes', 'tratamiento_en_planta',
+        ]),
+        ('Datos Societarios', [
+            'tipo_societario',
+        ]),
+    ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            widget = field.widget
+            if isinstance(widget, forms.CheckboxInput):
+                widget.attrs.setdefault('class', 'form-check-input')
+            elif isinstance(widget, (forms.Select, forms.RadioSelect)):
+                widget.attrs.setdefault('class', 'form-select')
+            elif isinstance(widget, forms.Textarea):
+                widget.attrs.setdefault('class', 'form-control')
+                widget.attrs.setdefault('rows', 3)
+            else:
+                widget.attrs.setdefault('class', 'form-control')
             if name in self.NUMERICOS_NO_NEGATIVOS:
                 widget.attrs['min'] = '0'
 
@@ -774,6 +1006,7 @@ class RegistroEmpresaWizardForm(forms.Form):
     )
     telefono = forms.CharField(
         label='Teléfono', max_length=30,
+        validators=[_validar_telefono],
         widget=forms.TextInput(attrs=_TXT),
     )
     correo_electronico = forms.EmailField(
@@ -928,6 +1161,7 @@ class RegistroEmpresaWizardForm(forms.Form):
     )
     representante_dni = forms.CharField(
         label='DNI', max_length=20,
+        validators=[_validar_dni],
         widget=forms.TextInput(attrs=_TXT),
     )
     representante_cargo = forms.CharField(
@@ -940,6 +1174,7 @@ class RegistroEmpresaWizardForm(forms.Form):
     )
     representante_telefono = forms.CharField(
         label='Teléfono', max_length=30,
+        validators=[_validar_telefono],
         widget=forms.TextInput(attrs=_TXT),
     )
 

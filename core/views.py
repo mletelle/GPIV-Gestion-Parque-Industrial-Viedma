@@ -49,6 +49,7 @@ from .forms import (
     RegistroColaboradorForm,
     AdminCrearUsuarioForm, AdminAsignarColaboradorForm,
     SubirDocumentacionForm, DescartarEmpresaForm,
+    EmpresaPerfilContactoForm, EmpresaSolicitudEditForm,
 )
 from django import forms as django_forms
 
@@ -834,6 +835,81 @@ class MiSolicitudView(EmpresaMixin, TemplateView):
             ctx['documentacion_subida'] = empresa.documentacion_subida
             ctx['documentos_proyecto'] = empresa.documentos_proyecto.all()
             ctx['form_documentacion'] = SubirDocumentacionForm()
+            # flags para mostrar/ocultar botones de edición en el template
+            ctx['puede_editar_solicitud'] = (
+                empresa.estado == Empresa.Estado.EN_EVALUACION
+            )
+            ctx['es_titular'] = (
+                self.request.user.rol_interno == CustomUser.RolInterno.TITULAR
+            )
+        return ctx
+
+
+class EmpresaPerfilUpdateView(TitularEmpresaMixin, UpdateView):
+    """Permite a la empresa editar sus datos de contacto y representante legal.
+
+    Campos críticos (CUIT, razón social, estado) quedan excluidos del
+    formulario.  Cada guardado genera un registro en django-simple-history
+    con el usuario que realizó el cambio (capturado vía _history_user).
+    """
+    model = Empresa
+    form_class = EmpresaPerfilContactoForm
+    template_name = 'core/empresa_perfil_contacto.html'
+    success_url = reverse_lazy('core:mi_solicitud')
+
+    def get_object(self, queryset=None):
+        return self.request.user.empresa
+
+    def form_valid(self, form):
+        form.instance._history_user = self.request.user
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            'Datos de contacto actualizados correctamente.',
+        )
+        return response
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['empresa'] = self.object
+        ctx['secciones'] = list(ctx['form'].get_secciones())
+        return ctx
+
+
+class EmpresaSolicitudEditView(EmpresaMixin, UpdateView):
+    """Permite a la empresa editar datos de su solicitud que pueden variar
+    en el tiempo (proyecto, infraestructura, servicios, impacto ambiental).
+
+    Excluye razón social, CUIT, estado y campos de control administrativo.
+    Los cambios quedan registrados en el historial de auditoría.
+    """
+    model = Empresa
+    form_class = EmpresaSolicitudEditForm
+    template_name = 'core/empresa_perfil_solicitud.html'
+    success_url = reverse_lazy('core:mi_solicitud')
+
+    def test_func(self):
+        return (
+            super().test_func()
+            and self.request.user.empresa.estado == Empresa.Estado.EN_EVALUACION
+        )
+
+    def get_object(self, queryset=None):
+        return self.request.user.empresa
+
+    def form_valid(self, form):
+        form.instance._history_user = self.request.user
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            'Datos de solicitud actualizados correctamente.',
+        )
+        return response
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['empresa'] = self.object
+        ctx['secciones'] = list(ctx['form'].get_secciones())
         return ctx
 
 

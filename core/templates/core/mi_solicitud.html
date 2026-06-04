@@ -4,7 +4,9 @@
 
 {% block extra_css %}
 <style>
-    .mi-solicitud-wrap { padding: 2rem 0; }
+    .mi-solicitud-wrap {
+        padding: 2rem 0;
+    }
 
     .estado-badge {
         font-size: 0.85rem;
@@ -13,17 +15,56 @@
         border-radius: 6px;
         display: inline-block;
     }
-    .estado-badge.enevaluacion  { background: #FEF3C7; color: #92400E; }
-    .estado-badge.preaprobado   { background: #DBEAFE; color: #1E40AF; }
-    .estado-badge.rechazado     { background: #FEE2E2; color: #991B1B; }
-    .estado-badge.radicada      { background: #DCFCE7; color: #166534; }
-    .estado-badge.enconstruccion{ background: #E0E7FF; color: #3730A3; }
-    .estado-badge.finalizado    { background: #D1FAE5; color: #065F46; }
-    .estado-badge.escriturado   { background: #CFFAFE; color: #155E75; }
-    .estado-badge.caducado      { background: #FEE2E2; color: #991B1B; }
-    .estado-badge.historico_baja{ background: #F1F5F9; color: #475569; }
-    .estado-badge.listoadjudicar{ background: #DCFCE7; color: #166534; }
-    .estado-badge.descartada    { background: #FEE2E2; color: #991B1B; }
+
+    .estado-badge.enevaluacion {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .estado-badge.preaprobado {
+        background: #DBEAFE;
+        color: #1E40AF;
+    }
+
+    .estado-badge.rechazado {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .estado-badge.radicada {
+        background: #DCFCE7;
+        color: #166534;
+    }
+
+    .estado-badge.enconstruccion {
+        background: #E0E7FF;
+        color: #3730A3;
+    }
+
+    .estado-badge.finalizado {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .estado-badge.escriturado {
+        background: #CFFAFE;
+        color: #155E75;
+    }
+
+    .estado-badge.caducado {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    .estado-badge.historico_baja {
+        background: #F1F5F9;
+        color: #475569;
+    }
+
+    .estado-badge.listoadjudicar {
+        background: #DCFCE7;
+        color: #166534;
+    }
 
     .dato-row {
         display: flex;
@@ -31,38 +72,141 @@
         border-bottom: 1px solid var(--borde);
         font-size: 0.92rem;
     }
-    .dato-row:last-child { border-bottom: none; }
-    .dato-label { font-weight: 600; min-width: 220px; color: var(--gris-suave); }
+
+    .dato-row:last-child {
+        border-bottom: none;
+    }
+
+    .dato-label {
+        font-weight: 600;
+        min-width: 220px;
+        color: var(--gris-suave);
+    }
 
     .historial-item {
         padding: 0.7rem 0;
         border-bottom: 1px solid var(--borde);
         font-size: 0.9rem;
     }
-    .historial-item:last-child { border-bottom: none; }
 
+    .historial-item:last-child {
+        border-bottom: none;
+    }
+
+    /* acordeon personalizado */
+    .accordion-solicitud .accordion-button {
+        background: var(--fondo-tarjeta, #fff);
+        color: var(--verde);
+        font-weight: 700;
+        font-size: 1.05rem;
+        padding: 0.85rem 1rem;
+        border: none;
+        box-shadow: none;
+    }
+
+    .accordion-solicitud .accordion-button:not(.collapsed) {
+        background: var(--fondo-tarjeta, #fff);
+        color: var(--verde);
+        box-shadow: none;
+    }
+
+    .accordion-solicitud .accordion-button::after {
+        filter: invert(42%) sepia(93%) saturate(401%) hue-rotate(87deg) brightness(95%) contrast(90%);
+    }
+
+    .accordion-solicitud .accordion-item {
+        border: 1px solid var(--borde, #e2e8f0);
+        border-radius: 10px !important;
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+    }
+
+    .accordion-solicitud .accordion-body {
+        padding: 0.5rem 1rem 1rem;
+    }
+
+    /* documentacion del proyecto */
 
 
     /* ── Bloque de subida de documentación ── */
     .doc-upload-block {
         background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
-        border: 2px solid #93C5FD; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.25rem;
+        border: 2px solid #93C5FD;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
     }
-    .doc-upload-block h5 { color: #1E40AF; font-weight: 700; margin-bottom: 0.5rem; font-size: 0.95rem; }
-    .doc-upload-block p  { color: #3B82F6; font-size: 0.87rem; margin-bottom: 1rem; }
+
+    .doc-upload-block h5 {
+        color: #1E40AF;
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .doc-upload-block p {
+        color: #374151;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
 
     .doc-enviado-block {
-        background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
-        border: 1.5px solid #86EFAC; border-radius: 12px; padding: 1.25rem 1.5rem;
-        margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.75rem;
+        display: flex;
+        gap: 0.75rem;
+        background: #F0FDF4;
+        border: 1.5px solid #86EFAC;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 0.9rem;
     }
-    .doc-enviado-block i { font-size: 1.5rem; color: #16A34A; }
+
+    .doc-enviado-block i {
+        color: #16A34A;
+        font-size: 1.35rem;
+        flex-shrink: 0;
+    }
 
     .descartada-block {
-        background: #FFF5F5; border: 1.5px solid #FCA5A5; border-radius: 12px;
-        padding: 1.25rem 1.5rem; margin-bottom: 1.25rem;
+        background: #FFF5F5;
+        border: 1.5px solid #FCA5A5;
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1rem;
     }
-    .descartada-block h5 { color: #DC2626; font-weight: 700; margin-bottom: 0.5rem; }
+
+    .descartada-block h5 {
+        color: #DC2626;
+        font-size: 0.95rem;
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+    }
+
+    .descartada-block p {
+        color: #374151;
+        font-size: 0.9rem;
+        margin: 0;
+    }
+
+    .editar-seccion-btn {
+        font-size: 0.78rem;
+        padding: 0.2rem 0.6rem;
+        border-radius: 5px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        background: #F0FDF4;
+        color: var(--verde);
+        border: 1px solid #BBF7D0;
+        transition: all 0.15s;
+    }
+
+    .editar-seccion-btn:hover {
+        background: var(--verde);
+        color: #fff;
+        border-color: var(--verde);
+    }
 </style>
 {% endblock %}
 
@@ -73,7 +217,8 @@
         <div class="gpiv-card text-center py-5">
             <i class="bi bi-file-earmark-text" style="font-size:3rem;color:var(--gris-suave);"></i>
             <h3 class="mt-3" style="font-size:1.2rem;">No tenés una solicitud cargada</h3>
-            <p style="color:var(--gris-suave);font-size:0.92rem;">Completá el formulario de radicación para comenzar el proceso.</p>
+            <p style="color:var(--gris-suave);font-size:0.92rem;">Completá el formulario de radicación para comenzar el
+                proceso.</p>
             <a href="{% url 'core:solicitud_create' %}" class="btn-verde">
                 <i class="bi bi-plus-lg"></i> Nueva Solicitud
             </a>
@@ -100,25 +245,31 @@
         </div>
         {% endif %}
 
+        {% if puede_subir_documentacion %}
+            {% if documentacion_subida %}
+            <div class="doc-enviado-block">
+                <i class="bi bi-folder2-open"></i>
 
         {# ── Acción: subir documentación (PRE_APROBADO) #}
         {% if puede_subir_documentacion %}
             {% if documentacion_subida %}
             <div class="doc-enviado-block">
                 <div style="flex:1;">
-                    <strong style="color:#15803D; display:block;">
+                    <strong style="color:#15803D;display:block;">
                         {{ documentos_proyecto.count }} archivo{{ documentos_proyecto.count|pluralize:"s" }} enviado{{ documentos_proyecto.count|pluralize:"s" }}
                     </strong>
-                    <p style="margin:0.25rem 0 0; font-size:0.85rem; color:#4B5563;">
+                    <p style="margin:0.25rem 0 0;font-size:0.85rem;color:#4B5563;">
                         La administración está revisando tu documentación.
                     </p>
-                    {# Lista de archivos subidos #}
-                    <ul style="margin:0.75rem 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:0.35rem;">
+                    <ul style="margin:0.75rem 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:0.35rem;">
                         {% for doc in documentos_proyecto %}
-                        <li style="display:flex; align-items:center; gap:0.5rem; font-size:0.83rem;">
-                            <i class="bi bi-file-earmark" style="color:#6B7280;"></i>
-                            <span style="flex:1; color:#374151;">{{ doc.nombre_original }}</span>
-                            <span style="color:#9CA3AF; font-size:0.78rem;">{{ doc.fecha_subida|date:"d/m/Y H:i" }}</span>
+                        <li style="display:flex;align-items:center;gap:0.5rem;font-size:0.83rem;">
+                            <i class="bi bi-file-earmark" style="color:#6B7280;font-size:1rem;"></i>
+                            <a href="{{ doc.archivo.url }}" target="_blank" rel="noopener noreferrer"
+                                style="flex:1;color:#374151;text-decoration:none;">
+                                {{ doc.nombre_original|default:doc.archivo.name }}
+                            </a>
+                            <span style="color:#9CA3AF;font-size:0.78rem;">{{ doc.fecha_subida|date:"d/m/Y H:i" }}</span>
                         </li>
                         {% endfor %}
                     </ul>
@@ -126,127 +277,245 @@
             </div>
             {% endif %}
 
-            {# Formulario para agregar más archivos (siempre visible si está PRE_APROBADO) #}
-            <div class="doc-upload-block" {% if documentacion_subida %}style="border-color:#BBF7D0; background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);"{% endif %}>
+            <div class="doc-upload-block">
                 {% if documentacion_subida %}
                 <h5 style="color:#15803D;"><i class="bi bi-plus-circle"></i> Agregar más archivos</h5>
-                <p style="color:#4B5563;">Podés sumar más documentos a tu presentación.</p>
+                <p>Podés sumar más documentos a tu presentación mientras la solicitud siga pre-aprobada.</p>
                 {% else %}
-                <h5><i class="bi bi-upload"></i> ¡Acción requerida! Subí la documentación de tu proyecto</h5>
-                <p>
-                    Tu solicitud fue <strong>pre-aprobada</strong>. Para avanzar a la adjudicación de un lote,
-                    debés adjuntar la documentación completa de tu proyecto.
-                </p>
+                <h5><i class="bi bi-upload"></i> Acción requerida: subí la documentación de tu proyecto</h5>
+                <p>Tu solicitud fue <strong>pre-aprobada</strong>. Para continuar con la decisión final, cargá la documentación del proyecto.</p>
                 {% endif %}
+
                 <form method="post" action="{% url 'core:subir_documentacion' %}" enctype="multipart/form-data">
                     {% csrf_token %}
-                    <div class="mb-2">
-                        <input type="file"
-                               name="archivos"
-                               id="id_archivos_proyecto"
-                               class="form-control"
-                               accept=".pdf,.zip,.rar,.docx,.doc,.xlsx,.xls,.dwg"
-                               multiple>
-                        <small style="color:#6B7280; font-size:0.8rem; display:block; margin-top:0.3rem;">
-                            <i class="bi bi-info-circle"></i>
-                            Podés seleccionar varios archivos a la vez con Ctrl+Click o Shift+Click.
-                            Formatos: PDF, ZIP, RAR, DOCX, XLSX, DWG. Máximo 20 MB por archivo.
-                        </small>
-                    </div>
-                    <button type="submit" class="btn-verde" id="btn-subir-documentacion" style="margin-top:0.5rem;">
-                        <i class="bi bi-cloud-upload"></i>
-                        {% if documentacion_subida %}Agregar Archivos{% else %}Subir Documentación{% endif %}
+                    {{ form_documentacion.as_p }}
+                    <button type="submit" class="btn-verde mt-2">
+                        <i class="bi bi-upload"></i>
+                        {% if documentacion_subida %}Agregar archivos{% else %}Subir documentación{% endif %}
                     </button>
                 </form>
             </div>
         {% endif %}
 
-
-        {# ── Bloque rechazada en decisión final (con motivo_descarte) #}
         {% if empresa.estado == 'Rechazado' and empresa.motivo_descarte %}
         <div class="descartada-block">
-            <h5><i class="bi bi-x-circle-fill"></i> Solicitud Rechazada</h5>
-            <p style="color:#374151; font-size:0.9rem; margin:0;">
-                <strong>Motivo:</strong> {{ empresa.motivo_descarte }}
-            </p>
+            <h5><i class="bi bi-x-circle"></i> Motivo del rechazo</h5>
+            <p>{{ empresa.motivo_descarte }}</p>
         </div>
         {% endif %}
 
-        <div class="gpiv-card mb-3">
-            <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Información Fiscal</h5>
-            <div class="dato-row"><span class="dato-label">Razón Social</span><span>{{ empresa.razon_social }}</span></div>
-            <div class="dato-row"><span class="dato-label">Nombre de Fantasía</span><span>{{ empresa.nombre_fantasia|default:"—" }}</span></div>
-            <div class="dato-row"><span class="dato-label">CUIT</span><span>{{ empresa.cuit }}</span></div>
-            <div class="dato-row"><span class="dato-label">Ingresos Brutos</span><span>{{ empresa.ingresos_brutos|default:"—" }}</span></div>
-            <div class="dato-row"><span class="dato-label">Tipo de Empresa</span><span>{{ empresa.get_tipo_empresa_display }}</span></div>
-            <div class="dato-row"><span class="dato-label">Objetivo del Proyecto</span><span>{{ empresa.get_objetivo_proyecto_display|default:"—" }}</span></div>
-            <div class="dato-row"><span class="dato-label">Rubro</span><span>{{ empresa.get_rubro_display }}</span></div>
-            <div class="dato-row"><span class="dato-label">Actividad Principal</span><span>{{ empresa.actividad_principal }}</span></div>
-            <div class="dato-row"><span class="dato-label">Actividad Secundaria</span><span>{{ empresa.actividad_secundaria|default:"—" }}</span></div>
-            <div class="dato-row"><span class="dato-label">Descripción de Actividad</span><span>{{ empresa.descripcion_actividad }}</span></div>
-        </div>
+        <div class="accordion accordion-solicitud" id="accordionMiSolicitud">
 
-        <div class="gpiv-card mb-3">
-            <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Información de Contacto</h5>
-            <div class="dato-row"><span class="dato-label">Dirección</span><span>{{ empresa.direccion|default:"—" }}</span></div>
-            <div class="dato-row"><span class="dato-label">Persona Referente</span><span>{{ empresa.persona_referente }}</span></div>
-            <div class="dato-row"><span class="dato-label">Teléfono</span><span>{{ empresa.telefono }}</span></div>
-            <div class="dato-row"><span class="dato-label">Correo Electrónico</span><span>{{ empresa.correo_electronico }}</span></div>
-        </div>
+            {# ── Información Fiscal ── #}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingFiscal">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#collapseFiscal" aria-expanded="true" aria-controls="collapseFiscal">
+                        Información Fiscal
+                    </button>
+                </h2>
+                <div id="collapseFiscal" class="accordion-collapse collapse show" aria-labelledby="headingFiscal"
+                    data-bs-parent="#accordionMiSolicitud">
+                    <div class="accordion-body">
+                        <div class="dato-row"><span class="dato-label">Razón Social</span><span>{{ empresa.razon_social }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Nombre de Fantasía</span><span>{{ empresa.nombre_fantasia|default:"—" }}</span></div>
+                        <div class="dato-row"><span class="dato-label">CUIT</span><span>{{ empresa.cuit }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Ingresos Brutos</span><span>{{ empresa.ingresos_brutos|default:"—" }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Tipo de Empresa</span><span>{{ empresa.get_tipo_empresa_display }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Objetivo del Proyecto</span><span>{{ empresa.get_objetivo_proyecto_display|default:"—" }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Rubro</span><span>{{ empresa.get_rubro_display }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Tipo Societario</span><span>{{ empresa.get_tipo_societario_display|default:"—" }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Actividad Principal</span><span>{{ empresa.actividad_principal }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Actividad Secundaria</span><span>{{ empresa.actividad_secundaria|default:"—" }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Descripción de Actividad</span><span>{{ empresa.descripcion_actividad }}</span></div>
+                    </div>
+                </div>
+            </div>
 
-        <div class="gpiv-card mb-3">
-            <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Detalle del Proyecto</h5>
-            <div class="dato-row"><span class="dato-label">Emplazamiento Actual</span><span>{{ empresa.get_emplazamiento_actual_display|default:"—" }}</span></div>
-            <div class="dato-row"><span class="dato-label">Personal Jerárquico</span><span>{{ empresa.personal_jerarquico }}</span></div>
-            <div class="dato-row"><span class="dato-label">Personal Administrativo</span><span>{{ empresa.personal_administrativo }}</span></div>
-            <div class="dato-row"><span class="dato-label">Personal de Producción</span><span>{{ empresa.personal_produccion }}</span></div>
-            <div class="dato-row"><span class="dato-label">Personal a Ocupar</span><span>{{ empresa.personal_a_ocupar }}</span></div>
-            <div class="dato-row"><span class="dato-label">Materias Primas</span><span>{{ empresa.materias_primas|default:"—" }}</span></div>
-            <div class="dato-row"><span class="dato-label">Destino de la Producción</span><span>{{ empresa.destino_produccion|default:"—" }}</span></div>
-        </div>
+            {# ── Información de Contacto ── #}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingContacto">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#collapseContacto" aria-expanded="false" aria-controls="collapseContacto">
+                        Información de Contacto
+                    </button>
+                </h2>
+                <div id="collapseContacto" class="accordion-collapse collapse" aria-labelledby="headingContacto"
+                    data-bs-parent="#accordionMiSolicitud">
+                    <div class="accordion-body">
+                        {% if es_titular %}
+                        <div class="d-flex justify-content-end mb-2">
+                            <a href="{% url 'core:empresa_perfil_contacto' %}" class="editar-seccion-btn">
+                                <i class="bi bi-pencil"></i> Editar contacto
+                            </a>
+                        </div>
+                        {% endif %}
+                        <div class="dato-row"><span class="dato-label">Dirección</span><span>{{ empresa.direccion|default:"—" }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Persona Referente</span><span>{{ empresa.persona_referente }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Teléfono</span><span>{{ empresa.telefono }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Correo Electrónico</span><span>{{ empresa.correo_electronico }}</span></div>
+                    </div>
+                </div>
+            </div>
 
-        <div class="gpiv-card mb-3">
-            <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Requerimientos de Infraestructura</h5>
-            <div class="dato-row"><span class="dato-label">Necesidad de Lote</span><span>{{ empresa.get_necesidad_m2_display }}</span></div>
-            <div class="dato-row"><span class="dato-label">Tiempo de Radicación</span><span>{{ empresa.get_tiempo_radicacion_meses_display }}</span></div>
-            <div class="dato-row"><span class="dato-label">Sup. Cubierta de Trabajo (m²)</span><span>{{ empresa.superficie_cubierta_trabajo_m2|floatformat:2 }}</span></div>
-            <div class="dato-row"><span class="dato-label">Sup. Cubierta de Depósito (m²)</span><span>{{ empresa.superficie_cubierta_deposito_m2|floatformat:2 }}</span></div>
-            <div class="dato-row"><span class="dato-label">Sup. Futura Expansión (m²)</span><span>{{ empresa.superficie_futura_expansion_m2|floatformat:2|default:"—" }}</span></div>
-            <div class="dato-row"><span class="dato-label">Sup. Estacionamiento (m²)</span><span>{{ empresa.superficie_estacionamiento_m2|floatformat:2|default:"—" }}</span></div>
-            <div class="dato-row"><span class="dato-label">Tiene Planos</span><span>{% if empresa.tiene_planos %}Sí{% else %}No{% endif %}</span></div>
-        </div>
+            {# ── Representante Legal ── #}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingRepresentante">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#collapseRepresentante" aria-expanded="false"
+                        aria-controls="collapseRepresentante">
+                        Representante Legal
+                    </button>
+                </h2>
+                <div id="collapseRepresentante" class="accordion-collapse collapse"
+                    aria-labelledby="headingRepresentante" data-bs-parent="#accordionMiSolicitud">
+                    <div class="accordion-body">
+                        {% if es_titular %}
+                        <div class="d-flex justify-content-end mb-2">
+                            <a href="{% url 'core:empresa_perfil_contacto' %}" class="editar-seccion-btn">
+                                <i class="bi bi-pencil"></i> Editar representante
+                            </a>
+                        </div>
+                        {% endif %}
+                        <div class="dato-row"><span class="dato-label">Nombre y Apellido</span><span>{{ empresa.representante_nombre|default:"—" }}</span></div>
+                        <div class="dato-row"><span class="dato-label">DNI</span><span>{{ empresa.representante_dni|default:"—" }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Cargo</span><span>{{ empresa.representante_cargo|default:"—" }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Email</span><span>{{ empresa.representante_email|default:"—" }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Teléfono</span><span>{{ empresa.representante_telefono|default:"—" }}</span></div>
+                    </div>
+                </div>
+            </div>
 
-        <div class="gpiv-card mb-3">
-            <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Requerimientos de Servicios</h5>
-            <div class="dato-row"><span class="dato-label">Energía — Tensión</span><span>{{ empresa.get_energia_tension_display|default:"—" }}</span></div>
-            <div class="dato-row"><span class="dato-label">Energía — Potencia</span><span>{{ empresa.get_energia_potencia_rango_display|default:"—" }}</span></div>
-            <div class="dato-row"><span class="dato-label">Consumo Agua Potable</span><span>{{ empresa.get_consumo_estimado_agua_potable_display|default:"—" }}</span></div>
-            <div class="dato-row"><span class="dato-label">Consumo Agua Cruda</span><span>{{ empresa.get_consumo_estimado_agua_cruda_display|default:"—" }}</span></div>
-            <div class="dato-row"><span class="dato-label">Gas</span><span>{% if empresa.gas %}Sí{% else %}No{% endif %}</span></div>
-            <div class="dato-row"><span class="dato-label">Requiere Internet</span><span>{% if empresa.requiere_internet %}Sí{% else %}No{% endif %}</span></div>
-            <div class="dato-row"><span class="dato-label">Balanza Pública</span><span>{% if empresa.necesidad_balanza_publica %}Sí{% else %}No{% endif %}</span></div>
-            <div class="dato-row"><span class="dato-label">Comedor Comunitario</span><span>{% if empresa.necesidad_comedor %}Sí{% else %}No{% endif %}</span></div>
-            <div class="dato-row"><span class="dato-label">Salón de Usos Múltiples</span><span>{% if empresa.necesidad_salon_multiuso %}Sí{% else %}No{% endif %}</span></div>
-        </div>
+            {# ── Detalle del Proyecto ── #}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingProyecto">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#collapseProyecto" aria-expanded="false" aria-controls="collapseProyecto">
+                        Detalle del Proyecto
+                    </button>
+                </h2>
+                <div id="collapseProyecto" class="accordion-collapse collapse" aria-labelledby="headingProyecto"
+                    data-bs-parent="#accordionMiSolicitud">
+                    <div class="accordion-body">
+                        {% if puede_editar_solicitud and es_titular %}
+                        <div class="d-flex justify-content-end mb-2">
+                            <a href="{% url 'core:empresa_perfil_solicitud' %}" class="editar-seccion-btn">
+                                <i class="bi bi-pencil"></i> Editar solicitud
+                            </a>
+                        </div>
+                        {% endif %}
+                        <div class="dato-row"><span class="dato-label">Emplazamiento Actual</span><span>{{ empresa.get_emplazamiento_actual_display|default:"—" }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Personal Jerárquico</span><span>{{ empresa.personal_jerarquico }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Personal Administrativo</span><span>{{ empresa.personal_administrativo }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Personal de Producción</span><span>{{ empresa.personal_produccion }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Personal a Ocupar</span><span>{{ empresa.personal_a_ocupar }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Materias Primas</span><span>{{ empresa.materias_primas|default:"—" }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Destino de la Producción</span><span>{{ empresa.destino_produccion|default:"—" }}</span></div>
+                    </div>
+                </div>
+            </div>
 
-        <div class="gpiv-card mb-3">
-            <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Impacto Ambiental</h5>
-            <div class="dato-row"><span class="dato-label">Categoría Industrial</span><span>{{ empresa.get_categoria_industrial_display }}</span></div>
-            <div class="dato-row"><span class="dato-label">Maneja Inflamables</span><span>{% if empresa.maneja_inflamables %}Sí{% else %}No{% endif %}</span></div>
-            <div class="dato-row"><span class="dato-label">Genera Residuos</span><span>{% if empresa.genera_residuos %}Sí{% else %}No{% endif %}</span></div>
-            <div class="dato-row"><span class="dato-label">Tratamiento en Planta</span><span>{% if empresa.tratamiento_en_planta %}Sí{% else %}No{% endif %}</span></div>
-        </div>
+            {# ── Requerimientos de Infraestructura ── #}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingInfra">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#collapseInfra" aria-expanded="false" aria-controls="collapseInfra">
+                        Requerimientos de Infraestructura
+                    </button>
+                </h2>
+                <div id="collapseInfra" class="accordion-collapse collapse" aria-labelledby="headingInfra"
+                    data-bs-parent="#accordionMiSolicitud">
+                    <div class="accordion-body">
+                        {% if puede_editar_solicitud and es_titular %}
+                        <div class="d-flex justify-content-end mb-2">
+                            <a href="{% url 'core:empresa_perfil_solicitud' %}" class="editar-seccion-btn">
+                                <i class="bi bi-pencil"></i> Editar solicitud
+                            </a>
+                        </div>
+                        {% endif %}
+                        <div class="dato-row"><span class="dato-label">Necesidad de Lote</span><span>{{ empresa.get_necesidad_m2_display }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Tiempo de Radicación</span><span>{{ empresa.get_tiempo_radicacion_meses_display }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Sup. Cubierta de Trabajo (m²)</span><span>{{ empresa.superficie_cubierta_trabajo_m2|floatformat:2 }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Sup. Cubierta de Depósito (m²)</span><span>{{ empresa.superficie_cubierta_deposito_m2|floatformat:2 }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Sup. Futura Expansión (m²)</span><span>{{ empresa.superficie_futura_expansion_m2|floatformat:2|default:"—" }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Sup. Estacionamiento (m²)</span><span>{{ empresa.superficie_estacionamiento_m2|floatformat:2|default:"—" }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Tiene Planos</span><span>{% if empresa.tiene_planos %}Sí{% else %}No{% endif %}</span></div>
+                    </div>
+                </div>
+            </div>
+
+            {# ── Requerimientos de Servicios ── #}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingServicios">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#collapseServicios" aria-expanded="false" aria-controls="collapseServicios">
+                        Requerimientos de Servicios
+                    </button>
+                </h2>
+                <div id="collapseServicios" class="accordion-collapse collapse" aria-labelledby="headingServicios"
+                    data-bs-parent="#accordionMiSolicitud">
+                    <div class="accordion-body">
+                        {% if puede_editar_solicitud and es_titular %}
+                        <div class="d-flex justify-content-end mb-2">
+                            <a href="{% url 'core:empresa_perfil_solicitud' %}" class="editar-seccion-btn">
+                                <i class="bi bi-pencil"></i> Editar solicitud
+                            </a>
+                        </div>
+                        {% endif %}
+                        <div class="dato-row"><span class="dato-label">Energía — Tensión</span><span>{{ empresa.get_energia_tension_display|default:"—" }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Energía — Potencia</span><span>{{ empresa.get_energia_potencia_rango_display|default:"—" }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Consumo Agua Potable</span><span>{{ empresa.get_consumo_estimado_agua_potable_display|default:"—" }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Consumo Agua Cruda</span><span>{{ empresa.get_consumo_estimado_agua_cruda_display|default:"—" }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Gas</span><span>{% if empresa.gas %}Sí{% else %}No{% endif %}</span></div>
+                        <div class="dato-row"><span class="dato-label">Requiere Internet</span><span>{% if empresa.requiere_internet %}Sí{% else %}No{% endif %}</span></div>
+                        <div class="dato-row"><span class="dato-label">Balanza Pública</span><span>{% if empresa.necesidad_balanza_publica %}Sí{% else %}No{% endif %}</span></div>
+                        <div class="dato-row"><span class="dato-label">Comedor Comunitario</span><span>{% if empresa.necesidad_comedor %}Sí{% else %}No{% endif %}</span></div>
+                        <div class="dato-row"><span class="dato-label">Salón de Usos Múltiples</span><span>{% if empresa.necesidad_salon_multiuso %}Sí{% else %}No{% endif %}</span></div>
+                    </div>
+                </div>
+            </div>
+
+            {# ── Impacto Ambiental ── #}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingAmbiental">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#collapseAmbiental" aria-expanded="false" aria-controls="collapseAmbiental">
+                        Impacto Ambiental
+                    </button>
+                </h2>
+                <div id="collapseAmbiental" class="accordion-collapse collapse" aria-labelledby="headingAmbiental"
+                    data-bs-parent="#accordionMiSolicitud">
+                    <div class="accordion-body">
+                        {% if puede_editar_solicitud and es_titular %}
+                        <div class="d-flex justify-content-end mb-2">
+                            <a href="{% url 'core:empresa_perfil_solicitud' %}" class="editar-seccion-btn">
+                                <i class="bi bi-pencil"></i> Editar solicitud
+                            </a>
+                        </div>
+                        {% endif %}
+                        <div class="dato-row"><span class="dato-label">Categoría Industrial</span><span>{{ empresa.get_categoria_industrial_display }}</span></div>
+                        <div class="dato-row"><span class="dato-label">Maneja Inflamables</span><span>{% if empresa.maneja_inflamables %}Sí{% else %}No{% endif %}</span></div>
+                        <div class="dato-row"><span class="dato-label">Genera Residuos</span><span>{% if empresa.genera_residuos %}Sí{% else %}No{% endif %}</span></div>
+                        <div class="dato-row"><span class="dato-label">Tratamiento en Planta</span><span>{% if empresa.tratamiento_en_planta %}Sí{% else %}No{% endif %}</span></div>
+                    </div>
+                </div>
+            </div>
+
+        </div> {# /accordion #}
 
         {% if lote %}
-        <div class="gpiv-card mb-3">
+        <div class="gpiv-card mb-3 mt-3">
             <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Lote Asignado</h5>
             <div class="dato-row"><span class="dato-label">Parcela</span><span>{{ lote.nro_parcela|stringformat:"03d" }}</span></div>
-            <div class="dato-row"><span class="dato-label">Superficie</span><span>{{ lote.superficie_m2|floatformat:2 }} m²</span></div>
+            <div class="dato-row"><span class="dato-label">Superficie</span><span>{{ lote.superficie_m2|floatformat:2 }}
+                    m²</span></div>
             {% if empresa.fecha_limite_obra %}
             <div class="dato-row"><span class="dato-label">Fecha límite de obra</span><span>{{ empresa.fecha_limite_obra|date:"d/m/Y" }}</span></div>
             {% endif %}
         </div>
         {% endif %}
+
+
 
         {% if avances %}
         <div class="gpiv-card mb-3">
@@ -259,9 +528,11 @@
                 </div>
                 <div>
                     {% if avance.validado_admin %}
-                    <span style="background:#DCFCE7;color:#166534;font-size:0.72rem;padding:0.15rem 0.4rem;border-radius:4px;font-weight:700;">Validado</span>
+                    <span
+                        style="background:#DCFCE7;color:#166534;font-size:0.72rem;padding:0.15rem 0.4rem;border-radius:4px;font-weight:700;">Validado</span>
                     {% else %}
-                    <span style="background:#FEF3C7;color:#92400E;font-size:0.72rem;padding:0.15rem 0.4rem;border-radius:4px;font-weight:700;">Pendiente</span>
+                    <span
+                        style="background:#FEF3C7;color:#92400E;font-size:0.72rem;padding:0.15rem 0.4rem;border-radius:4px;font-weight:700;">Pendiente</span>
                     {% endif %}
                 </div>
             </div>
@@ -280,11 +551,14 @@
                 </div>
                 <div>
                     {% if p.estado == 'Pendiente' %}
-                    <span style="background:#FEF3C7;color:#92400E;font-size:0.72rem;padding:0.15rem 0.4rem;border-radius:4px;font-weight:700;">Pendiente</span>
+                    <span
+                        style="background:#FEF3C7;color:#92400E;font-size:0.72rem;padding:0.15rem 0.4rem;border-radius:4px;font-weight:700;">Pendiente</span>
                     {% elif p.estado == 'Aprobada' %}
-                    <span style="background:#DCFCE7;color:#166534;font-size:0.72rem;padding:0.15rem 0.4rem;border-radius:4px;font-weight:700;">Aprobada</span>
+                    <span
+                        style="background:#DCFCE7;color:#166534;font-size:0.72rem;padding:0.15rem 0.4rem;border-radius:4px;font-weight:700;">Aprobada</span>
                     {% elif p.estado == 'Rechazada' %}
-                    <span style="background:#FEE2E2;color:#991B1B;font-size:0.72rem;padding:0.15rem 0.4rem;border-radius:4px;font-weight:700;">Rechazada</span>
+                    <span
+                        style="background:#FEE2E2;color:#991B1B;font-size:0.72rem;padding:0.15rem 0.4rem;border-radius:4px;font-weight:700;">Rechazada</span>
                     {% endif %}
                 </div>
             </div>
@@ -306,7 +580,8 @@
                     {% if t.usuario %} por {{ t.usuario.get_full_name|default:t.usuario.username }}{% endif %}
                 </span>
                 {% if t.justificacion_resolucion %}
-                <p style="margin:0.3rem 0 0;font-size:0.85rem;color:var(--gris-suave);">{{ t.justificacion_resolucion }}</p>
+                <p style="margin:0.3rem 0 0;font-size:0.85rem;color:var(--gris-suave);">{{ t.justificacion_resolucion }}
+                </p>
                 {% endif %}
             </div>
             {% endfor %}

@@ -1422,7 +1422,7 @@ def payload_registro(**overrides):
         "razon_social": "Nueva Radicacion SRL",
         "cuit": "30-12345678-9",
         "direccion": "Ruta 1",
-        "telefono": "2920123456",
+        "telefono": "+54 9 2920 123456",
         "correo_electronico": "nueva@example.com",
         "tipo_societario": Empresa.TipoSocietario.SRL,
         "nombre_fantasia": "Nueva Radicacion",
@@ -1465,7 +1465,7 @@ def payload_registro(**overrides):
         "representante_dni": "30123456",
         "representante_cargo": "Socio gerente",
         "representante_email": "representante@example.com",
-        "representante_telefono": "2920654321",
+        "representante_telefono": "+54 9 2920 654321",
         "username": "empresa-nueva",
         "password1": PASSWORD,
         "password2": PASSWORD,
@@ -1667,13 +1667,16 @@ class AdjudicacionLoteTests(TestCase):
         self.admin = user("admin-adjudicacion", "ADMIN_ENREPAVI")
         self.client.force_login(self.admin)
 
-    def test_asigna_lote_disponible_y_adecuado_a_empresa_preaprobada(self):
+    def test_asigna_lote_disponible_y_adecuado_a_empresa_lista_para_adjudicar(self):
+        from core.models import DocumentoProyecto
         solicitud = empresa(
             razon_social="Proyecto Aprobado",
             cuit="30-00000004-4",
-            estado=Empresa.Estado.PRE_APROBADO,
+            estado=Empresa.Estado.LISTO_ADJUDICAR,
             necesidad_m2=Empresa.RangoNecesidadM2.DE_500_A_1000,
         )
+        DocumentoProyecto.objects.create(empresa=solicitud, archivo='test.pdf', nombre_original='test.pdf')
+        
         parcela = lote(nro_parcela=10, superficie_m2=Decimal("800.00"))
 
         response = self.client.post(
@@ -2420,3 +2423,364 @@ class EmailLoginNamespaceTests(TestCase):
         self.assertIn('username', form_username_email.errors)
         self.assertFalse(form_email_username.is_valid())
         self.assertIn('email', form_email_username.errors)
+
+
+# ===========================================================================
+# Issue #49: Perfil de Empresa Editable
+# ===========================================================================
+
+
+class EmpresaPerfilEditTest(TestCase):
+    """Tests para las vistas EmpresaPerfilUpdateView y EmpresaSolicitudEditView.
+
+    Valida:
+    - Acceso restringido a usuarios del grupo EMPRESA con empresa asociada.
+    - Exclusion de campos criticos (CUIT, razon social) de la edicion.
+    - Generacion de registros de auditoria (django-simple-history).
+    - Renderizado correcto de la vista Mi Solicitud con accordions colapsables.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.grupo_empresa, _ = Group.objects.get_or_create(name='EMPRESA')
+        cls.grupo_admin, _ = Group.objects.get_or_create(name='ADMIN_ENREPAVI')
+
+        cls.empresa = _crear_empresa(
+            razon_social='Test Perfil S.A.',
+            cuit='30-99999999-0',
+            correo_electronico='perfil@test.local',
+            persona_referente='Juan Original',
+            telefono='2920-111111',
+        )
+
+        cls.user_empresa = User.objects.create_user(
+            username='user_perfil', password='TestPass123!',
+        )
+        cls.user_empresa.groups.add(cls.grupo_empresa)
+        cls.user_empresa.empresa = cls.empresa
+        cls.user_empresa.rol_interno = 'TITULAR'
+        cls.user_empresa.save(update_fields=['empresa', 'rol_interno'])
+
+        cls.user_sin_empresa = User.objects.create_user(
+            username='user_sin_emp', password='TestPass123!',
+        )
+        cls.user_sin_empresa.groups.add(cls.grupo_empresa)
+
+        cls.user_admin = User.objects.create_user(
+            username='admin_perfil', password='TestPass123!',
+        )
+        cls.user_admin.groups.add(cls.grupo_admin)
+
+    # -- Acceso a la vista de contacto --
+
+    def test_contacto_view_acceso_empresa(self):
+        """Usuario EMPRESA con empresa puede acceder al form de contacto."""
+        self.client.login(username='user_perfil', password='TestPass123!')
+        resp = self.client.get(reverse('core:empresa_perfil_contacto'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Editar Datos de Contacto')
+
+    def test_contacto_view_denegado_sin_empresa(self):
+        """Usuario EMPRESA sin empresa asociada recibe 403."""
+        self.client.login(username='user_sin_emp', password='TestPass123!')
+        resp = self.client.get(reverse('core:empresa_perfil_contacto'))
+        self.assertEqual(resp.status_code, 403)
+
+    def test_contacto_view_denegado_admin(self):
+        """Admin ENREPAVI no es EMPRESA, recibe 403."""
+        self.client.login(username='admin_perfil', password='TestPass123!')
+        resp = self.client.get(reverse('core:empresa_perfil_contacto'))
+        self.assertEqual(resp.status_code, 403)
+
+    # -- Edicion exitosa de contacto --
+
+    def test_contacto_edit_success(self):
+        """POST con datos validos actualiza la empresa y redirige."""
+        self.client.login(username='user_perfil', password='TestPass123!')
+        resp = self.client.post(
+            reverse('core:empresa_perfil_contacto'),
+            {
+                'direccion': 'Av. Nueva 123',
+                'persona_referente': 'Maria Actualizada',
+                'telefono': '+54 9 2920 222222',
+                'correo_electronico': 'nuevo@test.local',
+                'representante_nombre': '',
+                'representante_dni': '',
+                'representante_cargo': '',
+                'representante_email': '',
+                'representante_telefono': '',
+            },
+        )
+        self.assertRedirects(resp, reverse('core:mi_solicitud'))
+
+        self.empresa.refresh_from_db()
+        self.assertEqual(self.empresa.persona_referente, 'Maria Actualizada')
+        self.assertEqual(self.empresa.telefono, '+54 9 2920 222222')
+        self.assertEqual(self.empresa.correo_electronico, 'nuevo@test.local')
+
+    def test_contacto_edit_no_modifica_cuit(self):
+        """El CUIT no cambia tras el POST (no esta en el formulario)."""
+        cuit_original = self.empresa.cuit
+        self.client.login(username='user_perfil', password='TestPass123!')
+        self.client.post(
+            reverse('core:empresa_perfil_contacto'),
+            {
+                'direccion': 'Calle X',
+                'persona_referente': 'Persona X',
+                'telefono': '+54 9 2920 333333',
+                'correo_electronico': 'x@test.local',
+                'representante_nombre': '',
+                'representante_dni': '',
+                'representante_cargo': '',
+                'representante_email': '',
+                'representante_telefono': '',
+            },
+        )
+        self.empresa.refresh_from_db()
+        self.assertEqual(self.empresa.cuit, cuit_original)
+
+    def test_contacto_edit_genera_historial(self):
+        """Despues de editar contacto, se genera un nuevo registro en history."""
+        history_count_antes = self.empresa.history.count()
+        self.client.login(username='user_perfil', password='TestPass123!')
+        self.client.post(
+            reverse('core:empresa_perfil_contacto'),
+            {
+                'direccion': 'Historial 456',
+                'persona_referente': 'Auditoria Test',
+                'telefono': '+54 9 2920 444444',
+                'correo_electronico': 'audit@test.local',
+                'representante_nombre': '',
+                'representante_dni': '',
+                'representante_cargo': '',
+                'representante_email': '',
+                'representante_telefono': '',
+            },
+        )
+        self.empresa.refresh_from_db()
+        self.assertGreater(self.empresa.history.count(), history_count_antes)
+        ultimo = self.empresa.history.first()
+        self.assertEqual(ultimo.history_type, '~')
+        self.assertEqual(ultimo.persona_referente, 'Auditoria Test')
+
+    # -- Acceso a la vista de solicitud --
+
+    def test_solicitud_edit_acceso_empresa(self):
+        """Usuario EMPRESA puede acceder al form de edicion de solicitud."""
+        self.client.login(username='user_perfil', password='TestPass123!')
+        resp = self.client.get(reverse('core:empresa_perfil_solicitud'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Editar Datos de Solicitud')
+
+    def test_solicitud_edit_success(self):
+        """POST con datos validos actualiza los campos editables."""
+        self.client.login(username='user_perfil', password='TestPass123!')
+        resp = self.client.post(
+            reverse('core:empresa_perfil_solicitud'),
+            {
+                'nombre_fantasia': 'Fantasia Nueva',
+                'ingresos_brutos': 'IB-99999',
+                'tipo_empresa': Empresa.TipoEmpresa.EXISTENTE,
+                'objetivo_proyecto': Empresa.ObjetivoProyecto.AMPLIACION,
+                'rubro': Empresa.Rubro.METALURGICA,
+                'actividad_principal': 'Fabricacion actualizada',
+                'actividad_secundaria': '',
+                'descripcion_actividad': 'Descripcion actualizada',
+                'emplazamiento_actual': Empresa.EmplazamientoActual.PROPIO,
+                'personal_jerarquico': 5,
+                'personal_administrativo': 3,
+                'personal_produccion': 20,
+                'personal_a_ocupar': 28,
+                'materias_primas': 'Acero y aluminio',
+                'destino_produccion': 'Mercado interno',
+                'necesidad_m2': Empresa.RangoNecesidadM2.DE_1000_A_2000,
+                'tiempo_radicacion_meses': 24,
+                'superficie_cubierta_trabajo_m2': '500.00',
+                'superficie_cubierta_deposito_m2': '200.00',
+                'superficie_futura_expansion_m2': '',
+                'superficie_estacionamiento_m2': '',
+                'tiene_planos': True,
+                'energia_tension': Empresa.TensionElectrica.MEDIA,
+                'energia_potencia_rango': Empresa.RangoPotencia.DE_50_A_100,
+                'consumo_estimado_agua_potable': Empresa.RangoConsumoAgua.DE_50_A_200,
+                'consumo_estimado_agua_cruda': '',
+                'gas': True,
+                'requiere_internet': True,
+                'necesidad_balanza_publica': False,
+                'necesidad_comedor': False,
+                'necesidad_salon_multiuso': False,
+                'categoria_industrial': Empresa.CategoriaIndustrial.OTRO,
+                'maneja_inflamables': False,
+                'genera_residuos': False,
+                'residuos_efluentes': '',
+                'tratamiento_en_planta': False,
+                'tipo_societario': Empresa.TipoSocietario.SRL,
+            },
+        )
+        self.assertRedirects(resp, reverse('core:mi_solicitud'))
+
+        self.empresa.refresh_from_db()
+        self.assertEqual(self.empresa.nombre_fantasia, 'Fantasia Nueva')
+        self.assertEqual(self.empresa.personal_a_ocupar, 28)
+        self.assertEqual(self.empresa.tipo_societario, Empresa.TipoSocietario.SRL)
+
+    def test_solicitud_edit_excluye_campos_criticos(self):
+        """razon social y CUIT no cambian tras POST de solicitud."""
+        razon_original = self.empresa.razon_social
+        cuit_original = self.empresa.cuit
+        self.client.login(username='user_perfil', password='TestPass123!')
+        self.client.post(
+            reverse('core:empresa_perfil_solicitud'),
+            {
+                'nombre_fantasia': 'Intento Cambio',
+                'ingresos_brutos': '',
+                'tipo_empresa': Empresa.TipoEmpresa.NUEVA,
+                'rubro': Empresa.Rubro.METALURGICA,
+                'actividad_principal': 'Fab',
+                'descripcion_actividad': 'Desc',
+                'personal_jerarquico': 0,
+                'personal_administrativo': 0,
+                'personal_produccion': 0,
+                'personal_a_ocupar': 10,
+                'necesidad_m2': Empresa.RangoNecesidadM2.DE_500_A_1000,
+                'tiempo_radicacion_meses': 12,
+                'superficie_cubierta_trabajo_m2': '300.00',
+                'superficie_cubierta_deposito_m2': '100.00',
+                'tiene_planos': True,
+                'categoria_industrial': Empresa.CategoriaIndustrial.OTRO,
+                'tipo_societario': '',
+            },
+        )
+        self.empresa.refresh_from_db()
+        self.assertEqual(self.empresa.razon_social, razon_original)
+        self.assertEqual(self.empresa.cuit, cuit_original)
+
+    def test_solicitud_edit_genera_historial(self):
+        """Editar solicitud genera un nuevo registro en history."""
+        history_count_antes = self.empresa.history.count()
+        self.client.login(username='user_perfil', password='TestPass123!')
+        self.client.post(
+            reverse('core:empresa_perfil_solicitud'),
+            {
+                'nombre_fantasia': 'Para Historial',
+                'ingresos_brutos': '',
+                'tipo_empresa': Empresa.TipoEmpresa.NUEVA,
+                'rubro': Empresa.Rubro.METALURGICA,
+                'actividad_principal': 'Fabricacion',
+                'descripcion_actividad': 'Fabricacion de piezas metalicas',
+                'personal_jerarquico': 0,
+                'personal_administrativo': 0,
+                'personal_produccion': 0,
+                'personal_a_ocupar': 10,
+                'necesidad_m2': Empresa.RangoNecesidadM2.DE_500_A_1000,
+                'tiempo_radicacion_meses': 12,
+                'superficie_cubierta_trabajo_m2': '300.00',
+                'superficie_cubierta_deposito_m2': '100.00',
+                'tiene_planos': True,
+                'categoria_industrial': Empresa.CategoriaIndustrial.OTRO,
+                'tipo_societario': '',
+            },
+        )
+        self.empresa.refresh_from_db()
+        self.assertGreater(self.empresa.history.count(), history_count_antes)
+
+    # -- Mi Solicitud con accordions --
+
+    def test_mi_solicitud_collapsible_render(self):
+        """mi_solicitud.html renderiza con accordions y botones de edicion."""
+        self.client.login(username='user_perfil', password='TestPass123!')
+        resp = self.client.get(reverse('core:mi_solicitud'))
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode()
+        # Verificar que existe el accordion de Bootstrap
+        self.assertIn('accordion', content)
+        self.assertIn('accordionMiSolicitud', content)
+        # Verificar secciones colapsables
+        self.assertIn('collapseFiscal', content)
+        self.assertIn('collapseContacto', content)
+        self.assertIn('collapseProyecto', content)
+        # Verificar botones de edicion
+        self.assertIn('Editar contacto', content)
+        self.assertIn('Editar solicitud', content)
+
+    # -- Validacion de telefono --
+
+    def test_contacto_rechaza_telefono_invalido(self):
+        """Un telefono con formato invalido genera error de validacion."""
+        self.client.login(username='user_perfil', password='TestPass123!')
+        resp = self.client.post(
+            reverse('core:empresa_perfil_contacto'),
+            {
+                'direccion': 'Calle Y',
+                'persona_referente': 'Persona Y',
+                'telefono': '123',
+                'correo_electronico': 'y@test.local',
+                'representante_nombre': '',
+                'representante_dni': '',
+                'representante_cargo': '',
+                'representante_email': '',
+                'representante_telefono': '',
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        form = resp.context['form']
+        self.assertIn('telefono', form.errors)
+
+    def test_contacto_acepta_telefono_internacional(self):
+        """Telefonos con formato internacional valido pasan la validacion."""
+        self.client.login(username='user_perfil', password='TestPass123!')
+        for tel in ['+54 9 2920 412345', '+55 11 912345678', '+1 514 1234567', '+598 2 1234567']:
+            resp = self.client.post(
+                reverse('core:empresa_perfil_contacto'),
+                {
+                    'direccion': 'Calle Z',
+                    'persona_referente': 'Persona Z',
+                    'telefono': tel,
+                    'correo_electronico': 'z@test.local',
+                    'representante_nombre': '',
+                    'representante_dni': '',
+                    'representante_cargo': '',
+                    'representante_email': '',
+                    'representante_telefono': '',
+                },
+            )
+            self.assertRedirects(
+                resp, reverse('core:mi_solicitud'),
+                msg_prefix=f'Telefono "{tel}" deberia ser valido',
+            )
+
+    def test_contacto_representante_dni_editable(self):
+        """El campo representante_dni es editable desde el form de contacto."""
+        self.client.login(username='user_perfil', password='TestPass123!')
+        resp = self.client.post(
+            reverse('core:empresa_perfil_contacto'),
+            {
+                'direccion': 'Calle DNI',
+                'persona_referente': 'Persona DNI',
+                'telefono': '+54 9 2920 412345',
+                'correo_electronico': 'dni@test.local',
+                'representante_nombre': 'Rep Test',
+                'representante_dni': '30.123.456',
+                'representante_cargo': 'Gerente',
+                'representante_email': 'rep@test.local',
+                'representante_telefono': '+54 9 2920 654321',
+            },
+        )
+        self.assertRedirects(resp, reverse('core:mi_solicitud'))
+        self.empresa.refresh_from_db()
+        self.assertEqual(self.empresa.representante_dni, '30.123.456')
+
+    # -- Solicitud detail con accordions --
+
+    def test_solicitud_detail_collapsible_render(self):
+        """solicitud_detail.html renderiza con accordions colapsables."""
+        grupo_admin, _ = Group.objects.get_or_create(name='ADMIN_ENREPAVI')
+        self.user_admin.groups.add(grupo_admin)
+        self.client.login(username='admin_perfil', password='TestPass123!')
+        resp = self.client.get(
+            reverse('core:solicitud_detail', args=[self.empresa.pk]),
+        )
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode()
+        self.assertIn('accordion', content)
+        self.assertIn('accordionSolicitudDetail', content)

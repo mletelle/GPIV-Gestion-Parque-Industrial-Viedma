@@ -74,6 +74,9 @@ from .views import (
     EmpresaInvitarView,
     EmpresaTransferirView,
     EmpresaRemoverMiembroView,
+    # empresa: perfil editable (issue #49)
+    EmpresaPerfilUpdateView,
+    EmpresaSolicitudEditView,
 )
 
 app_name = 'core'
@@ -160,6 +163,10 @@ urlpatterns = [
     path('empresa/usuarios/invitar/', EmpresaInvitarView.as_view(), name='empresa_invitar'),
     path('empresa/usuarios/transferir/', EmpresaTransferirView.as_view(), name='empresa_transferir'),
     path('empresa/usuarios/<int:pk>/remover/', EmpresaRemoverMiembroView.as_view(), name='empresa_remover_miembro'),
+
+    # empresa: perfil editable (issue #49)
+    path('empresa/perfil/contacto/', EmpresaPerfilUpdateView.as_view(), name='empresa_perfil_contacto'),
+    path('empresa/perfil/solicitud/', EmpresaSolicitudEditView.as_view(), name='empresa_perfil_solicitud'),
 
     # admin: gestion de lotes
     path('lotes/', LoteListView.as_view(), name='lote_list'),
