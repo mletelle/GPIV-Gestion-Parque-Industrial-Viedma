@@ -93,7 +93,7 @@
         border-bottom: none;
     }
 
-    /* Accordion personalizado */
+    /* acordeon personalizado */
     .accordion-solicitud .accordion-button {
         background: var(--fondo-tarjeta, #fff);
         color: var(--verde);
@@ -123,6 +123,65 @@
 
     .accordion-solicitud .accordion-body {
         padding: 0.5rem 1rem 1rem;
+    }
+
+    /* documentacion del proyecto */
+    .doc-upload-block {
+        background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+        border: 2px solid #93C5FD;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .doc-upload-block h5 {
+        color: #1E40AF;
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .doc-upload-block p {
+        color: #374151;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
+
+    .doc-enviado-block {
+        display: flex;
+        gap: 0.75rem;
+        background: #F0FDF4;
+        border: 1.5px solid #86EFAC;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 0.9rem;
+    }
+
+    .doc-enviado-block i {
+        color: #16A34A;
+        font-size: 1.35rem;
+        flex-shrink: 0;
+    }
+
+    .descartada-block {
+        background: #FFF5F5;
+        border: 1.5px solid #FCA5A5;
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1rem;
+    }
+
+    .descartada-block h5 {
+        color: #DC2626;
+        font-size: 0.95rem;
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+    }
+
+    .descartada-block p {
+        color: #374151;
+        font-size: 0.9rem;
+        margin: 0;
     }
 
     .editar-seccion-btn {
@@ -184,31 +243,56 @@
         {% endif %}
 
         {% if puede_subir_documentacion %}
-        <div class="gpiv-card mb-3">
-            <h5 style="color:var(--verde);font-weight:700;margin-bottom:1rem;">Documentación del Proyecto</h5>
-            <p style="font-size:0.92rem;color:var(--gris-suave);">Tu solicitud está pre-aprobada. Por favor, subí la documentación requerida para la decisión final.</p>
-            
-            {% if documentos_proyecto %}
-            <div class="mb-3">
-                <h6 style="font-weight:600;">Documentos Subidos:</h6>
-                <ul style="list-style:none;padding:0;margin:0;">
-                {% for doc in documentos_proyecto %}
-                    <li style="padding:0.4rem 0;border-bottom:1px solid var(--borde);font-size:0.9rem;">
-                        <a href="{{ doc.archivo.url }}" target="_blank" style="color:var(--azul);text-decoration:none;font-weight:600;">{{ doc.nombre_original|default:doc.archivo.name }}</a> 
-                        <span style="color:var(--gris-suave);">— Subido el {{ doc.fecha_subida|date:"d/m/Y H:i" }}</span>
-                    </li>
-                {% endfor %}
-                </ul>
+            {% if documentacion_subida %}
+            <div class="doc-enviado-block">
+                <i class="bi bi-folder2-open"></i>
+                <div style="flex:1;">
+                    <strong style="color:#15803D;display:block;">
+                        {{ documentos_proyecto.count }} archivo{{ documentos_proyecto.count|pluralize:"s" }} enviado{{ documentos_proyecto.count|pluralize:"s" }}
+                    </strong>
+                    <p style="margin:0.25rem 0 0;font-size:0.85rem;color:#4B5563;">
+                        La administración está revisando tu documentación.
+                    </p>
+                    <ul style="margin:0.75rem 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:0.35rem;">
+                        {% for doc in documentos_proyecto %}
+                        <li style="display:flex;align-items:center;gap:0.5rem;font-size:0.83rem;">
+                            <i class="bi bi-file-earmark" style="color:#6B7280;font-size:1rem;"></i>
+                            <a href="{{ doc.archivo.url }}" target="_blank" rel="noopener noreferrer"
+                                style="flex:1;color:#374151;text-decoration:none;">
+                                {{ doc.nombre_original|default:doc.archivo.name }}
+                            </a>
+                            <span style="color:#9CA3AF;font-size:0.78rem;">{{ doc.fecha_subida|date:"d/m/Y H:i" }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
             </div>
             {% endif %}
 
-            <form method="post" action="{% url 'core:subir_documentacion' %}" enctype="multipart/form-data">
-                {% csrf_token %}
-                {{ form_documentacion.as_p }}
-                <button type="submit" class="btn-verde mt-2">
-                    <i class="bi bi-upload"></i> Subir Documento
-                </button>
-            </form>
+            <div class="doc-upload-block">
+                {% if documentacion_subida %}
+                <h5 style="color:#15803D;"><i class="bi bi-plus-circle"></i> Agregar más archivos</h5>
+                <p>Podés sumar más documentos a tu presentación mientras la solicitud siga pre-aprobada.</p>
+                {% else %}
+                <h5><i class="bi bi-upload"></i> Acción requerida: subí la documentación de tu proyecto</h5>
+                <p>Tu solicitud fue <strong>pre-aprobada</strong>. Para continuar con la decisión final, cargá la documentación del proyecto.</p>
+                {% endif %}
+
+                <form method="post" action="{% url 'core:subir_documentacion' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {{ form_documentacion.as_p }}
+                    <button type="submit" class="btn-verde mt-2">
+                        <i class="bi bi-upload"></i>
+                        {% if documentacion_subida %}Agregar archivos{% else %}Subir documentación{% endif %}
+                    </button>
+                </form>
+            </div>
+        {% endif %}
+
+        {% if empresa.estado == 'Rechazado' and empresa.motivo_descarte %}
+        <div class="descartada-block">
+            <h5><i class="bi bi-x-circle"></i> Motivo del rechazo</h5>
+            <p>{{ empresa.motivo_descarte }}</p>
         </div>
         {% endif %}
 
@@ -305,7 +389,7 @@
                 <div id="collapseProyecto" class="accordion-collapse collapse" aria-labelledby="headingProyecto"
                     data-bs-parent="#accordionMiSolicitud">
                     <div class="accordion-body">
-                        {% if puede_editar_solicitud %}
+                        {% if puede_editar_solicitud and es_titular %}
                         <div class="d-flex justify-content-end mb-2">
                             <a href="{% url 'core:empresa_perfil_solicitud' %}" class="editar-seccion-btn">
                                 <i class="bi bi-pencil"></i> Editar solicitud
@@ -334,7 +418,7 @@
                 <div id="collapseInfra" class="accordion-collapse collapse" aria-labelledby="headingInfra"
                     data-bs-parent="#accordionMiSolicitud">
                     <div class="accordion-body">
-                        {% if puede_editar_solicitud %}
+                        {% if puede_editar_solicitud and es_titular %}
                         <div class="d-flex justify-content-end mb-2">
                             <a href="{% url 'core:empresa_perfil_solicitud' %}" class="editar-seccion-btn">
                                 <i class="bi bi-pencil"></i> Editar solicitud
@@ -363,7 +447,7 @@
                 <div id="collapseServicios" class="accordion-collapse collapse" aria-labelledby="headingServicios"
                     data-bs-parent="#accordionMiSolicitud">
                     <div class="accordion-body">
-                        {% if puede_editar_solicitud %}
+                        {% if puede_editar_solicitud and es_titular %}
                         <div class="d-flex justify-content-end mb-2">
                             <a href="{% url 'core:empresa_perfil_solicitud' %}" class="editar-seccion-btn">
                                 <i class="bi bi-pencil"></i> Editar solicitud
@@ -394,7 +478,7 @@
                 <div id="collapseAmbiental" class="accordion-collapse collapse" aria-labelledby="headingAmbiental"
                     data-bs-parent="#accordionMiSolicitud">
                     <div class="accordion-body">
-                        {% if puede_editar_solicitud %}
+                        {% if puede_editar_solicitud and es_titular %}
                         <div class="d-flex justify-content-end mb-2">
                             <a href="{% url 'core:empresa_perfil_solicitud' %}" class="editar-seccion-btn">
                                 <i class="bi bi-pencil"></i> Editar solicitud
