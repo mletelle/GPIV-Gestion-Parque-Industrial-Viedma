@@ -30,7 +30,6 @@ from .views import (
     # flujo preaprobación → documentación → adjudicación/descarte
     SubirDocumentacionView,
     DecisionFinalView,
-    EmpresasDescartadasView,
     DescargarDocumentoView,
     # etapa 2
     AvanceCreateView,
@@ -178,7 +177,6 @@ urlpatterns = [
 
     # admin: evaluacion de solicitudes
     path('solicitudes/', SolicitudListView.as_view(), name='solicitud_list'),
-    path('solicitudes/descartadas/', EmpresasDescartadasView.as_view(), name='solicitudes_descartadas'),
     path('solicitudes/<int:pk>/', SolicitudDetailView.as_view(), name='solicitud_detail'),
     path('solicitudes/<int:pk>/pre-aprobar/', SolicitudPreAprobarView.as_view(), name='solicitud_preaprobar'),
     path('solicitudes/<int:pk>/rechazar/', SolicitudRechazarView.as_view(), name='solicitud_rechazar'),

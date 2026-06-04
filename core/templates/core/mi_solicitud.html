@@ -126,6 +126,9 @@
     }
 
     /* documentacion del proyecto */
+
+
+    /* ── Bloque de subida de documentación ── */
     .doc-upload-block {
         background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
         border: 2px solid #93C5FD;
@@ -246,6 +249,11 @@
             {% if documentacion_subida %}
             <div class="doc-enviado-block">
                 <i class="bi bi-folder2-open"></i>
+
+        {# ── Acción: subir documentación (PRE_APROBADO) #}
+        {% if puede_subir_documentacion %}
+            {% if documentacion_subida %}
+            <div class="doc-enviado-block">
                 <div style="flex:1;">
                     <strong style="color:#15803D;display:block;">
                         {{ documentos_proyecto.count }} archivo{{ documentos_proyecto.count|pluralize:"s" }} enviado{{ documentos_proyecto.count|pluralize:"s" }}

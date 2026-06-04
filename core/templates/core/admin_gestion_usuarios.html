@@ -5,7 +5,9 @@
 
 {% block extra_css %}
 <style>
-    .gu-wrap { padding: 2rem 0; }
+    .gu-wrap {
+        padding: 2rem 0;
+    }
 
     /* Panel desplegable */
     .gu-panel {
@@ -15,6 +17,7 @@
         overflow: hidden;
         margin-bottom: 0.75rem;
     }
+
     .gu-summary {
         background: var(--verde);
         color: #fff;
@@ -28,17 +31,30 @@
         font-weight: 700;
         font-size: 1rem;
     }
-    .gu-summary::-webkit-details-marker { display: none; }
+
+    .gu-summary::-webkit-details-marker {
+        display: none;
+    }
+
     .gu-summary .gu-chevron {
         margin-left: auto;
         transition: transform 0.2s;
         font-size: 0.9rem;
     }
-    details[open] > .gu-summary .gu-chevron { transform: rotate(180deg); }
+
+    details[open]>.gu-summary .gu-chevron {
+        transform: rotate(180deg);
+    }
 
     /* Tablas */
-    .gu-table { margin: 0; width: 100%; border-collapse: collapse; }
-    .gu-table th, .tabla-pendientes th {
+    .gu-table {
+        margin: 0;
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .gu-table th,
+    .tabla-pendientes th {
         font-size: 0.78rem;
         font-weight: 700;
         text-transform: uppercase;
@@ -48,17 +64,34 @@
         padding: 0.7rem 1rem;
         border-bottom: 2px solid var(--borde);
     }
-    .gu-table td, .tabla-pendientes td {
+
+    .gu-table td,
+    .tabla-pendientes td {
         padding: 0.75rem 1rem;
         font-size: 0.9rem;
         border-bottom: 1px solid var(--borde);
         vertical-align: middle;
     }
+
     .gu-table tr:last-child td,
-    .tabla-pendientes tr:last-child td { border-bottom: none; }
-    .tabla-pendientes { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-    .tabla-pendientes td { font-size: 0.88rem; }
-    .tabla-pendientes td form select { width: 100%; font-size: 0.82rem; }
+    .tabla-pendientes tr:last-child td {
+        border-bottom: none;
+    }
+
+    .tabla-pendientes {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+    }
+
+    .tabla-pendientes td {
+        font-size: 0.88rem;
+    }
+
+    .tabla-pendientes td form select {
+        width: 100%;
+        font-size: 0.82rem;
+    }
 
     /* Badges */
     .badge-grupo {
@@ -71,6 +104,7 @@
         border: 1px solid #BBF7D0;
         white-space: nowrap;
     }
+
     .badge-inactivo {
         display: inline-block;
         font-size: 0.78rem;
@@ -80,6 +114,7 @@
         color: #6B7280;
         border: 1px solid var(--borde);
     }
+
     .btn-contactar {
         display: inline-flex;
         align-items: center;
@@ -93,6 +128,7 @@
         text-decoration: none;
         white-space: nowrap;
     }
+
     .btn-contactar:hover {
         border-color: var(--verde);
         color: var(--verde);
@@ -104,7 +140,7 @@
 <div class="gu-wrap container-fluid px-4">
     <div class="d-flex align-items-center gap-3 mb-3">
         <h1 class="sec-title mb-0" style="font-size:1.5rem;">
-            <i class="bi bi-people"></i> Gestión de usuarios
+            Gestión de usuarios
         </h1>
         <a href="{% url 'core:admin_crear_usuario' %}" class="btn-verde ms-auto" style="font-size:0.88rem;">
             <i class="bi bi-person-plus"></i> Agregar usuario
@@ -146,7 +182,7 @@
                         <td>
                             {% if s.documentacion_pdf %}
                             <a href="{{ s.documentacion_pdf.url }}" target="_blank" rel="noopener noreferrer"
-                               title="Ver PDF" style="color:#DC2626;">
+                                title="Ver PDF" style="color:#DC2626;">
                                 <i class="bi bi-file-earmark-pdf fs-5"></i>
                             </a>
                             {% else %}
@@ -156,14 +192,14 @@
                         <td style="white-space:nowrap;">{{ s.fecha_solicitud|date:"d/m/Y" }}</td>
                         <td>
                             <div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;">
-                            <a href="{% url 'core:solicitud_acceso_detail' s.pk %}"
-                               class="btn-verde" style="font-size:0.8rem;padding:0.3rem 0.75rem;">
-                                <i class="bi bi-eye"></i> Revisar
-                            </a>
-                            <a href="{% url 'core:admin_ticket_create' %}?solicitud_acceso={{ s.pk }}"
-                               class="btn-contactar">
-                                <i class="bi bi-envelope"></i> Contactar
-                            </a>
+                                <a href="{% url 'core:solicitud_acceso_detail' s.pk %}" class="btn-verde"
+                                    style="font-size:0.8rem;padding:0.3rem 0.75rem;">
+                                    <i class="bi bi-eye"></i> Revisar
+                                </a>
+                                <a href="{% url 'core:admin_ticket_create' %}?solicitud_acceso={{ s.pk }}"
+                                    class="btn-contactar">
+                                    <i class="bi bi-envelope"></i> Contactar
+                                </a>
                             </div>
                         </td>
                     </tr>
@@ -207,7 +243,8 @@
                                 <input type="hidden" name="user_pk" value="{{ u.pk }}">
                                 <span style="flex:2;min-width:140px;">{{ af.empresa }}</span>
                                 <span style="flex:1;min-width:110px;max-width:150px;">{{ af.rol_interno }}</span>
-                                <button type="submit" class="btn-verde" style="font-size:0.82rem;padding:0.3rem 0.8rem;white-space:nowrap;flex-shrink:0;">
+                                <button type="submit" class="btn-verde"
+                                    style="font-size:0.82rem;padding:0.3rem 0.8rem;white-space:nowrap;flex-shrink:0;">
                                     <i class="bi bi-check-lg"></i> Asignar
                                 </button>
                             </form>
@@ -218,8 +255,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{% url 'core:admin_ticket_create' %}?user={{ u.pk }}"
-                               class="btn-contactar">
+                            <a href="{% url 'core:admin_ticket_create' %}?user={{ u.pk }}" class="btn-contactar">
                                 <i class="bi bi-envelope"></i> Contactar
                             </a>
                         </td>
@@ -261,11 +297,11 @@
                             {% if u.is_superuser %}
                             <span class="badge-grupo">Superusuario</span>
                             {% else %}
-                                {% for g in u.groups.all %}
-                                <span class="badge-grupo">{{ g.name }}</span>
-                                {% empty %}
-                                <span style="color:var(--gris-suave);font-size:0.82rem;">Sin grupo</span>
-                                {% endfor %}
+                            {% for g in u.groups.all %}
+                            <span class="badge-grupo">{{ g.name }}</span>
+                            {% empty %}
+                            <span style="color:var(--gris-suave);font-size:0.82rem;">Sin grupo</span>
+                            {% endfor %}
                             {% endif %}
                         </td>
                         <td>
@@ -283,8 +319,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{% url 'core:admin_ticket_create' %}?user={{ u.pk }}"
-                               class="btn-contactar">
+                            <a href="{% url 'core:admin_ticket_create' %}?user={{ u.pk }}" class="btn-contactar">
                                 <i class="bi bi-envelope"></i> Contactar
                             </a>
                         </td>
