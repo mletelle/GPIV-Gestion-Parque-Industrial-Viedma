@@ -1154,7 +1154,7 @@ class DecisionFinalView(AdminEnrepaviMixin, View):
                     request,
                     f'{empresa.razon_social} rechazada.'
                 )
-                return redirect('core:solicitud_list')
+                return redirect('core:solicitud_detail', pk=pk)
             return render(request, 'core/decision_final.html', {
                 'empresa': empresa,
                 'form_descartar': form,
