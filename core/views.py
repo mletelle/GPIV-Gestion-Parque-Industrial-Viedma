@@ -835,10 +835,17 @@ class MiSolicitudView(EmpresaMixin, TemplateView):
             ctx['documentacion_subida'] = empresa.documentacion_subida
             ctx['documentos_proyecto'] = empresa.documentos_proyecto.all()
             ctx['form_documentacion'] = SubirDocumentacionForm()
+            # flags para mostrar/ocultar botones de edición en el template
+            ctx['puede_editar_solicitud'] = (
+                empresa.estado == Empresa.Estado.EN_EVALUACION
+            )
+            ctx['es_titular'] = (
+                self.request.user.rol_interno == CustomUser.RolInterno.TITULAR
+            )
         return ctx
 
 
-class EmpresaPerfilUpdateView(EmpresaMixin, UpdateView):
+class EmpresaPerfilUpdateView(TitularEmpresaMixin, UpdateView):
     """Permite a la empresa editar sus datos de contacto y representante legal.
 
     Campos críticos (CUIT, razón social, estado) quedan excluidos del
@@ -880,6 +887,12 @@ class EmpresaSolicitudEditView(EmpresaMixin, UpdateView):
     form_class = EmpresaSolicitudEditForm
     template_name = 'core/empresa_perfil_solicitud.html'
     success_url = reverse_lazy('core:mi_solicitud')
+
+    def test_func(self):
+        return (
+            super().test_func()
+            and self.request.user.empresa.estado == Empresa.Estado.EN_EVALUACION
+        )
 
     def get_object(self, queryset=None):
         return self.request.user.empresa
