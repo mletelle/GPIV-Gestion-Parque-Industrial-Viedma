@@ -1544,6 +1544,76 @@ class EvaluacionSolicitudTests(TestCase):
         response_empresa = self.client.get(reverse("core:solicitud_list"))
         self.assertEqual(response_empresa.status_code, 403)
 
+    def test_solicitud_list_oculta_motivo_y_detalle_lo_muestra(self):
+        solicitud = empresa(
+            razon_social="Solicitud Descartada",
+            cuit="30-00000021-1",
+            estado=Empresa.Estado.PRE_APROBADO,
+        )
+        motivo = "No cumple con condiciones finales del proyecto"
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("core:decision_final", args=[solicitud.pk]),
+            {"accion": "descartar", "motivo": motivo},
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse("core:solicitud_detail", args=[solicitud.pk]))
+        solicitud.refresh_from_db()
+        self.assertEqual(solicitud.estado, Empresa.Estado.RECHAZADO)
+        self.assertEqual(solicitud.motivo_descarte, motivo)
+        self.assertContains(response, "Solicitud Descartada")
+        self.assertContains(response, "Motivo del rechazo")
+        self.assertContains(response, motivo)
+
+        response_lista = self.client.get(reverse("core:solicitud_list"))
+        self.assertContains(response_lista, "Solicitud Descartada")
+        self.assertNotContains(response_lista, motivo)
+
+        response_filtrada = self.client.get(
+            reverse("core:solicitud_list"),
+            {"estado": Empresa.Estado.RECHAZADO},
+        )
+        self.assertContains(response_filtrada, "Solicitud Descartada")
+        self.assertNotContains(response_filtrada, motivo)
+
+        response_detalle = self.client.get(
+            reverse("core:solicitud_detail", args=[solicitud.pk]),
+        )
+        self.assertContains(response_detalle, "Motivo del rechazo")
+        self.assertContains(response_detalle, motivo)
+
+    def test_descartar_solicitud_fuera_de_primera_pagina_redirige_al_detalle(self):
+        from core.views import SolicitudListView
+
+        solicitud = empresa(
+            razon_social="Solicitud Antigua Descartada",
+            cuit="30-00000022-1",
+            estado=Empresa.Estado.PRE_APROBADO,
+        )
+        for idx in range(SolicitudListView.paginate_by + 1):
+            empresa(
+                razon_social=f"Solicitud Nueva {idx}",
+                cuit=f"30-100000{idx:02d}-1",
+            )
+
+        self.client.force_login(self.admin)
+        response_lista = self.client.get(reverse("core:solicitud_list"))
+        self.assertNotContains(response_lista, "Solicitud Antigua Descartada")
+
+        motivo = "No cumple con condiciones finales del proyecto"
+        response = self.client.post(
+            reverse("core:decision_final", args=[solicitud.pk]),
+            {"accion": "descartar", "motivo": motivo},
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse("core:solicitud_detail", args=[solicitud.pk]))
+        self.assertContains(response, "Solicitud Antigua Descartada")
+        self.assertContains(response, "Motivo del rechazo")
+        self.assertContains(response, motivo)
+
     def test_preaprobar_cambia_estado_y_registra_transicion(self):
         solicitud = empresa(cuit="30-00000002-2")
         self.client.force_login(self.admin)

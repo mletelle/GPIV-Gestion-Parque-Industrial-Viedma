@@ -1152,9 +1152,9 @@ class DecisionFinalView(AdminEnrepaviMixin, View):
                     )
                 messages.warning(
                     request,
-                    f'{empresa.razon_social} rechazada. Quedó registrada en la bandeja de descartadas.'
+                    f'{empresa.razon_social} rechazada.'
                 )
-                return redirect('core:solicitudes_descartadas')
+                return redirect('core:solicitud_detail', pk=pk)
             return render(request, 'core/decision_final.html', {
                 'empresa': empresa,
                 'form_descartar': form,
@@ -1165,46 +1165,6 @@ class DecisionFinalView(AdminEnrepaviMixin, View):
         messages.error(request, 'Acción no reconocida.')
         return redirect('core:decision_final', pk=pk)
 
-
-# ──────────────────────────────────────────────────────────────────────────────
-# ADMIN: Bandeja de empresas descartadas
-# ──────────────────────────────────────────────────────────────────────────────
-
-class EmpresasDescartadasView(AdminEnrepaviMixin, ListView):
-    """
-    Admin: listado de empresas rechazadas en la decisión final del proceso de radicación.
-
-    Filtra por estado RECHAZADO con motivo_descarte presente, lo que distingue a las
-    empresas descartadas en la decisión final de las rechazadas en etapas tempranas
-    (EnEvaluacion / PreAprobado) que no poseen ese campo.
-    Cumple el requerimiento de trazabilidad y auditoría del flujo.
-    """
-    model = Empresa
-    template_name = 'core/solicitudes_descartadas.html'
-    context_object_name = 'empresas'
-    paginate_by = 20
-
-    def get_queryset(self):
-        return (
-            Empresa.objects
-            .filter(
-                estado=Empresa.Estado.RECHAZADO,
-                motivo_descarte__isnull=False,
-            )
-            .exclude(motivo_descarte='')
-            .prefetch_related('historial_estados')
-            .order_by('-pk')
-        )
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx['total_descartadas'] = (
-            Empresa.objects
-            .filter(estado=Empresa.Estado.RECHAZADO, motivo_descarte__isnull=False)
-            .exclude(motivo_descarte='')
-            .count()
-        )
-        return ctx
 
 
 # ──────────────────────────────────────────────────────────────────────────────

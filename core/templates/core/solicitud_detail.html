@@ -286,11 +286,7 @@
             {% if puede_tomar_decision %}
             <a href="{% url 'core:decision_final' empresa.pk %}" class="btn-accion btn-decision"
                id="btn-aprobar-solicitud">
-                <i class="bi bi-check2-circle"></i> Aprobar
-            </a>
-            <a href="{% url 'core:decision_final' empresa.pk %}" class="btn-accion btn-rechazar"
-               id="btn-descartar-solicitud">
-                <i class="bi bi-x-circle"></i> Descartar
+                <i class="bi bi-check2-circle"></i> Revisar
             </a>
             {% else %}
             {# Sin documentación: solo se puede rechazar por la vía normal (empresa no cumplió) #}
@@ -452,8 +448,7 @@
             {% for t in historial %}
             <div class="historial-item">
                 <strong>{{ t.get_estado_nuevo_display }}</strong>
-                {% if t.estado_anterior %}<span style="color:var(--gris-suave);"> (desde {{
-                    t.get_estado_anterior_display }})</span>{% endif %}
+                {% if t.estado_anterior %}<span style="color:var(--gris-suave);"> (desde {{ t.get_estado_anterior_display }})</span>{% endif %}
                 <span style="color:var(--gris-suave);font-size:0.82rem;">
                     — {{ t.fecha_cambio|date:"d/m/Y H:i" }}
                     {% if t.usuario %} por {{ t.usuario.get_full_name|default:t.usuario.username }}{% endif %}

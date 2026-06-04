@@ -41,49 +41,7 @@
     }
     .historial-item:last-child { border-bottom: none; }
 
-    /* ── Línea de tiempo del proceso ── */
-    .timeline-proceso {
-        display: flex;
-        align-items: flex-start;
-        overflow-x: auto;
-        padding-bottom: 0.5rem;
-    }
-    .tl-step {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        flex: 1;
-        min-width: 100px;
-        position: relative;
-    }
-    .tl-step:not(:last-child)::after {
-        content: '';
-        position: absolute;
-        top: 14px;
-        left: calc(50% + 14px);
-        width: calc(100% - 28px);
-        height: 2px;
-        background: #E5E7EB;
-        z-index: 0;
-    }
-    .tl-step.completado::after { background: var(--verde); }
-    .tl-dot {
-        width: 28px; height: 28px; border-radius: 50%;
-        border: 2px solid #E5E7EB; background: #fff;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 0.75rem; position: relative; z-index: 1;
-    }
-    .tl-step.completado .tl-dot { background: var(--verde); border-color: var(--verde); color: #fff; }
-    .tl-step.activo .tl-dot {
-        background: #EFF6FF; border-color: #2563EB; color: #2563EB;
-        box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
-    }
-    .tl-step.pendiente .tl-dot { background: #F9FAFB; border-color: #D1D5DB; color: #9CA3AF; }
-    .tl-step.error .tl-dot { background: #FEE2E2; border-color: #DC2626; color: #DC2626; }
-    .tl-label { font-size: 0.72rem; font-weight: 600; text-align: center; margin-top: 0.4rem; color: #6B7280; max-width: 90px; }
-    .tl-step.activo .tl-label    { color: #2563EB; }
-    .tl-step.completado .tl-label{ color: var(--verde); }
-    .tl-step.error .tl-label     { color: #DC2626; }
+
 
     /* ── Bloque de subida de documentación ── */
     .doc-upload-block {
@@ -142,83 +100,11 @@
         </div>
         {% endif %}
 
-        {# ── Línea de tiempo del proceso #}
-        <div class="gpiv-card mb-3" style="padding: 1.25rem 1.5rem;">
-            <h5 style="color: var(--verde); font-weight:700; margin-bottom:1rem; font-size:0.9rem;">
-                <i class="bi bi-diagram-3"></i> Estado de tu solicitud
-            </h5>
-            <div class="timeline-proceso">
-                {# Paso 1: En Evaluación #}
-                <div class="tl-step {% if empresa.estado == 'EnEvaluacion' %}activo{% else %}completado{% endif %}">
-                    <div class="tl-dot">
-                        {% if empresa.estado == 'EnEvaluacion' %}<i class="bi bi-hourglass-split"></i>
-                        {% else %}<i class="bi bi-check-lg"></i>{% endif %}
-                    </div>
-                    <span class="tl-label">En Evaluación</span>
-                </div>
-
-                {# Paso 2: Pre-Aprobada #}
-                {% if empresa.estado == 'EnEvaluacion' %}
-                <div class="tl-step pendiente">
-                    <div class="tl-dot"><i class="bi bi-circle"></i></div>
-                    <span class="tl-label">Pre-Aprobada</span>
-                </div>
-                {% elif empresa.estado == 'Rechazado' %}
-                <div class="tl-step error">
-                    <div class="tl-dot"><i class="bi bi-x-lg"></i></div>
-                    <span class="tl-label">Rechazada</span>
-                </div>
-                {% elif empresa.estado == 'PreAprobado' %}
-                <div class="tl-step activo">
-                    <div class="tl-dot"><i class="bi bi-upload"></i></div>
-                    <span class="tl-label">Pre-Aprobada<br><small style="color:#2563EB;">(subí doc)</small></span>
-                </div>
-                {% else %}
-                <div class="tl-step completado">
-                    <div class="tl-dot"><i class="bi bi-check-lg"></i></div>
-                    <span class="tl-label">Pre-Aprobada</span>
-                </div>
-                {% endif %}
-
-                {# Paso 3: Aprobada / Rechazada en decisión final #}
-                {% if empresa.estado == 'ListoAdjudicar' %}
-                <div class="tl-step activo">
-                    <div class="tl-dot"><i class="bi bi-geo-alt"></i></div>
-                    <span class="tl-label">Aprobada</span>
-                </div>
-                {% elif empresa.estado == 'Rechazado' and empresa.motivo_descarte %}
-                <div class="tl-step error">
-                    <div class="tl-dot"><i class="bi bi-x-lg"></i></div>
-                    <span class="tl-label">Rechazada</span>
-                </div>
-                {% else %}
-                <div class="tl-step {% if empresa.estado in 'Radicada,EnConstruccion,Finalizado,Escriturado' %}completado{% else %}pendiente{% endif %}">
-                    <div class="tl-dot">
-                        {% if empresa.estado in 'Radicada,EnConstruccion,Finalizado,Escriturado' %}
-                            <i class="bi bi-check-lg"></i>
-                        {% else %}<i class="bi bi-circle"></i>{% endif %}
-                    </div>
-                    <span class="tl-label">Aprobada</span>
-                </div>
-                {% endif %}
-
-                {# Paso 4: Radicada #}
-                <div class="tl-step {% if empresa.estado in 'Radicada,EnConstruccion,Finalizado,Escriturado' %}completado{% else %}pendiente{% endif %}">
-                    <div class="tl-dot">
-                        {% if empresa.estado in 'Radicada,EnConstruccion,Finalizado,Escriturado' %}
-                            <i class="bi bi-check-lg"></i>
-                        {% else %}<i class="bi bi-circle"></i>{% endif %}
-                    </div>
-                    <span class="tl-label">Radicada</span>
-                </div>
-            </div>
-        </div>
 
         {# ── Acción: subir documentación (PRE_APROBADO) #}
         {% if puede_subir_documentacion %}
             {% if documentacion_subida %}
             <div class="doc-enviado-block">
-                <i class="bi bi-file-earmark-check-fill"></i>
                 <div style="flex:1;">
                     <strong style="color:#15803D; display:block;">
                         {{ documentos_proyecto.count }} archivo{{ documentos_proyecto.count|pluralize:"s" }} enviado{{ documentos_proyecto.count|pluralize:"s" }}

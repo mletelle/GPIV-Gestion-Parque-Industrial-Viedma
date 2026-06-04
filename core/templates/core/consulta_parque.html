@@ -70,11 +70,25 @@
         transform: translateY(-1px);
     }
 
-    .kpi-tile.verde { --kpi-color: #22C55E; }
-    .kpi-tile.azul { --kpi-color: #0EA5E9; }
-    .kpi-tile.amarillo { --kpi-color: #F59E0B; }
-    .kpi-tile.rojo { --kpi-color: #EF4444; }
-    .kpi-tile.gris { --kpi-color: #94A3B8; }
+    .kpi-tile.verde {
+        --kpi-color: #22C55E;
+    }
+
+    .kpi-tile.azul {
+        --kpi-color: #0EA5E9;
+    }
+
+    .kpi-tile.amarillo {
+        --kpi-color: #F59E0B;
+    }
+
+    .kpi-tile.rojo {
+        --kpi-color: #EF4444;
+    }
+
+    .kpi-tile.gris {
+        --kpi-color: #94A3B8;
+    }
 
     .kpi-head {
         display: flex;
@@ -107,16 +121,42 @@
         line-height: 1.25;
     }
 
-    .span-3 { grid-column: span 3; }
-    .span-4 { grid-column: span 4; }
-    .span-5 { grid-column: span 5; }
-    .span-6 { grid-column: span 6; }
-    .span-7 { grid-column: span 7; }
-    .span-8 { grid-column: span 8; }
-    .span-12 { grid-column: span 12; }
+    .span-3 {
+        grid-column: span 3;
+    }
+
+    .span-4 {
+        grid-column: span 4;
+    }
+
+    .span-5 {
+        grid-column: span 5;
+    }
+
+    .span-6 {
+        grid-column: span 6;
+    }
+
+    .span-7 {
+        grid-column: span 7;
+    }
+
+    .span-8 {
+        grid-column: span 8;
+    }
+
+    .span-12 {
+        grid-column: span 12;
+    }
 
     @media (max-width: 1200px) {
-        .span-3, .span-4, .span-5, .span-6, .span-7, .span-8 {
+
+        .span-3,
+        .span-4,
+        .span-5,
+        .span-6,
+        .span-7,
+        .span-8 {
             grid-column: span 6;
         }
     }
@@ -126,7 +166,13 @@
             grid-template-columns: 1fr;
         }
 
-        .span-3, .span-4, .span-5, .span-6, .span-7, .span-8, .span-12 {
+        .span-3,
+        .span-4,
+        .span-5,
+        .span-6,
+        .span-7,
+        .span-8,
+        .span-12 {
             grid-column: span 1;
         }
     }
@@ -567,25 +613,21 @@
 <div class="dashboard-wrap">
     <div class="container">
         <h2 class="sec-title mb-1">Dashboard del Parque Industrial</h2>
-        <p style="color:var(--gris-suave);font-size:0.88rem;">
-            Indicadores y estado general del parque.
-        </p>
-        <div class="sec-line"></div>
 
         <div class="kpi-grid">
             {% for kpi in kpis_operativos %}
             {% if kpi.href %}
             <a href="{{ kpi.href }}" class="kpi-tile {{ kpi.tono }}">
-            {% else %}
-            <section class="kpi-tile {{ kpi.tono }}">
-            {% endif %}
-                <div class="kpi-head">
-                    <span>{{ kpi.label }}</span>
-                    <i class="bi {{ kpi.icono }}"></i>
-                </div>
-                <strong class="kpi-value">{{ kpi.valor }}</strong>
-                <div class="kpi-detail">{{ kpi.detalle }}</div>
-            {% if kpi.href %}
+                {% else %}
+                <section class="kpi-tile {{ kpi.tono }}">
+                    {% endif %}
+                    <div class="kpi-head">
+                        <span>{{ kpi.label }}</span>
+                        <i class="bi {{ kpi.icono }}"></i>
+                    </div>
+                    <strong class="kpi-value">{{ kpi.valor }}</strong>
+                    <div class="kpi-detail">{{ kpi.detalle }}</div>
+                    {% if kpi.href %}
             </a>
             {% else %}
             </section>
@@ -607,237 +649,239 @@
                 <div class="occupancy-summary">
                     {% if ocupacion_total_href %}
                     <a href="{{ ocupacion_total_href }}" class="occ-metric">
-                    {% else %}
-                    <div class="occ-metric">
-                    {% endif %}
-                        <strong>{{ total_lotes }}</strong>
-                        <span>Total lotes</span>
-                    {% if ocupacion_total_href %}
-                    </a>
-                    {% else %}
-                    </div>
-                    {% endif %}
-                    {% for item in ocupacion_items %}
-                    {% if item.href %}
-                    <a href="{{ item.href }}" class="occ-metric">
-                    {% else %}
-                    <div class="occ-metric">
-                    {% endif %}
-                        <strong>{{ item.cantidad }}</strong>
-                        <span>{{ item.label }}</span>
-                    {% if item.href %}
-                    </a>
-                    {% else %}
-                    </div>
-                    {% endif %}
-                    {% endfor %}
-                </div>
-            </section>
-
-            <section class="dash-card span-8">
-                <h6>Empresas por estado</h6>
-                {% if empresas_por_estado %}
-                    {% for item in empresas_por_estado %}
-                    {% if item.href %}
-                    <a href="{{ item.href }}" class="bar-row">
-                    {% else %}
-                    <div class="bar-row">
-                    {% endif %}
-                        <span>{{ item.label }}</span>
-                        <div class="bar-track">
-                            <div class="bar-fill" style="--bar-width: {{ item.pct_barra_css }}%; --bar-color: {{ item.color }};"></div>
-                        </div>
-                        <strong>{{ item.cantidad }}</strong>
-                    {% if item.href %}
-                    </a>
-                    {% else %}
-                    </div>
-                    {% endif %}
-                    {% endfor %}
-                {% else %}
-                    <p class="kpi-detalle">Aún no hay empresas registradas.</p>
-                {% endif %}
-            </section>
-
-            <section class="dash-card span-12">
-                <h6>Evolución de consumos últimos 6 meses</h6>
-                {% if consumo_evolucion %}
-                <div class="spark-grid">
-                    {% for serie in consumo_evolucion %}
-                    <article class="spark-card">
-                        <div class="spark-head">
-                            <div>
-                                <div class="spark-title" style="color:{{ serie.color }};">
-                                    <i class="bi {{ serie.icono }}"></i> {{ serie.label }}
-                                </div>
-                                <div class="spark-delta">
-                                    {% if serie.delta >= 0 %}+{% endif %}{{ serie.delta_pct|floatformat:1 }}%
-                                </div>
-                            </div>
-                            <div class="spark-current">
-                                {{ serie.valor_actual|floatformat:0 }} {{ serie.unidad }}
-                            </div>
-                        </div>
-                        <svg class="spark-chart" viewBox="0 0 220 80" preserveAspectRatio="none" aria-hidden="true">
-                            <line x1="12" y1="68" x2="208" y2="68" stroke="#E5E7EB" stroke-width="1" />
-                            <line x1="12" y1="40" x2="208" y2="40" stroke="#EEF2F7" stroke-width="1" />
-                            <polyline points="{{ serie.puntos }}" fill="none" stroke="{{ serie.color }}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                        <div class="period-labels">
-                            {% for label in periodos_consumo_labels %}
-                            <span>{{ label }}</span>
-                            {% endfor %}
-                        </div>
-                    </article>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="kpi-detalle">No hay consumos suficientes para graficar.</p>
-                {% endif %}
-            </section>
-
-            <section class="dash-card span-6">
-                <h6>Perfil productivo</h6>
-                <div class="perfil-grid">
-                    <div class="perfil-box">
-                        <div class="perfil-title">Categoría industrial</div>
-                        <div class="donut-wrap" style="grid-template-columns:120px 1fr;">
-                            <div class="donut" style="width:112px;background: {{ categorias_gradient }};">
-                                <div class="donut-center">
-                                    <span class="donut-number">{{ total_empresas }}</span>
-                                    <span class="donut-label">activas</span>
-                                </div>
-                            </div>
-                            <ul class="legend-list">
-                                {% for item in categorias %}
-                                <li>
-                                    <span class="legend-dot" style="--dot-color: {{ item.color }};"></span>
-                                    <span>{{ item.label }}</span>
-                                    <strong>{{ item.cantidad }}</strong>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="perfil-box">
-                        <div class="perfil-title">Rubro</div>
-                        <div class="donut-wrap" style="grid-template-columns:120px 1fr;">
-                            <div class="donut" style="width:112px;background: {{ rubros_gradient }};">
-                                <div class="donut-center">
-                                    <span class="donut-number">{{ total_empresas }}</span>
-                                    <span class="donut-label">activas</span>
-                                </div>
-                            </div>
-                            <ul class="legend-list">
-                                {% for item in rubros %}
-                                <li>
-                                    <span class="legend-dot" style="--dot-color: {{ item.color }};"></span>
-                                    <span>{{ item.label }}</span>
-                                    <strong>{{ item.cantidad }}</strong>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section class="dash-card span-6">
-                <h6>Obras por vencer</h6>
-                {% if obras_semaforo %}
-                <div class="semaforo-grid">
-                    {% for obra in obras_semaforo %}
-                    {% if puede_gestionar_dashboard %}
-                    <a href="{% url 'core:solicitud_detail' obra.empresa.pk %}" class="obra-card {{ obra.nivel }}">
-                    {% else %}
-                    <article class="obra-card {{ obra.nivel }}">
-                    {% endif %}
-                        <strong>{{ obra.empresa.razon_social }}</strong>
-                        <div class="obra-meta">
-                            <span>{{ obra.nivel_label }}</span>
-                            <span>
-                                {% if obra.dias < 0 %}
-                                vencida
-                                {% elif obra.dias == 0 %}
-                                vence hoy
-                                {% else %}
-                                {{ obra.dias }} días
-                                {% endif %}
-                            </span>
-                        </div>
-                        <div class="obra-meta" style="margin-top:0.45rem;">
-                            <span>{{ obra.empresa.get_estado_display }}</span>
-                            <strong>{{ obra.empresa.fecha_limite_obra|date:"d/m/Y" }}</strong>
-                        </div>
-                    {% if puede_gestionar_dashboard %}
-                    </a>
-                    {% else %}
-                    </article>
-                    {% endif %}
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="kpi-detalle">No hay obras con fecha límite cargada.</p>
-                {% endif %}
-            </section>
-
-            <section class="dash-card span-12">
-                <h6>Tareas pendientes</h6>
-                <table class="mini-table">
-                    {% for tarea in tareas_pendientes %}
-                    <tr>
-                        {% if tarea.href %}
-                        <td><a href="{{ tarea.href }}">{{ tarea.label }}</a></td>
-                        <td><a href="{{ tarea.href }}">{{ tarea.valor }}</a></td>
                         {% else %}
-                        <td>{{ tarea.label }}</td>
-                        <td>{{ tarea.valor }}</td>
+                        <div class="occ-metric">
+                            {% endif %}
+                            <strong>{{ total_lotes }}</strong>
+                            <span>Total lotes</span>
+                            {% if ocupacion_total_href %}
+                    </a>
+                    {% else %}
+                </div>
+                {% endif %}
+                {% for item in ocupacion_items %}
+                {% if item.href %}
+                <a href="{{ item.href }}" class="occ-metric">
+                    {% else %}
+                    <div class="occ-metric">
                         {% endif %}
-                    </tr>
-                    {% endfor %}
-                </table>
-            </section>
+                        <strong>{{ item.cantidad }}</strong>
+                        <span>{{ item.label }}</span>
+                        {% if item.href %}
+                </a>
+                {% else %}
         </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    </section>
 
-        <h3 class="seccion-titulo">Empresas activas</h3>
-        <div style="overflow-x:auto;">
-            <table class="tabla-empresas">
-                <thead>
-                    <tr>
-                        <th>Razón Social</th>
-                        <th>Rubro</th>
-                        <th>Categoría Industrial</th>
-                        <th>Estado</th>
-                        <th>Parcela</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for e in empresas %}
-                    <tr>
-                        <td><strong>{{ e.razon_social }}</strong></td>
-                        <td>{{ e.get_rubro_display }}</td>
-                        <td>{{ e.get_categoria_industrial_display }}</td>
-                        <td>
-                            <span class="badge-estado {{ e.estado|lower }}">
-                                {{ e.get_estado_display }}
-                            </span>
-                        </td>
-                        <td>
-                            {% with lote=e.lotes.first %}
-                            {% if lote %}{{ lote.nro_parcela|stringformat:"03d" }}{% else %}—{% endif %}
-                            {% endwith %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="text-center text-muted py-3">
-                            No hay empresas activas registradas en el parque.
-                        </td>
-                    </tr>
+    <section class="dash-card span-8">
+        <h6>Empresas por estado</h6>
+        {% if empresas_por_estado %}
+        {% for item in empresas_por_estado %}
+        {% if item.href %}
+        <a href="{{ item.href }}" class="bar-row">
+            {% else %}
+            <div class="bar-row">
+                {% endif %}
+                <span>{{ item.label }}</span>
+                <div class="bar-track">
+                    <div class="bar-fill"
+                        style="--bar-width: {{ item.pct_barra_css }}%; --bar-color: {{ item.color }};"></div>
+                </div>
+                <strong>{{ item.cantidad }}</strong>
+                {% if item.href %}
+        </a>
+        {% else %}
+</div>
+{% endif %}
+{% endfor %}
+{% else %}
+<p class="kpi-detalle">Aún no hay empresas registradas.</p>
+{% endif %}
+</section>
+
+<section class="dash-card span-12">
+    <h6>Evolución de consumos últimos 6 meses</h6>
+    {% if consumo_evolucion %}
+    <div class="spark-grid">
+        {% for serie in consumo_evolucion %}
+        <article class="spark-card">
+            <div class="spark-head">
+                <div>
+                    <div class="spark-title" style="color:{{ serie.color }};">
+                        <i class="bi {{ serie.icono }}"></i> {{ serie.label }}
+                    </div>
+                    <div class="spark-delta">
+                        {% if serie.delta >= 0 %}+{% endif %}{{ serie.delta_pct|floatformat:1 }}%
+                    </div>
+                </div>
+                <div class="spark-current">
+                    {{ serie.valor_actual|floatformat:0 }} {{ serie.unidad }}
+                </div>
+            </div>
+            <svg class="spark-chart" viewBox="0 0 220 80" preserveAspectRatio="none" aria-hidden="true">
+                <line x1="12" y1="68" x2="208" y2="68" stroke="#E5E7EB" stroke-width="1" />
+                <line x1="12" y1="40" x2="208" y2="40" stroke="#EEF2F7" stroke-width="1" />
+                <polyline points="{{ serie.puntos }}" fill="none" stroke="{{ serie.color }}" stroke-width="4"
+                    stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <div class="period-labels">
+                {% for label in periodos_consumo_labels %}
+                <span>{{ label }}</span>
+                {% endfor %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="kpi-detalle">No hay consumos suficientes para graficar.</p>
+    {% endif %}
+</section>
+
+<section class="dash-card span-6">
+    <h6>Perfil productivo</h6>
+    <div class="perfil-grid">
+        <div class="perfil-box">
+            <div class="perfil-title">Categoría industrial</div>
+            <div class="donut-wrap" style="grid-template-columns:120px 1fr;">
+                <div class="donut" style="width:112px;background: {{ categorias_gradient }};">
+                    <div class="donut-center">
+                        <span class="donut-number">{{ total_empresas }}</span>
+                        <span class="donut-label">activas</span>
+                    </div>
+                </div>
+                <ul class="legend-list">
+                    {% for item in categorias %}
+                    <li>
+                        <span class="legend-dot" style="--dot-color: {{ item.color }};"></span>
+                        <span>{{ item.label }}</span>
+                        <strong>{{ item.cantidad }}</strong>
+                    </li>
                     {% endfor %}
-                </tbody>
-            </table>
+                </ul>
+            </div>
+        </div>
+        <div class="perfil-box">
+            <div class="perfil-title">Rubro</div>
+            <div class="donut-wrap" style="grid-template-columns:120px 1fr;">
+                <div class="donut" style="width:112px;background: {{ rubros_gradient }};">
+                    <div class="donut-center">
+                        <span class="donut-number">{{ total_empresas }}</span>
+                        <span class="donut-label">activas</span>
+                    </div>
+                </div>
+                <ul class="legend-list">
+                    {% for item in rubros %}
+                    <li>
+                        <span class="legend-dot" style="--dot-color: {{ item.color }};"></span>
+                        <span>{{ item.label }}</span>
+                        <strong>{{ item.cantidad }}</strong>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
         </div>
     </div>
+</section>
+
+<section class="dash-card span-6">
+    <h6>Obras por vencer</h6>
+    {% if obras_semaforo %}
+    <div class="semaforo-grid">
+        {% for obra in obras_semaforo %}
+        {% if puede_gestionar_dashboard %}
+        <a href="{% url 'core:solicitud_detail' obra.empresa.pk %}" class="obra-card {{ obra.nivel }}">
+            {% else %}
+            <article class="obra-card {{ obra.nivel }}">
+                {% endif %}
+                <strong>{{ obra.empresa.razon_social }}</strong>
+                <div class="obra-meta">
+                    <span>{{ obra.nivel_label }}</span>
+                    <span>
+                        {% if obra.dias < 0 %}
+                        vencida
+                        {% elif obra.dias == 0 %}
+                        vence hoy
+                        {% else %}
+                        {{ obra.dias }} días
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="obra-meta" style="margin-top:0.45rem;">
+                    <span>{{ obra.empresa.get_estado_display }}</span>
+                    <strong>{{ obra.empresa.fecha_limite_obra|date:"d/m/Y" }}</strong>
+                </div>
+                {% if puede_gestionar_dashboard %}
+        </a>
+        {% else %}
+        </article>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="kpi-detalle">No hay obras con fecha límite cargada.</p>
+    {% endif %}
+</section>
+
+<section class="dash-card span-12">
+    <h6>Tareas pendientes</h6>
+    <table class="mini-table">
+        {% for tarea in tareas_pendientes %}
+        <tr>
+            {% if tarea.href %}
+            <td><a href="{{ tarea.href }}">{{ tarea.label }}</a></td>
+            <td><a href="{{ tarea.href }}">{{ tarea.valor }}</a></td>
+            {% else %}
+            <td>{{ tarea.label }}</td>
+            <td>{{ tarea.valor }}</td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </table>
+</section>
+</div>
+
+<h3 class="seccion-titulo">Empresas activas</h3>
+<div style="overflow-x:auto;">
+    <table class="tabla-empresas">
+        <thead>
+            <tr>
+                <th>Razón Social</th>
+                <th>Rubro</th>
+                <th>Categoría Industrial</th>
+                <th>Estado</th>
+                <th>Parcela</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in empresas %}
+            <tr>
+                <td><strong>{{ e.razon_social }}</strong></td>
+                <td>{{ e.get_rubro_display }}</td>
+                <td>{{ e.get_categoria_industrial_display }}</td>
+                <td>
+                    <span class="badge-estado {{ e.estado|lower }}">
+                        {{ e.get_estado_display }}
+                    </span>
+                </td>
+                <td>
+                    {% with lote=e.lotes.first %}
+                    {% if lote %}{{ lote.nro_parcela|stringformat:"03d" }}{% else %}—{% endif %}
+                    {% endwith %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center text-muted py-3">
+                    No hay empresas activas registradas en el parque.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+</div>
 </div>
 {% endblock %}
