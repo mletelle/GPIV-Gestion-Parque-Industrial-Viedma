@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.db import IntegrityError
 from django.db.models import Q
+from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator, MaxValueValidator, FileExtensionValidator
 from django.utils import timezone
@@ -85,6 +86,12 @@ class CustomUser(AbstractUser):
         """
         self.email = self._normalize_email(self.email)
         super().save(*args, **kwargs)
+
+    def es_admin_enrepavi(self):
+        return (
+            self.is_superuser
+            or self.groups.filter(name='ADMIN_ENREPAVI').exists()
+        )
 
     @staticmethod
     def _normalize_email(email):
@@ -440,17 +447,27 @@ class TransicionEstado(models.Model):
 
 
 class AvanceConstructivo(models.Model):
+    class EstadoRevision(models.TextChoices):
+        PENDIENTE = 'Pendiente', _('Pendiente')
+        VALIDADO = 'Validado', _('Validado')
+        RECHAZADO = 'Rechazado', _('Rechazado')
+
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='avances_constructivos')
     porcentaje_declarado = models.DecimalField(max_digits=5, decimal_places=2, validators=[MinValueValidator(0), MaxValueValidator(100)])
     certificado_pdf = models.FileField(upload_to='certificados/')
     fecha_presentacion = models.DateField(auto_now_add=True)
-    validado_admin = models.BooleanField(default=False)
-    validado_por = models.ForeignKey(
+    estado_revision = models.CharField(
+        max_length=12,
+        choices=EstadoRevision.choices,
+        default=EstadoRevision.PENDIENTE,
+    )
+    observacion_revision = models.TextField(blank=True)
+    revisado_por = models.ForeignKey(
         'CustomUser', on_delete=models.SET_NULL,
         null=True, blank=True,
-        related_name='avances_validados',
+        related_name='avances_revisados',
     )
-    fecha_validacion = models.DateTimeField(null=True, blank=True)
+    fecha_revision = models.DateTimeField(null=True, blank=True)
 
     history = HistoricalRecords()
 
@@ -461,6 +478,35 @@ class AvanceConstructivo(models.Model):
 
     def __str__(self):
         return f"Avance {self.porcentaje_declarado}% - Empresa #{self.empresa_id}"
+
+    def validar(self, usuario):
+        if self.estado_revision != self.EstadoRevision.PENDIENTE:
+            raise ValidationError('El avance ya fue revisado.')
+
+        self.estado_revision = self.EstadoRevision.VALIDADO
+        self.observacion_revision = ''
+        self.revisado_por = usuario
+        self.fecha_revision = timezone.now()
+        self.save(update_fields=[
+            'estado_revision', 'observacion_revision',
+            'revisado_por', 'fecha_revision',
+        ])
+
+    def rechazar(self, usuario, motivo):
+        motivo = (motivo or '').strip()
+        if self.estado_revision != self.EstadoRevision.PENDIENTE:
+            raise ValidationError('El avance ya fue revisado.')
+        if len(motivo) < 10:
+            raise ValidationError('El motivo del rechazo debe tener al menos 10 caracteres.')
+
+        self.estado_revision = self.EstadoRevision.RECHAZADO
+        self.observacion_revision = motivo
+        self.revisado_por = usuario
+        self.fecha_revision = timezone.now()
+        self.save(update_fields=[
+            'estado_revision', 'observacion_revision',
+            'revisado_por', 'fecha_revision',
+        ])
 
 
 class SolicitudProrroga(models.Model):

@@ -6,8 +6,8 @@ mail al contacto via la funcion de servicio enviar_aviso_vencimiento.
 se ejecuta desde crontab del servidor todos los dias a las 08:00.
 
 ejemplo de cron:
-  0 8 * * * /ruta/venv/bin/python /ruta/proyecto/manage.py \
-      notificar_vencimientos >> /var/log/gpiv/vencimientos.log 2>&1
+  0 8 * * * cd /ruta/proyecto && docker compose exec -T web \
+      python manage.py notificar_vencimientos >> /var/log/gpiv/vencimientos.log 2>&1
 
 idempotencia: no repite aviso urgente antes de 7 dias ni proximo antes
 de 30 dias, consultando AvisoVencimiento por empresa y nivel.
@@ -19,7 +19,7 @@ from django.db.models import Exists, OuterRef
 from django.utils import timezone
 
 from core.models import Empresa, AvisoVencimiento
-from core.services import enviar_aviso_vencimiento
+from core.services import enviar_aviso_vencimiento, notificar_admin_vencimientos
 
 
 # no repetir aviso urgente antes de 7 dias ni proximo antes de 30
@@ -42,6 +42,10 @@ class Command(BaseCommand):
         hoy = timezone.now().date()
         limite_urgente = hoy + timedelta(days=7)
         limite_proximo = hoy + timedelta(days=30)
+        resumen_admin = list(Empresa.objects.filter(
+            estado=Empresa.Estado.EN_CONSTRUCCION,
+            fecha_limite_obra__range=(hoy, limite_proximo),
+        ).order_by('fecha_limite_obra', 'razon_social'))
         avisos_urgentes_recientes = AvisoVencimiento.objects.filter(
             empresa=OuterRef('pk'),
             nivel=AvisoVencimiento.Nivel.URGENTE,
@@ -111,10 +115,27 @@ class Command(BaseCommand):
             if resultado:
                 enviados_proximos += 1
 
+        resumen_enviado = False
+        if not dry_run:
+            resumen_enviado = bool(notificar_admin_vencimientos(resumen_admin))
+
+        if dry_run:
+            estado_resumen = f'{len(resumen_admin)} empresa(s)'
+        elif not resumen_admin:
+            estado_resumen = 'sin vencimientos'
+        elif resumen_enviado:
+            estado_resumen = 'enviado'
+        else:
+            estado_resumen = 'no enviado'
+
         prefijo = '[DRY-RUN] ' if dry_run else ''
         self.stdout.write(self.style.SUCCESS(
             f'{prefijo}Avisos urgentes: {enviados_urgentes}'
         ))
         self.stdout.write(self.style.SUCCESS(
             f'{prefijo}Avisos proximos: {enviados_proximos}'
+        ))
+        self.stdout.write(self.style.SUCCESS(
+            f'{prefijo}Resumen administracion: '
+            f'{estado_resumen}'
         ))

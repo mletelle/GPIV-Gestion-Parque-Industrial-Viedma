@@ -50,10 +50,6 @@
         color: var(--verde);
         margin-bottom: 1rem;
     }
-    .reject-card {
-        border-color: #DC2626;
-    }
-    .reject-card h4 { color: #DC2626; }
 </style>
 {% endblock %}
 
@@ -153,11 +149,10 @@
         </div>
         <div class="detail-body">
             {% if solicitud.documentacion_pdf %}
-            <a href="{{ solicitud.documentacion_pdf.url }}" target="_blank"
-               rel="noopener noreferrer"
+            <a href="{% url 'core:descargar_documentacion_acceso' solicitud.pk %}"
                class="btn btn-outline-danger">
-                <i class="bi bi-file-earmark-pdf me-1"></i>
-                Ver documentación adjunta (PDF)
+                <i class="bi bi-download me-1"></i>
+                Descargar documentación adjunta (PDF)
             </a>
             {% else %}
             <p class="text-muted mb-0">
@@ -195,53 +190,36 @@
 
     <!-- Acciones (solo si está pendiente) -->
     {% if solicitud.estado == 'PENDIENTE' %}
-    <div class="row g-3 mt-1">
-        <!-- Aprobar -->
-        <div class="col-md-6">
-            <div class="action-card">
-                <h4><i class="bi bi-check-circle me-1"></i> Aprobar solicitud</h4>
-                <p style="font-size:0.88rem;color:var(--gris-suave);margin-bottom:1rem;">
-                    Activará el usuario <strong>{{ solicitud.usuario.username }}</strong>
-                    y le asignará el grupo <strong>{{ solicitud.get_grupo_destino }}</strong>.
-                    Se enviará un email al solicitante.
-                </p>
-                <form method="post" action="{% url 'core:solicitud_acceso_aprobar' solicitud.pk %}">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="obs_aprobar" class="form-label" style="font-size:0.88rem;font-weight:600;">
-                            Observaciones (opcional)
-                        </label>
-                        <textarea id="obs_aprobar" name="observaciones_admin" class="form-control"
-                                  rows="3" placeholder="Comentario para el usuario aprobado..."></textarea>
-                    </div>
-                    <button type="submit" class="btn-verde w-100 justify-content-center">
-                        <i class="bi bi-check-lg me-1"></i> Aprobar
-                    </button>
-                </form>
+    <div class="action-card mt-3">
+        <h4><i class="bi bi-check2-square me-1"></i> Resolver solicitud</h4>
+        <p style="font-size:0.88rem;color:var(--gris-suave);margin-bottom:1rem;">
+            Al aprobar se activará el usuario y se le asignará
+            <strong>{{ solicitud.get_grupo_destino }}</strong>. Al rechazar,
+            la observación es obligatoria y se enviará por email.
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="observaciones_admin" class="form-label"
+                    style="font-size:0.88rem;font-weight:600;">
+                    Observación administrativa
+                </label>
+                <textarea id="observaciones_admin" name="observaciones_admin"
+                    class="form-control" rows="3"
+                    placeholder="Opcional al aprobar; obligatoria al rechazar."></textarea>
             </div>
-        </div>
-        <!-- Rechazar -->
-        <div class="col-md-6">
-            <div class="action-card reject-card">
-                <h4><i class="bi bi-x-circle me-1"></i> Rechazar solicitud</h4>
-                <p style="font-size:0.88rem;color:var(--gris-suave);margin-bottom:1rem;">
-                    El usuario permanecerá inactivo. Se enviará un email con el motivo del rechazo.
-                </p>
-                <form method="post" action="{% url 'core:solicitud_acceso_rechazar' solicitud.pk %}">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="obs_rechazar" class="form-label" style="font-size:0.88rem;font-weight:600;">
-                            Motivo del rechazo <span class="text-danger">*</span>
-                        </label>
-                        <textarea id="obs_rechazar" name="observaciones_admin" class="form-control"
-                                  rows="3" placeholder="Motivo obligatorio..." required></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-danger w-100">
-                        <i class="bi bi-x-lg me-1"></i> Rechazar
-                    </button>
-                </form>
+            <div class="d-flex gap-2 flex-wrap">
+                <button type="submit" class="btn-verde"
+                    formaction="{% url 'core:solicitud_acceso_aprobar' solicitud.pk %}">
+                    <i class="bi bi-check-lg me-1"></i> Aprobar
+                </button>
+                <button type="submit" class="btn btn-danger"
+                    formaction="{% url 'core:solicitud_acceso_rechazar' solicitud.pk %}"
+                    onclick="if (this.form.observaciones_admin.value.trim() === '') { alert('Ingresá el motivo del rechazo.'); return false; } return confirm('¿Rechazar esta solicitud de acceso?');">
+                    <i class="bi bi-x-lg me-1"></i> Rechazar
+                </button>
             </div>
-        </div>
+        </form>
     </div>
     {% endif %}
 

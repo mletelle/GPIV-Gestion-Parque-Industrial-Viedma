@@ -30,11 +30,12 @@ from .views import (
     # flujo preaprobación → documentación → adjudicación/descarte
     SubirDocumentacionView,
     DecisionFinalView,
-    DescargarDocumentoView,
+    DescargarArchivoProtegidoView,
     # etapa 2
     AvanceCreateView,
     AvancesPendientesView,
     AvanceValidarView,
+    AvanceRechazarView,
     ProrrogaCreateView,
     ProrrogasPendientesView,
     ProrrogaAprobarView,
@@ -185,12 +186,27 @@ urlpatterns = [
     path('solicitudes/<int:pk>/finalizar/', FinalizarObraView.as_view(), name='finalizar_obra'),
     path('solicitudes/<int:pk>/escriturar/', EscrituracionView.as_view(), name='escrituracion'),
     path('solicitudes/<int:pk>/baja/', BajaEmpresaView.as_view(), name='baja_empresa'),
-    # descarga protegida de documentos del proyecto
-    path('documentos/<int:pk>/descargar/', DescargarDocumentoView.as_view(), name='descargar_documento'),
+    # descargas protegidas
+    path(
+        'documentos/<int:pk>/descargar/',
+        DescargarArchivoProtegidoView.as_view(tipo='proyecto'),
+        name='descargar_documento',
+    ),
+    path(
+        'solicitudes/<int:pk>/escritura/',
+        DescargarArchivoProtegidoView.as_view(tipo='escritura'),
+        name='descargar_escritura',
+    ),
 
     # admin: avances pendientes
     path('avances/pendientes/', AvancesPendientesView.as_view(), name='avances_pendientes'),
     path('avances/<int:pk>/validar/', AvanceValidarView.as_view(), name='avance_validar'),
+    path('avances/<int:pk>/rechazar/', AvanceRechazarView.as_view(), name='avance_rechazar'),
+    path(
+        'avances/<int:pk>/certificado/',
+        DescargarArchivoProtegidoView.as_view(tipo='avance'),
+        name='descargar_certificado_avance',
+    ),
 
     # admin: prorrogas pendientes
     path('prorrogas/pendientes/', ProrrogasPendientesView.as_view(), name='prorrogas_pendientes'),
@@ -219,6 +235,11 @@ urlpatterns = [
     path('panel/accesos/<int:pk>/', SolicitudAccesoDetailView.as_view(), name='solicitud_acceso_detail'),
     path('panel/accesos/<int:pk>/aprobar/', SolicitudAccesoAprobarView.as_view(), name='solicitud_acceso_aprobar'),
     path('panel/accesos/<int:pk>/rechazar/', SolicitudAccesoRechazarView.as_view(), name='solicitud_acceso_rechazar'),
+    path(
+        'panel/accesos/<int:pk>/documentacion/',
+        DescargarArchivoProtegidoView.as_view(tipo='solicitud_acceso'),
+        name='descargar_documentacion_acceso',
+    ),
 
     # mensajería interna / ticketera (admin)
     path('panel/mensajes/', AdminTicketListView.as_view(), name='admin_ticket_list'),

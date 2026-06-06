@@ -297,34 +297,32 @@
 
         <!-- acciones segun estado -->
         <div class="acciones-bar mb-3">
+            {% if empresa.estado == 'EnEvaluacion' or empresa.estado == 'PreAprobado' and not puede_tomar_decision %}
             {% if empresa.estado == 'EnEvaluacion' %}
-            <form method="post" action="{% url 'core:solicitud_preaprobar' empresa.pk %}" style="display:inline;">
-                {% csrf_token %}
-                <button type="submit" class="btn-accion btn-preaprobar"
-                    onclick="return confirm('¿Pre-aprobar esta solicitud? La empresa deberá subir la documentación del proyecto.')">
-                    <i class="bi bi-check2-circle"></i> Pre-aprobar
-                </button>
-            </form>
-            <a href="{% url 'core:solicitud_rechazar' empresa.pk %}" class="btn-accion btn-rechazar">
+            <button type="button" class="btn-accion btn-preaprobar"
+                data-bs-toggle="modal" data-bs-target="#modalEvaluarSolicitud"
+                data-accion="preaprobar"
+                data-url="{% url 'core:solicitud_preaprobar' empresa.pk %}">
+                <i class="bi bi-check2-circle"></i> Pre-aprobar
+            </button>
+            {% else %}
+            <span class="btn-accion"
+                style="background:#F3F4F6;color:#6B7280;cursor:default;">
+                <i class="bi bi-hourglass-split"></i> Esperando documentación
+            </span>
+            {% endif %}
+            <button type="button" class="btn-accion btn-rechazar"
+                data-bs-toggle="modal" data-bs-target="#modalEvaluarSolicitud"
+                data-accion="rechazar"
+                data-url="{% url 'core:solicitud_rechazar' empresa.pk %}">
                 <i class="bi bi-x-circle"></i> Rechazar
-            </a>
+            </button>
 
             {% elif empresa.estado == 'PreAprobado' %}
-            {# Con documentación: ambas acciones pasan por decision_final (aprobación o descarte con motivo) #}
-            {% if puede_tomar_decision %}
             <a href="{% url 'core:decision_final' empresa.pk %}" class="btn-accion btn-decision"
                id="btn-aprobar-solicitud">
                 <i class="bi bi-check2-circle"></i> Revisar
             </a>
-            {% else %}
-            {# Sin documentación: solo se puede rechazar por la vía normal (empresa no cumplió) #}
-            <span class="btn-accion" style="background:#F3F4F6;color:#9CA3AF;cursor:default;" title="Esperando documentación de la empresa">
-                <i class="bi bi-hourglass-split"></i> Esperando documentación...
-            </span>
-            <a href="{% url 'core:solicitud_rechazar' empresa.pk %}" class="btn-accion btn-rechazar">
-                <i class="bi bi-x-circle"></i> Rechazar
-            </a>
-            {% endif %}
 
             {% elif empresa.estado == 'ListoAdjudicar' %}
             <a href="{% url 'core:adjudicacion' empresa.pk %}" class="btn-accion btn-adjudicar"
@@ -355,6 +353,36 @@
             </a>
             {% endif %}
         </div>
+
+        {% if empresa.estado == 'EnEvaluacion' or empresa.estado == 'PreAprobado' and not puede_tomar_decision %}
+        <div class="modal fade" id="modalEvaluarSolicitud" tabindex="-1"
+            aria-labelledby="modalEvaluarSolicitudTitulo" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <form method="post" id="formEvaluarSolicitud">
+                        {% csrf_token %}
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="modalEvaluarSolicitudTitulo"></h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <label for="{{ evaluar_form.observacion.id_for_label }}"
+                                class="form-label fw-semibold"
+                                id="modalEvaluarSolicitudLabel"></label>
+                            {{ evaluar_form.observacion }}
+                            <div class="form-text" id="modalEvaluarSolicitudAyuda"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary"
+                                data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn" id="modalEvaluarSolicitudConfirmar"></button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- estado de documentación del proyecto -->
         {% if empresa.estado == 'PreAprobado' %}
@@ -389,89 +417,125 @@
         </div>
         {% endif %}
 
-        <!-- lote asignado -->
-        {% if lote %}
-        <div class="seccion-card">
-            <h5>Lote Asignado</h5>
-            <div class="dato-row">
-                <span class="dato-label">Parcela</span>
-                <span>{{ lote.nro_parcela|stringformat:"03d" }}</span>
-            </div>
-            <div class="dato-row">
-                <span class="dato-label">Superficie</span>
-                <span>{{ lote.superficie_m2|floatformat:2 }} m²</span>
-            </div>
-            {% if empresa.fecha_limite_obra %}
-            <div class="dato-row">
-                <span class="dato-label">Fecha límite de obra</span>
-                <span>{{ empresa.fecha_limite_obra|date:"d/m/Y" }}</span>
+        <div class="accordion accordion-detail" id="accordionSolicitudDetail">
+            {% if avances %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingAvances">
+                    <button class="accordion-button collapsed" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#collapseAvances"
+                            aria-expanded="false" aria-controls="collapseAvances">
+                        Avances Constructivos
+                    </button>
+                </h2>
+                <div id="collapseAvances" class="accordion-collapse collapse"
+                     aria-labelledby="headingAvances" data-bs-parent="#accordionSolicitudDetail">
+                    <div class="accordion-body">
+                        {% for avance in avances %}
+                        <div class="avance-row">
+                            <div>
+                                <strong>{{ avance.porcentaje_declarado }}%</strong>
+                                <span style="color:var(--gris-suave);font-size:0.82rem;">
+                                    — {{ avance.fecha_presentacion|date:"d/m/Y" }}
+                                </span>
+                            </div>
+                            <div>
+                                {% if avance.estado_revision == 'Validado' %}
+                                <span class="badge-validado si">Validado</span>
+                                {% elif avance.estado_revision == 'Rechazado' %}
+                                <span class="badge-validado" style="background:#FEE2E2;color:#991B1B;">Rechazado</span>
+                                {% else %}
+                                <span class="badge-validado no">Pendiente</span>
+                                {% endif %}
+                                <a href="{% url 'core:descargar_certificado_avance' avance.pk %}"
+                                    style="color:var(--azul);font-size:0.82rem;margin-left:0.5rem;">
+                                    <i class="bi bi-download"></i> PDF
+                                </a>
+                            </div>
+                        </div>
+                        {% if avance.observacion_revision %}
+                        <p style="margin:0.2rem 0 0.7rem;font-size:0.82rem;color:#991B1B;">
+                            <strong>Motivo:</strong> {{ avance.observacion_revision }}
+                        </p>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
             {% endif %}
-        </div>
-        {% endif %}
 
-        <!-- avances constructivos -->
-        {% if avances %}
-        <div class="seccion-card">
-            <h5>Avances Constructivos</h5>
-            {% for avance in avances %}
-            <div class="avance-row">
-                <div>
-                    <strong>{{ avance.porcentaje_declarado }}%</strong>
-                    <span style="color:var(--gris-suave);font-size:0.82rem;">
-                        — {{ avance.fecha_presentacion|date:"d/m/Y" }}
-                    </span>
-                </div>
-                <div>
-                    {% if avance.validado_admin %}
-                    <span class="badge-validado si">Validado</span>
-                    {% else %}
-                    <span class="badge-validado no">Pendiente</span>
-                    {% endif %}
-                    <a href="{{ avance.certificado_pdf.url }}" target="_blank"
-                        style="color:var(--azul);font-size:0.82rem;margin-left:0.5rem;">
-                        <i class="bi bi-file-pdf"></i> PDF
-                    </a>
+            {% if prorrogas %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingProrrogas">
+                    <button class="accordion-button collapsed" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#collapseProrrogas"
+                            aria-expanded="false" aria-controls="collapseProrrogas">
+                        Solicitudes de Prórroga
+                    </button>
+                </h2>
+                <div id="collapseProrrogas" class="accordion-collapse collapse"
+                     aria-labelledby="headingProrrogas" data-bs-parent="#accordionSolicitudDetail">
+                    <div class="accordion-body">
+                        {% for p in prorrogas %}
+                        <div class="avance-row">
+                            <div>
+                                <strong>+{{ p.meses_solicitados }} meses</strong>
+                                <span style="color:var(--gris-suave);font-size:0.82rem;">
+                                    — {{ p.fecha_solicitud|date:"d/m/Y" }}
+                                </span>
+                            </div>
+                            <span class="prorroga-badge {{ p.estado|lower }}">{{ p.get_estado_display }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
-            {% endfor %}
-        </div>
-        {% endif %}
+            {% endif %}
 
-        <!-- prorrogas -->
-        {% if prorrogas %}
-        <div class="seccion-card">
-            <h5>Solicitudes de Prórroga</h5>
-            {% for p in prorrogas %}
-            <div class="avance-row">
-                <div>
-                    <strong>+{{ p.meses_solicitados }} meses</strong>
-                    <span style="color:var(--gris-suave);font-size:0.82rem;">
-                        — {{ p.fecha_solicitud|date:"d/m/Y" }}
-                    </span>
+            {% if lote %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingLote">
+                    <button class="accordion-button collapsed" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#collapseLote"
+                            aria-expanded="false" aria-controls="collapseLote">
+                        Lote Asignado
+                    </button>
+                </h2>
+                <div id="collapseLote" class="accordion-collapse collapse"
+                     aria-labelledby="headingLote" data-bs-parent="#accordionSolicitudDetail">
+                    <div class="accordion-body">
+                        <div class="dato-row">
+                            <span class="dato-label">Parcela</span>
+                            <span>{{ lote.nro_parcela|stringformat:"03d" }}</span>
+                        </div>
+                        <div class="dato-row">
+                            <span class="dato-label">Superficie</span>
+                            <span>{{ lote.superficie_m2|floatformat:2 }} m²</span>
+                        </div>
+                        {% if empresa.fecha_limite_obra %}
+                        <div class="dato-row">
+                            <span class="dato-label">Fecha límite de obra</span>
+                            <span>{{ empresa.fecha_limite_obra|date:"d/m/Y" }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
-                <span class="prorroga-badge {{ p.estado|lower }}">{{ p.get_estado_display }}</span>
             </div>
-            {% endfor %}
-        </div>
-        {% endif %}
+            {% endif %}
 
-        <!-- datos por seccion (accordion colapsable) -->
-        <div class="accordion accordion-detail" id="accordionSolicitudDetail">
             {% for titulo, filas in secciones %}
             <div class="accordion-item">
                 <h2 class="accordion-header" id="headingDetail-{{ forloop.counter }}">
-                    <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
+                    <button class="accordion-button collapsed"
                             type="button"
                             data-bs-toggle="collapse"
                             data-bs-target="#collapseDetail-{{ forloop.counter }}"
-                            aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+                            aria-expanded="false"
                             aria-controls="collapseDetail-{{ forloop.counter }}">
                         {{ titulo }}
                     </button>
                 </h2>
                 <div id="collapseDetail-{{ forloop.counter }}"
-                     class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+                     class="accordion-collapse collapse"
                      aria-labelledby="headingDetail-{{ forloop.counter }}"
                      data-bs-parent="#accordionSolicitudDetail">
                     <div class="accordion-body">
@@ -485,6 +549,46 @@
                 </div>
             </div>
             {% endfor %}
+            {% if consumos %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingConsumos">
+                    <button class="accordion-button collapsed" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#collapseConsumos"
+                        aria-expanded="false" aria-controls="collapseConsumos">
+                        Consumos de servicios
+                    </button>
+                </h2>
+                <div id="collapseConsumos" class="accordion-collapse collapse"
+                    aria-labelledby="headingConsumos" data-bs-parent="#accordionSolicitudDetail">
+                    <div class="accordion-body">
+                        <div style="overflow-x:auto;">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Período</th>
+                                        <th>Agua potable</th>
+                                        <th>Agua cruda</th>
+                                        <th>Electricidad</th>
+                                        <th>Gas</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for consumo in consumos %}
+                                    <tr>
+                                        <td><strong>{{ consumo.periodo_mes|stringformat:"02d" }}/{{ consumo.periodo_anio }}</strong></td>
+                                        <td>{{ consumo.consumo_agua_potable_m3|default_if_none:"—" }} m³</td>
+                                        <td>{{ consumo.consumo_agua_cruda_m3|default_if_none:"—" }} m³</td>
+                                        <td>{{ consumo.consumo_luz_kwh|default_if_none:"—" }} kWh</td>
+                                        <td>{{ consumo.consumo_gas_m3|default_if_none:"—" }} m³</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <!-- historial -->
@@ -509,4 +613,58 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if empresa.estado == 'EnEvaluacion' or empresa.estado == 'PreAprobado' and not puede_tomar_decision %}
+<script>
+    const modalEvaluar = document.getElementById('modalEvaluarSolicitud');
+    const formEvaluar = document.getElementById('formEvaluarSolicitud');
+    const observacionEvaluar = formEvaluar.elements.observacion;
+    const tituloEvaluar = document.getElementById('modalEvaluarSolicitudTitulo');
+    const labelEvaluar = document.getElementById('modalEvaluarSolicitudLabel');
+    const ayudaEvaluar = document.getElementById('modalEvaluarSolicitudAyuda');
+    const confirmarEvaluar = document.getElementById('modalEvaluarSolicitudConfirmar');
+
+    modalEvaluar.addEventListener('show.bs.modal', (event) => {
+        const boton = event.relatedTarget;
+        const esRechazo = boton.dataset.accion === 'rechazar';
+
+        formEvaluar.action = boton.dataset.url;
+        formEvaluar.dataset.accion = boton.dataset.accion;
+        observacionEvaluar.value = '';
+        observacionEvaluar.required = esRechazo;
+        observacionEvaluar.minLength = esRechazo ? 10 : 0;
+        observacionEvaluar.setCustomValidity('');
+
+        tituloEvaluar.textContent = esRechazo
+            ? 'Rechazar solicitud'
+            : 'Pre-aprobar solicitud';
+        labelEvaluar.textContent = esRechazo
+            ? 'Motivo del rechazo'
+            : 'Observación técnica (opcional)';
+        ayudaEvaluar.textContent = esRechazo
+            ? 'Ingresá un motivo de al menos 10 caracteres.'
+            : 'La empresa deberá presentar la documentación del proyecto.';
+        observacionEvaluar.placeholder = esRechazo
+            ? 'Indicá por qué la solicitud no cumple los criterios.'
+            : 'Agregá una observación técnica si corresponde.';
+        confirmarEvaluar.textContent = esRechazo ? 'Rechazar' : 'Pre-aprobar';
+        confirmarEvaluar.className = esRechazo
+            ? 'btn btn-danger'
+            : 'btn btn-success';
+    });
+
+    formEvaluar.addEventListener('submit', (event) => {
+        const esRechazo = formEvaluar.dataset.accion === 'rechazar';
+        if (esRechazo && observacionEvaluar.value.trim().length < 10) {
+            event.preventDefault();
+            observacionEvaluar.setCustomValidity(
+                'Ingresá un motivo de al menos 10 caracteres.'
+            );
+            observacionEvaluar.reportValidity();
+        }
+    });
+</script>
+{% endif %}
 {% endblock %}

@@ -435,16 +435,19 @@ class EmpresaSolicitudEditForm(forms.ModelForm):
             yield titulo, [self[c] for c in campos]
 
 
-class RechazarSolicitudForm(forms.Form):
-    """Formulario para rechazar una solicitud con justificacion obligatoria."""
-    justificacion = forms.CharField(
+class EvaluarSolicitudForm(forms.Form):
+    observacion = forms.CharField(
+        required=False,
+        max_length=2000,
+        label='Observación técnica o motivo del rechazo',
         widget=forms.Textarea(attrs={
             'class': 'form-control',
-            'rows': 4,
-            'placeholder': 'Motivo del rechazo (obligatorio)',
+            'rows': 3,
+            'placeholder': (
+                'Opcional al pre-aprobar. Para rechazar, ingresá un motivo '
+                'de al menos 10 caracteres.'
+            ),
         }),
-        min_length=10,
-        label='Justificación del rechazo',
     )
 
 
@@ -491,6 +494,14 @@ class AvanceConstructivoForm(forms.ModelForm):
         if archivo and not archivo.name.lower().endswith('.pdf'):
             raise forms.ValidationError('Solo se aceptan archivos en formato PDF.')
         return archivo
+
+
+class RechazarAvanceForm(forms.Form):
+    motivo = forms.CharField(
+        min_length=10,
+        max_length=2000,
+        label='Motivo del rechazo',
+    )
 
 
 class SolicitudProrrogaForm(forms.ModelForm):

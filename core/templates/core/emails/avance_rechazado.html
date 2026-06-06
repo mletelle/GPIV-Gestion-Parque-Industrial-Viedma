@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="es">
+<body style="font-family:Arial,sans-serif;color:#374151;">
+  <h2 style="color:#B91C1C;">Avance de obra rechazado</h2>
+  <p>
+    El avance de <strong>{{ avance.porcentaje_declarado }}%</strong> presentado
+    el {{ avance.fecha_presentacion|date:"d/m/Y" }} fue rechazado por la
+    administración.
+  </p>
+  <p><strong>Motivo:</strong></p>
+  <blockquote style="border-left:3px solid #DC2626;padding:8px 12px;background:#FEF2F2;">
+    {{ avance.observacion_revision }}
+  </blockquote>
+  <p>
+    Podés presentar un nuevo avance con la documentación corregida desde
+    <a href="{{ site_url }}">{{ site_url }}</a>.
+  </p>
+  <hr>
+  <p style="font-size:12px;color:#6B7280;">
+    Mensaje automático del Sistema de Gestión del Parque Industrial de Viedma.
+  </p>
+</body>
+</html>

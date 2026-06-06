@@ -141,11 +141,10 @@
                         <td>{{ s.get_tipo_acceso_display }}</td>
                         <td>
                             {% if s.documentacion_pdf %}
-                            <a href="{{ s.documentacion_pdf.url }}" target="_blank"
-                               rel="noopener noreferrer"
+                            <a href="{% url 'core:descargar_documentacion_acceso' s.pk %}"
                                class="btn btn-sm btn-outline-danger py-0 px-2"
-                               title="Ver PDF">
-                                <i class="bi bi-file-earmark-pdf"></i>
+                               title="Descargar PDF">
+                                <i class="bi bi-download"></i>
                             </a>
                             {% else %}
                             <span class="text-muted">—</span>

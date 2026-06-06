@@ -157,8 +157,11 @@ class TransicionEstadoAdmin(SimpleHistoryAdmin):
 
 @admin.register(AvanceConstructivo)
 class AvanceConstructivoAdmin(SimpleHistoryAdmin):
-    list_display = ('empresa', 'porcentaje_declarado', 'fecha_presentacion', 'validado_admin')
-    list_filter = ('validado_admin',)
+    list_display = (
+        'empresa', 'porcentaje_declarado', 'fecha_presentacion',
+        'estado_revision',
+    )
+    list_filter = ('estado_revision',)
     autocomplete_fields = ('empresa',)
 
 

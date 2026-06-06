@@ -580,6 +580,97 @@
         background: var(--verde-claro);
     }
 
+    .empresa-resumen-toggle {
+        width: 2rem;
+        height: 2rem;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: var(--verde);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .empresa-resumen-toggle:hover {
+        background: var(--verde-claro);
+    }
+
+    .empresa-resumen-toggle i {
+        transition: transform 0.2s ease;
+    }
+
+    .empresa-resumen-toggle[aria-expanded="true"] i {
+        transform: rotate(180deg);
+    }
+
+    .empresa-resumen-row:hover td,
+    .empresa-resumen-row td {
+        background: #F8FAF8;
+    }
+
+    .empresa-resumen {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+        gap: 1rem;
+        padding: 0.45rem 0;
+    }
+
+    .empresa-resumen-bloque {
+        border-left: 3px solid var(--verde);
+        padding-left: 0.85rem;
+    }
+
+    .empresa-resumen-titulo {
+        color: #475569;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-bottom: 0.45rem;
+    }
+
+    .consumos-mini {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+    }
+
+    .consumo-mini {
+        background: #fff;
+        border: 1px solid var(--borde);
+        border-radius: 7px;
+        padding: 0.35rem 0.55rem;
+        font-size: 0.78rem;
+        color: #475569;
+    }
+
+    .consumo-mini strong {
+        color: #1F2937;
+    }
+
+    .pendiente-mini {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: #92400E;
+        font-size: 0.8rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .empresa-resumen-acciones {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+        margin-top: 0.55rem;
+        font-size: 0.78rem;
+    }
+
+    @media (max-width: 768px) {
+        .empresa-resumen {
+            grid-template-columns: 1fr;
+        }
+    }
+
     .badge-estado {
         font-size: 0.72rem;
         font-weight: 700;
@@ -853,6 +944,7 @@
                 <th>Categoría Industrial</th>
                 <th>Estado</th>
                 <th>Parcela</th>
+                <th aria-label="Resumen"></th>
             </tr>
         </thead>
         <tbody>
@@ -871,10 +963,106 @@
                     {% if lote %}{{ lote.nro_parcela|stringformat:"03d" }}{% else %}—{% endif %}
                     {% endwith %}
                 </td>
+                <td class="text-end">
+                    <button type="button" class="empresa-resumen-toggle"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#resumenEmpresa-{{ e.pk }}"
+                        aria-expanded="false"
+                        aria-controls="resumenEmpresa-{{ e.pk }}"
+                        title="Ver resumen de {{ e.razon_social }}">
+                        <i class="bi bi-chevron-down"></i>
+                    </button>
+                </td>
+            </tr>
+            <tr class="collapse empresa-resumen-row" id="resumenEmpresa-{{ e.pk }}">
+                <td colspan="6">
+                    <div class="empresa-resumen">
+                        <div class="empresa-resumen-bloque">
+                            <div class="empresa-resumen-titulo">
+                                Último consumo
+                                {% if e.ultimo_consumo_dashboard %}
+                                · {{ e.ultimo_consumo_dashboard.periodo_mes|stringformat:"02d" }}/{{ e.ultimo_consumo_dashboard.periodo_anio }}
+                                {% endif %}
+                            </div>
+                            {% if e.ultimo_consumo_dashboard %}
+                            <div class="consumos-mini">
+                                {% if e.ultimo_consumo_dashboard.consumo_agua_potable_m3 != None %}
+                                <span class="consumo-mini">
+                                    Agua potable <strong>{{ e.ultimo_consumo_dashboard.consumo_agua_potable_m3 }} m³</strong>
+                                </span>
+                                {% endif %}
+                                {% if e.ultimo_consumo_dashboard.consumo_agua_cruda_m3 != None %}
+                                <span class="consumo-mini">
+                                    Agua cruda <strong>{{ e.ultimo_consumo_dashboard.consumo_agua_cruda_m3 }} m³</strong>
+                                </span>
+                                {% endif %}
+                                {% if e.ultimo_consumo_dashboard.consumo_luz_kwh != None %}
+                                <span class="consumo-mini">
+                                    Electricidad <strong>{{ e.ultimo_consumo_dashboard.consumo_luz_kwh }} kWh</strong>
+                                </span>
+                                {% endif %}
+                                {% if e.ultimo_consumo_dashboard.consumo_gas_m3 != None %}
+                                <span class="consumo-mini">
+                                    Gas <strong>{{ e.ultimo_consumo_dashboard.consumo_gas_m3 }} m³</strong>
+                                </span>
+                                {% endif %}
+                            </div>
+                            {% else %}
+                            <span class="text-muted" style="font-size:0.8rem;">
+                                Sin consumos registrados.
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <div class="empresa-resumen-bloque">
+                            <div class="empresa-resumen-titulo">Situación operativa</div>
+                            {% for avance in e.avances_pendientes_dashboard %}
+                            <div class="pendiente-mini">
+                                <i class="bi bi-bar-chart-steps"></i>
+                                Avance de {{ avance.porcentaje_declarado }}% pendiente de validación
+                            </div>
+                            {% endfor %}
+                            {% for prorroga in e.prorrogas_pendientes_dashboard %}
+                            <div class="pendiente-mini">
+                                <i class="bi bi-calendar-event"></i>
+                                Prórroga de {{ prorroga.meses_solicitados }} meses pendiente
+                            </div>
+                            {% endfor %}
+                            {% if not e.avances_pendientes_dashboard and not e.prorrogas_pendientes_dashboard %}
+                            <span style="color:#166534;font-size:0.8rem;">
+                                <i class="bi bi-check-circle"></i> Sin trámites pendientes.
+                            </span>
+                            {% endif %}
+                            {% if e.fecha_limite_obra %}
+                            <div class="text-muted mt-1" style="font-size:0.78rem;">
+                                Plazo de obra: {{ e.fecha_limite_obra|date:"d/m/Y" }}
+                            </div>
+                            {% endif %}
+
+                            {% if puede_gestionar_dashboard %}
+                            <div class="empresa-resumen-acciones">
+                                {% if e.avances_pendientes_dashboard %}
+                                <a href="{% url 'core:avances_pendientes' %}">
+                                    Resolver avances
+                                </a>
+                                {% endif %}
+                                {% if e.prorrogas_pendientes_dashboard %}
+                                <a href="{% url 'core:prorrogas_pendientes' %}">
+                                    Resolver prórrogas
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'core:solicitud_detail' e.pk %}">
+                                    Ver detalle completo
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="5" class="text-center text-muted py-3">
+                <td colspan="6" class="text-center text-muted py-3">
                     No hay empresas activas registradas en el parque.
                 </td>
             </tr>

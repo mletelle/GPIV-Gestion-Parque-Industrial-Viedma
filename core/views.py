@@ -1,4 +1,5 @@
 import logging
+import os
 
 from urllib.parse import urlencode
 
@@ -11,11 +12,11 @@ from django.views.generic import (
 from django.urls import reverse, reverse_lazy
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
-from django.http import HttpResponse, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.utils import timezone
-from django.db.models import Sum, Q, Max
+from django.db.models import Max, Prefetch, Q, Sum
 from django.db import transaction, IntegrityError
-from django.core.exceptions import MultipleObjectsReturned
+from django.core.exceptions import MultipleObjectsReturned, PermissionDenied
 from django.utils.decorators import method_decorator
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
@@ -33,6 +34,7 @@ from .services import (
     registrar_transicion, get_servicio_proveedor,
     SERVICIO_CAMPOS, SERVICIO_LABELS,
     notificar_ticket_mensaje,
+    notificar_registro_empresa, notificar_avance_rechazado,
     transferir_titularidad, invitar_usuario, remover_miembro,
     RBACError,
     evaluar_incompatibilidades_lote,
@@ -40,8 +42,8 @@ from .services import (
 from .lote_geometry import build_mapa_data, VIEWBOX_W, VIEWBOX_H, SERVIDUMBRE_Y
 from .forms import (
     LoginForm, LoteForm,
-    SolicitudRadicacionForm, RechazarSolicitudForm,
-    AvanceConstructivoForm, SolicitudProrrogaForm,
+    SolicitudRadicacionForm, EvaluarSolicitudForm,
+    AvanceConstructivoForm, RechazarAvanceForm, SolicitudProrrogaForm,
     EscrituraForm, BajaEmpresaForm, RespuestaProrrogaForm,
     ConsumoServicioForm, TicketCreateForm, MensajeTicketForm,
     AdminTicketCreateForm, TicketExternoForm, ActivoInventarioForm, BajaActivoForm,
@@ -93,10 +95,7 @@ class CustomLogoutView(LogoutView):
 class AdminEnrepaviMixin(LoginRequiredMixin, UserPassesTestMixin):
     """restringe acceso a usuarios del grupo ADMIN_ENREPAVI"""
     def test_func(self):
-        return (
-            self.request.user.is_superuser
-            or self.request.user.groups.filter(name='ADMIN_ENREPAVI').exists()
-        )
+        return self.request.user.es_admin_enrepavi()
 
 
 class EmpresaMixin(LoginRequiredMixin, UserPassesTestMixin):
@@ -155,7 +154,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         ctx = super().get_context_data(**kwargs)
         # tareas pendientes para el admin
         ctx['avances_pendientes'] = AvanceConstructivo.objects.filter(
-            validado_admin=False,
+            estado_revision=AvanceConstructivo.EstadoRevision.PENDIENTE,
         ).count()
         ctx['prorrogas_pendientes'] = SolicitudProrroga.objects.filter(
             estado=SolicitudProrroga.EstadoProrroga.PENDIENTE,
@@ -380,6 +379,14 @@ class RegistroEmpresaView(View):
             usuario.rol_interno = CustomUser.RolInterno.TITULAR
             usuario.save(update_fields=['empresa', 'rol_interno'])
 
+        try:
+            notificar_registro_empresa(empresa)
+        except Exception:
+            logger.exception(
+                "Error al notificar registro de empresa (pk=%s)",
+                empresa.pk,
+            )
+
         messages.success(
             request,
             f'Tu solicitud para "{empresa.razon_social}" fue enviada. '
@@ -419,15 +426,11 @@ class RegistroColaboradorExitosoView(TemplateView):
         return ctx
 
 
-def _es_admin(user):
-    return user.is_superuser or user.groups.filter(name='ADMIN_ENREPAVI').exists()
-
-
 class AdminGestionUsuariosView(LoginRequiredMixin, UserPassesTestMixin, View):
     """Listado de todos los usuarios del sistema."""
 
     def test_func(self):
-        return _es_admin(self.request.user)
+        return self.request.user.es_admin_enrepavi()
 
     def get(self, request):
         usuarios = (
@@ -490,7 +493,7 @@ class AdminCrearUsuarioView(LoginRequiredMixin, UserPassesTestMixin, View):
     """Crea un usuario de cualquier tipo desde el panel de administración."""
 
     def test_func(self):
-        return _es_admin(self.request.user)
+        return self.request.user.es_admin_enrepavi()
 
     def get(self, request):
         return render(request, 'core/admin_crear_usuario.html', {
@@ -964,7 +967,9 @@ class SolicitudListView(AdminEnrepaviMixin, ListView):
                     Empresa.Estado.FINALIZADO,
                     Empresa.Estado.ESCRITURADO,
                 ],
-                avances_constructivos__validado_admin=True,
+                avances_constructivos__estado_revision=(
+                    AvanceConstructivo.EstadoRevision.VALIDADO
+                ),
             ).distinct()
         elif grupo == 'vencidas':
             qs = qs.filter(
@@ -999,7 +1004,9 @@ class SolicitudDetailView(AdminEnrepaviMixin, DetailView):
     context_object_name = 'empresa'
 
     def get_queryset(self):
-        return Empresa.objects.prefetch_related('lotes', 'avances_constructivos')
+        return Empresa.objects.prefetch_related(
+            'lotes', 'avances_constructivos', 'consumos',
+        )
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -1026,9 +1033,12 @@ class SolicitudDetailView(AdminEnrepaviMixin, DetailView):
         ctx['lote'] = self.object.lotes.first()
         ctx['avances'] = self.object.avances_constructivos.all()
         ctx['prorrogas'] = self.object.prorrogas.select_related('resuelta_por').all()
+        ctx['consumos'] = self.object.consumos.all()
+        ctx['evaluar_form'] = EvaluarSolicitudForm()
         # verificar si tiene avance 100% validado para habilitar finalizacion
         ctx['tiene_avance_100_validado'] = self.object.avances_constructivos.filter(
-            porcentaje_declarado=100, validado_admin=True,
+            porcentaje_declarado=100,
+            estado_revision=AvanceConstructivo.EstadoRevision.VALIDADO,
         ).exists()
         # flujo preaprobación → documentación
         ctx['documentos_proyecto'] = self.object.documentos_proyecto.all()
@@ -1047,7 +1057,21 @@ class SolicitudPreAprobarView(AdminEnrepaviMixin, View):
     """
     def post(self, request, pk):
         empresa = get_object_or_404(Empresa, pk=pk, estado=Empresa.Estado.EN_EVALUACION)
-        registrar_transicion(empresa, Empresa.Estado.PRE_APROBADO, request.user, 'Pre-aprobada por administración')
+        form = EvaluarSolicitudForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, 'La observación técnica no es válida.')
+            return redirect('core:solicitud_detail', pk=pk)
+
+        observacion = form.cleaned_data['observacion']
+        justificacion = 'Pre-aprobada por administración.'
+        if observacion:
+            justificacion += f' Observación técnica: {observacion}'
+        registrar_transicion(
+            empresa,
+            Empresa.Estado.PRE_APROBADO,
+            request.user,
+            justificacion,
+        )
         messages.success(request, f'{empresa.razon_social} pre-aprobada. La empresa debe subir la documentación del proyecto.')
         return redirect('core:solicitud_detail', pk=pk)
 
@@ -1056,22 +1080,29 @@ class SolicitudRechazarView(AdminEnrepaviMixin, View):
     """accion: rechazar con justificacion obligatoria (solo EnEvaluacion o PreAprobado)"""
     ESTADOS_RECHAZABLES = [Empresa.Estado.EN_EVALUACION, Empresa.Estado.PRE_APROBADO]
 
-    def get(self, request, pk):
-        empresa = get_object_or_404(Empresa, pk=pk, estado__in=self.ESTADOS_RECHAZABLES)
-        form = RechazarSolicitudForm()
-        return render(request, 'core/solicitud_rechazar.html', {'empresa': empresa, 'form': form})
-
     def post(self, request, pk):
         empresa = get_object_or_404(Empresa, pk=pk, estado__in=self.ESTADOS_RECHAZABLES)
-        form = RechazarSolicitudForm(request.POST)
-        if form.is_valid():
-            registrar_transicion(
-                empresa, Empresa.Estado.RECHAZADO, request.user,
-                form.cleaned_data['justificacion']
+        form = EvaluarSolicitudForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, 'La observación ingresada no es válida.')
+            return redirect('core:solicitud_detail', pk=pk)
+
+        motivo = form.cleaned_data['observacion'].strip()
+        if len(motivo) < 10:
+            messages.error(
+                request,
+                'El motivo del rechazo debe tener al menos 10 caracteres.',
             )
-            messages.success(request, f'{empresa.razon_social} rechazada.')
-            return redirect('core:solicitud_list')
-        return render(request, 'core/solicitud_rechazar.html', {'empresa': empresa, 'form': form})
+            return redirect('core:solicitud_detail', pk=pk)
+
+        registrar_transicion(
+            empresa,
+            Empresa.Estado.RECHAZADO,
+            request.user,
+            motivo,
+        )
+        messages.success(request, f'{empresa.razon_social} rechazada.')
+        return redirect('core:solicitud_detail', pk=pk)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1247,41 +1278,66 @@ class DecisionFinalView(AdminEnrepaviMixin, View):
 # DESCARGA PROTEGIDA de documentos del proyecto
 # ──────────────────────────────────────────────────────────────────────────────
 
-class DescargarDocumentoView(LoginRequiredMixin, View):
+class DescargarArchivoProtegidoView(LoginRequiredMixin, View):
     """
-    Sirve un DocumentoProyecto con autenticación.
+    sirve archivos privados con autenticacion y control de empresa
+    """
 
-    Permiso: admin (grupo ADMIN_ENREPAVI) o usuario perteneciente a la empresa propietaria.
-    Usa FileResponse con as_attachment=True para forzar la descarga del archivo.
-    """
+    tipo = None
+    TIPOS = {
+        'proyecto': {
+            'model': DocumentoProyecto,
+            'campo': 'archivo',
+            'empresa_attr': 'empresa_id',
+            'nombre_attr': 'nombre_original',
+        },
+        'avance': {
+            'model': AvanceConstructivo,
+            'campo': 'certificado_pdf',
+            'empresa_attr': 'empresa_id',
+        },
+        'escritura': {
+            'model': Empresa,
+            'campo': 'escritura_pdf',
+            'empresa_attr': 'pk',
+        },
+        'solicitud_acceso': {
+            'model': SolicitudAcceso,
+            'campo': 'documentacion_pdf',
+            'solo_admin': True,
+        },
+    }
 
     def get(self, request, pk):
-        from django.http import FileResponse, Http404
-        from django.core.exceptions import PermissionDenied
-        import os
+        config = self.TIPOS[self.tipo]
+        objeto = get_object_or_404(config['model'], pk=pk)
+        es_admin = request.user.es_admin_enrepavi()
 
-        doc = get_object_or_404(DocumentoProyecto, pk=pk)
+        if config.get('solo_admin'):
+            permitido = es_admin
+        else:
+            empresa_id = getattr(objeto, config['empresa_attr'])
+            permitido = es_admin or request.user.empresa_id == empresa_id
 
-        # Verificar permiso: superusuario, miembro de ADMIN_ENREPAVI, o titular de la empresa
-        es_admin = request.user.is_superuser or request.user.groups.filter(name='ADMIN_ENREPAVI').exists()
-        es_de_empresa = (
-            hasattr(request.user, 'empresa') and request.user.empresa == doc.empresa
-        )
-        if not (es_admin or es_de_empresa):
+        if not permitido:
             raise PermissionDenied
 
-        # Abrir y servir el archivo
-        if not doc.archivo:
+        archivo = getattr(objeto, config['campo'])
+        if not archivo:
             raise Http404('El archivo no existe.')
 
-        nombre = doc.nombre_original or os.path.basename(doc.archivo.name)
+        nombre_attr = config.get('nombre_attr')
+        nombre = (
+            getattr(objeto, nombre_attr, '')
+            if nombre_attr
+            else ''
+        ) or os.path.basename(archivo.name)
         try:
-            response = FileResponse(
-                doc.archivo.open('rb'),
+            return FileResponse(
+                archivo.open('rb'),
                 as_attachment=True,
                 filename=nombre,
             )
-            return response
         except FileNotFoundError:
             raise Http404('El archivo no se encontró en el servidor.')
 
@@ -1421,7 +1477,7 @@ class AvancesPendientesView(AdminEnrepaviMixin, ListView):
 
     def get_queryset(self):
         return AvanceConstructivo.objects.filter(
-            validado_admin=False,
+            estado_revision=AvanceConstructivo.EstadoRevision.PENDIENTE,
         ).select_related('empresa').order_by('-fecha_presentacion')
 
 
@@ -1432,13 +1488,10 @@ class AvanceValidarView(AdminEnrepaviMixin, View):
             avance = get_object_or_404(
                 AvanceConstructivo.objects.select_for_update(),
                 pk=pk,
-                validado_admin=False,
+                estado_revision=AvanceConstructivo.EstadoRevision.PENDIENTE,
             )
             empresa = Empresa.objects.select_for_update().get(pk=avance.empresa_id)
-            avance.validado_admin = True
-            avance.validado_por = request.user
-            avance.fecha_validacion = timezone.now()
-            avance.save(update_fields=['validado_admin', 'validado_por', 'fecha_validacion'])
+            avance.validar(request.user)
 
             finaliza_obra = (
                 avance.porcentaje_declarado >= 100
@@ -1460,6 +1513,39 @@ class AvanceValidarView(AdminEnrepaviMixin, View):
                 request,
                 f'Avance de {empresa.razon_social} ({avance.porcentaje_declarado}%) validado.',
             )
+        return redirect('core:avances_pendientes')
+
+
+class AvanceRechazarView(AdminEnrepaviMixin, View):
+    def post(self, request, pk):
+        form = RechazarAvanceForm(request.POST)
+        if not form.is_valid():
+            messages.error(
+                request,
+                'El motivo del rechazo debe tener al menos 10 caracteres.',
+            )
+            return redirect('core:avances_pendientes')
+
+        with transaction.atomic():
+            avance = get_object_or_404(
+                AvanceConstructivo.objects.select_for_update().select_related('empresa'),
+                pk=pk,
+                estado_revision=AvanceConstructivo.EstadoRevision.PENDIENTE,
+            )
+            avance.rechazar(request.user, form.cleaned_data['motivo'])
+
+        try:
+            notificar_avance_rechazado(avance)
+        except Exception:
+            logger.exception(
+                "Error al notificar rechazo de avance (pk=%s)",
+                avance.pk,
+            )
+
+        messages.success(
+            request,
+            f'Avance de {avance.empresa.razon_social} rechazado.',
+        )
         return redirect('core:avances_pendientes')
 
 
@@ -1560,7 +1646,8 @@ class FinalizarObraView(AdminEnrepaviMixin, View):
         empresa = get_object_or_404(Empresa, pk=pk, estado=Empresa.Estado.EN_CONSTRUCCION)
         # verificar que tenga avance validado al 100%
         avance_100 = empresa.avances_constructivos.filter(
-            porcentaje_declarado=100, validado_admin=True,
+            porcentaje_declarado=100,
+            estado_revision=AvanceConstructivo.EstadoRevision.VALIDADO,
         ).exists()
         if not avance_100:
             messages.error(request, 'La empresa no tiene un avance del 100% validado.')
@@ -1783,19 +1870,50 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        puede_gestionar = (
-            self.request.user.is_superuser
-            or self.request.user.groups.filter(name='ADMIN_ENREPAVI').exists()
-        )
+        puede_gestionar = self.request.user.es_admin_enrepavi()
 
         def action_url(nombre, **params):
             if not puede_gestionar:
                 return ''
             return self._dashboard_url(nombre, **params)
 
-        empresas = Empresa.objects.filter(
-            estado__in=self.ESTADOS_ACTIVOS,
-        ).prefetch_related('lotes').order_by('razon_social')
+        ultimos_consumos = ConsumoServicio.objects.order_by(
+            'empresa_id', '-periodo_anio', '-periodo_mes',
+        ).distinct('empresa_id')
+        avances_pendientes_empresa = AvanceConstructivo.objects.filter(
+            estado_revision=AvanceConstructivo.EstadoRevision.PENDIENTE,
+        ).order_by('-fecha_presentacion')
+        prorrogas_pendientes_empresa = SolicitudProrroga.objects.filter(
+            estado=SolicitudProrroga.EstadoProrroga.PENDIENTE,
+        ).order_by('-fecha_solicitud')
+        empresas = list(
+            Empresa.objects.filter(
+                estado__in=self.ESTADOS_ACTIVOS,
+            ).prefetch_related(
+                'lotes',
+                Prefetch(
+                    'consumos',
+                    queryset=ultimos_consumos,
+                    to_attr='consumos_dashboard',
+                ),
+                Prefetch(
+                    'avances_constructivos',
+                    queryset=avances_pendientes_empresa,
+                    to_attr='avances_pendientes_dashboard',
+                ),
+                Prefetch(
+                    'prorrogas',
+                    queryset=prorrogas_pendientes_empresa,
+                    to_attr='prorrogas_pendientes_dashboard',
+                ),
+            ).order_by('razon_social')
+        )
+        for empresa in empresas:
+            empresa.ultimo_consumo_dashboard = (
+                empresa.consumos_dashboard[0]
+                if empresa.consumos_dashboard
+                else None
+            )
 
         total_lotes = Lote.objects.count()
         lotes_en_uso = Lote.objects.filter(estado=Lote.Estado.EN_USO).count()
@@ -1851,7 +1969,10 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
         # distribucion por categoria industrial (solo activas)
         categorias = []
         for idx, (valor, label) in enumerate(Empresa.CategoriaIndustrial.choices):
-            cant = empresas.filter(categoria_industrial=valor).count()
+            cant = sum(
+                empresa.categoria_industrial == valor
+                for empresa in empresas
+            )
             if cant:
                 categorias.append({
                     'label': label,
@@ -1863,7 +1984,7 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
         # distribucion por rubro (solo activas)
         rubros = []
         for idx, (valor, label) in enumerate(Empresa.Rubro.choices):
-            cant = empresas.filter(rubro=valor).count()
+            cant = sum(empresa.rubro == valor for empresa in empresas)
             if cant:
                 rubros.append({
                     'label': label,
@@ -1954,7 +2075,7 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
 
         # tareas pendientes y kpis operativos
         avances_pendientes = AvanceConstructivo.objects.filter(
-            validado_admin=False,
+            estado_revision=AvanceConstructivo.EstadoRevision.PENDIENTE,
         ).count()
         prorrogas_pendientes = SolicitudProrroga.objects.filter(
             estado=SolicitudProrroga.EstadoProrroga.PENDIENTE,
@@ -1989,7 +2110,11 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
             ).annotate(
                 max_avance_validado=Max(
                     'avances_constructivos__porcentaje_declarado',
-                    filter=Q(avances_constructivos__validado_admin=True),
+                    filter=Q(
+                        avances_constructivos__estado_revision=(
+                            AvanceConstructivo.EstadoRevision.VALIDADO
+                        )
+                    ),
                 )
             )
             .values_list('max_avance_validado', flat=True)
@@ -2096,7 +2221,7 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
 
         ctx.update({
             'empresas': empresas,
-            'total_empresas': empresas.count(),
+            'total_empresas': len(empresas),
             'total_lotes': total_lotes,
             'lotes_en_uso': lotes_en_uso,
             'lotes_disponibles': lotes_disponibles,
@@ -2441,12 +2566,7 @@ def _anotar_mensajes_es_admin(mensajes):
     mensajes = list(mensajes.select_related('autor').prefetch_related('autor__groups'))
     for m in mensajes:
         autor = m.autor
-        m.es_admin = bool(
-            autor and (
-                autor.is_superuser
-                or autor.groups.filter(name='ADMIN_ENREPAVI').exists()
-            )
-        )
+        m.es_admin = bool(autor and autor.es_admin_enrepavi())
     return mensajes
 
 

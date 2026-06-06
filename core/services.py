@@ -7,6 +7,7 @@ import logging
 
 import resend
 from django.conf import settings
+from django.utils import timezone
 from django.utils.html import escape
 
 from django.db import transaction
@@ -349,13 +350,86 @@ def _sanitizar_subject(subject):
     return limpio
 
 
-def _es_admin(user):
-    return bool(
-        user and (
-            user.is_superuser
-            or user.groups.filter(name='ADMIN_ENREPAVI').exists()
-        )
+def notificar_registro_empresa(empresa):
+    from django.template.loader import render_to_string
+
+    context = {
+        'empresa': empresa,
+        'site_url': getattr(settings, 'SITE_URL', 'http://localhost:8000'),
+    }
+    html_empresa = render_to_string(
+        'core/emails/registro_empresa_recibido.html',
+        context,
     )
+    return enviar_email_resend(
+        empresa.correo_electronico,
+        _sanitizar_subject('[GPIV] Recibimos tu solicitud de radicación'),
+        html_empresa,
+    )
+
+
+def notificar_avance_rechazado(avance):
+    from django.template.loader import render_to_string
+
+    destino = avance.empresa.correo_electronico
+    if not destino:
+        logger.warning(
+            "Empresa %s (pk=%s) sin correo_electronico. Rechazo de avance no notificado.",
+            avance.empresa.razon_social,
+            avance.empresa_id,
+        )
+        return False
+
+    html = render_to_string(
+        'core/emails/avance_rechazado.html',
+        {
+            'avance': avance,
+            'site_url': getattr(settings, 'SITE_URL', 'http://localhost:8000'),
+        },
+    )
+    return enviar_email_resend(
+        destino,
+        _sanitizar_subject(
+            f'[GPIV] Avance de obra rechazado - {avance.empresa.razon_social}'
+        ),
+        html,
+    )
+
+
+def notificar_admin_vencimientos(empresas):
+    from django.template.loader import render_to_string
+
+    empresas = list(empresas)
+    if not empresas:
+        return None
+
+    hoy = timezone.now().date()
+    vencimientos = [
+        {
+            'empresa': empresa,
+            'dias_restantes': (empresa.fecha_limite_obra - hoy).days,
+        }
+        for empresa in empresas
+    ]
+    html = render_to_string(
+        'core/emails/resumen_vencimientos_admin.html',
+        {
+            'vencimientos': vencimientos,
+            'fecha': hoy,
+            'site_url': getattr(settings, 'SITE_URL', 'http://localhost:8000'),
+        },
+    )
+    return enviar_email_resend(
+        settings.SUPPORT_INBOX_EMAIL,
+        _sanitizar_subject(
+            f'[GPIV] Resumen diario: {len(vencimientos)} obra(s) por vencer'
+        ),
+        html,
+    )
+
+
+def _es_admin(user):
+    return bool(user and user.es_admin_enrepavi())
 
 
 def notificar_ticket_mensaje(ticket, mensaje):
@@ -770,4 +844,3 @@ def notificar_admin_caducidades(registros):
         f'[GPIV] {len(registros)} caducidad(es) automática(s) ejecutada(s)'
     )
     return enviar_email_resend(settings.SUPPORT_INBOX_EMAIL, subject, html)
-

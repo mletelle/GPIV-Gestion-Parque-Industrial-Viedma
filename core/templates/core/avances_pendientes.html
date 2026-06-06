@@ -57,6 +57,24 @@
     .btn-validar:hover {
         background: var(--verde-hover);
     }
+
+    .btn-rechazar {
+        font-size: 0.82rem;
+        padding: 0.3rem 0.8rem;
+        border-radius: 5px;
+        border: none;
+        background: #DC2626;
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .acciones-avance {
+        display: flex;
+        gap: 0.4rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
 </style>
 {% endblock %}
 
@@ -83,20 +101,29 @@
                         <td>{{ avance.porcentaje_declarado }}%</td>
                         <td>{{ avance.fecha_presentacion|date:"d/m/Y" }}</td>
                         <td>
-                            <a href="{{ avance.certificado_pdf.url }}" target="_blank"
+                            <a href="{% url 'core:descargar_certificado_avance' avance.pk %}"
                                 style="color:var(--azul);font-size:0.85rem;">
-                                <i class="bi bi-file-earmark-pdf"></i> Ver PDF
+                                <i class="bi bi-download"></i> Descargar PDF
                             </a>
                         </td>
                         <td>
-                            <form method="post" action="{% url 'core:avance_validar' avance.pk %}"
-                                style="display:inline;">
-                                {% csrf_token %}
-                                <button type="submit" class="btn-validar"
-                                    onclick="return confirm('¿Validar este avance de {{ avance.porcentaje_declarado }}%?')">
-                                    <i class="bi bi-check-lg"></i> Validar
+                            <div class="acciones-avance">
+                                <form method="post" action="{% url 'core:avance_validar' avance.pk %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn-validar"
+                                        onclick="return confirm('¿Validar este avance de {{ avance.porcentaje_declarado }}%?')">
+                                        <i class="bi bi-check-lg"></i> Validar
+                                    </button>
+                                </form>
+                                <button type="button" class="btn-rechazar"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#modalRechazarAvance"
+                                    data-url="{% url 'core:avance_rechazar' avance.pk %}"
+                                    data-empresa="{{ avance.empresa.razon_social }}"
+                                    data-porcentaje="{{ avance.porcentaje_declarado }}">
+                                    <i class="bi bi-x-lg"></i> Rechazar
                                 </button>
-                            </form>
+                            </div>
                         </td>
                     </tr>
                     {% empty %}
@@ -131,6 +158,65 @@
             </ul>
         </nav>
         {% endif %}
+
+        {% if avances %}
+        <div class="modal fade" id="modalRechazarAvance" tabindex="-1"
+            aria-labelledby="modalRechazarAvanceTitulo" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <form method="post" id="formRechazarAvance">
+                        {% csrf_token %}
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="modalRechazarAvanceTitulo">
+                                Rechazar avance
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="mb-3" id="modalRechazarAvanceDetalle"></p>
+                            <label for="motivoRechazoAvance" class="form-label fw-semibold">
+                                Motivo del rechazo
+                            </label>
+                            <textarea id="motivoRechazoAvance" name="motivo"
+                                class="form-control" rows="4" minlength="10"
+                                maxlength="2000" required
+                                placeholder="Indicá por qué el avance no cumple los criterios."></textarea>
+                            <div class="form-text">
+                                El motivo se mostrará a la empresa y se enviará por email.
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary"
+                                data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-danger">
+                                Rechazar avance
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if avances %}
+<script>
+    const modalRechazarAvance = document.getElementById('modalRechazarAvance');
+    const formRechazarAvance = document.getElementById('formRechazarAvance');
+    const motivoRechazoAvance = document.getElementById('motivoRechazoAvance');
+    const detalleRechazoAvance = document.getElementById('modalRechazarAvanceDetalle');
+
+    modalRechazarAvance.addEventListener('show.bs.modal', (event) => {
+        const boton = event.relatedTarget;
+        formRechazarAvance.action = boton.dataset.url;
+        motivoRechazoAvance.value = '';
+        detalleRechazoAvance.textContent =
+            `${boton.dataset.empresa} - avance declarado: ${boton.dataset.porcentaje}%`;
+    });
+</script>
+{% endif %}
 {% endblock %}

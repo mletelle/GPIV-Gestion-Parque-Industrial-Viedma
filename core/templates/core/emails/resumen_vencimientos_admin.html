@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<body style="font-family:Arial,sans-serif;color:#374151;">
+  <h2 style="color:#B45309;">Resumen diario de vencimientos</h2>
+  <p>Obras con plazo próximo a vencer al {{ fecha|date:"d/m/Y" }}.</p>
+  <table style="border-collapse:collapse;width:100%;">
+    <thead>
+      <tr style="background:#F3F4F6;">
+        <th style="padding:8px;text-align:left;">Empresa</th>
+        <th style="padding:8px;text-align:left;">Fecha límite</th>
+        <th style="padding:8px;text-align:left;">Días restantes</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in vencimientos %}
+      <tr>
+        <td style="padding:8px;border-bottom:1px solid #E5E7EB;">
+          {{ item.empresa.razon_social }}
+        </td>
+        <td style="padding:8px;border-bottom:1px solid #E5E7EB;">
+          {{ item.empresa.fecha_limite_obra|date:"d/m/Y" }}
+        </td>
+        <td style="padding:8px;border-bottom:1px solid #E5E7EB;">
+          {{ item.dias_restantes }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p>Ingresá al panel: <a href="{{ site_url }}">{{ site_url }}</a>.</p>
+  <hr>
+  <p style="font-size:12px;color:#6B7280;">
+    Mensaje automático del Sistema de Gestión del Parque Industrial de Viedma.
+  </p>
+</body>
+</html>

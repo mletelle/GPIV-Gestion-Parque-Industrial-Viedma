@@ -248,12 +248,6 @@
         {% if puede_subir_documentacion %}
             {% if documentacion_subida %}
             <div class="doc-enviado-block">
-                <i class="bi bi-folder2-open"></i>
-
-        {# ── Acción: subir documentación (PRE_APROBADO) #}
-        {% if puede_subir_documentacion %}
-            {% if documentacion_subida %}
-            <div class="doc-enviado-block">
                 <div style="flex:1;">
                     <strong style="color:#15803D;display:block;">
                         {{ documentos_proyecto.count }} archivo{{ documentos_proyecto.count|pluralize:"s" }} enviado{{ documentos_proyecto.count|pluralize:"s" }}
@@ -265,7 +259,7 @@
                         {% for doc in documentos_proyecto %}
                         <li style="display:flex;align-items:center;gap:0.5rem;font-size:0.83rem;">
                             <i class="bi bi-file-earmark" style="color:#6B7280;font-size:1rem;"></i>
-                            <a href="{{ doc.archivo.url }}" target="_blank" rel="noopener noreferrer"
+                            <a href="{% url 'core:descargar_documento' doc.pk %}"
                                 style="flex:1;color:#374151;text-decoration:none;">
                                 {{ doc.nombre_original|default:doc.archivo.name }}
                             </a>
@@ -527,15 +521,23 @@
                     <span style="color:var(--gris-suave);font-size:0.82rem;">— {{ avance.fecha_presentacion|date:"d/m/Y" }}</span>
                 </div>
                 <div>
-                    {% if avance.validado_admin %}
+                    {% if avance.estado_revision == 'Validado' %}
                     <span
                         style="background:#DCFCE7;color:#166534;font-size:0.72rem;padding:0.15rem 0.4rem;border-radius:4px;font-weight:700;">Validado</span>
+                    {% elif avance.estado_revision == 'Rechazado' %}
+                    <span
+                        style="background:#FEE2E2;color:#991B1B;font-size:0.72rem;padding:0.15rem 0.4rem;border-radius:4px;font-weight:700;">Rechazado</span>
                     {% else %}
                     <span
                         style="background:#FEF3C7;color:#92400E;font-size:0.72rem;padding:0.15rem 0.4rem;border-radius:4px;font-weight:700;">Pendiente</span>
                     {% endif %}
                 </div>
             </div>
+            {% if avance.observacion_revision %}
+            <p style="margin:0.2rem 0 0.7rem;font-size:0.82rem;color:#991B1B;">
+                <strong>Motivo:</strong> {{ avance.observacion_revision }}
+            </p>
+            {% endif %}
             {% endfor %}
         </div>
         {% endif %}

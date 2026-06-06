@@ -181,9 +181,9 @@
                         <td>{{ s.get_tipo_acceso_display }}</td>
                         <td>
                             {% if s.documentacion_pdf %}
-                            <a href="{{ s.documentacion_pdf.url }}" target="_blank" rel="noopener noreferrer"
-                                title="Ver PDF" style="color:#DC2626;">
-                                <i class="bi bi-file-earmark-pdf fs-5"></i>
+                            <a href="{% url 'core:descargar_documentacion_acceso' s.pk %}"
+                                title="Descargar PDF" style="color:#DC2626;">
+                                <i class="bi bi-download fs-5"></i>
                             </a>
                             {% else %}
                             <span style="color:var(--gris-suave);">—</span>

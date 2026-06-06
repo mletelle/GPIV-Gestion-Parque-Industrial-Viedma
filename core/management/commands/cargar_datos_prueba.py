@@ -17,17 +17,22 @@ El listado completo queda en el README.
 """
 from datetime import timedelta
 from decimal import Decimal
+from io import BytesIO
 
 from django.contrib.auth.models import Group
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
+from reportlab.pdfgen import canvas
 
 from core.models import (
     ActivoInventario,
     AvanceConstructivo,
     ConsumoServicio,
     CustomUser,
+    DocumentoProyecto,
     Empresa,
     Lote,
     MensajeTicket,
@@ -36,6 +41,10 @@ from core.models import (
     Ticket,
     TransicionEstado,
 )
+
+AVANCE_PENDIENTE = AvanceConstructivo.EstadoRevision.PENDIENTE
+AVANCE_VALIDADO = AvanceConstructivo.EstadoRevision.VALIDADO
+AVANCE_RECHAZADO = AvanceConstructivo.EstadoRevision.RECHAZADO
 
 
 PASSWORD_DEFAULT = 'gpiv1234'
@@ -204,6 +213,22 @@ EMPRESAS_PRUEBA = [
         'miembros_estandar': [],
     },
     {
+        'username': 'empresa_celta',
+        'email': 'celta@test.local',
+        'razon_social': 'Celta Quimica S.R.L.',
+        'cuit': '30-23232323-2',
+        'rubro': Empresa.Rubro.BIENES,
+        'categoria_industrial': Empresa.CategoriaIndustrial.QUIMICA,
+        'tipo_empresa': Empresa.TipoEmpresa.NUEVA,
+        'necesidad_m2': '2000a5000',
+        'estado': Empresa.Estado.LISTO_ADJUDICAR,
+        'parcela': None,
+        'fecha_limite_offset_dias': None,
+        'documentos_proyecto': ['proyecto_productivo_celta.pdf'],
+        'avances': [],
+        'miembros_estandar': [],
+    },
+    {
         'username': 'empresa_gamma',
         'email': 'gamma@test.local',
         'razon_social': 'Gamma Quimica S.A.',
@@ -249,7 +274,7 @@ EMPRESAS_PRUEBA = [
         # vencimiento a 18 dias para aparecer en el dashboard
         'parcela': 29,
         'fecha_limite_offset_dias': 18,
-        'avances': [(25, True), (55, True)],
+        'avances': [(25, AVANCE_VALIDADO), (55, AVANCE_VALIDADO)],
         # equipo con 2 miembros: ejercita flujo de transferencia de titularidad
         'miembros_estandar': [
             ('miembro_epsilon_1', 'miembro1.epsilon@test.local', 'Rodrigo Perez'),
@@ -269,7 +294,7 @@ EMPRESAS_PRUEBA = [
         # vencimiento urgente a 7 dias
         'parcela': 30,
         'fecha_limite_offset_dias': 7,
-        'avances': [(30, True), (60, False)],
+        'avances': [(30, AVANCE_VALIDADO), (60, AVANCE_RECHAZADO)],
         'miembros_estandar': [],
     },
     {
@@ -284,7 +309,11 @@ EMPRESAS_PRUEBA = [
         'estado': Empresa.Estado.FINALIZADO,
         'parcela': 36,
         'fecha_limite_offset_dias': 60,
-        'avances': [(40, True), (75, True), (100, True)],
+        'avances': [
+            (40, AVANCE_VALIDADO),
+            (75, AVANCE_VALIDADO),
+            (100, AVANCE_VALIDADO),
+        ],
         'miembros_estandar': [],
     },
     {
@@ -299,7 +328,7 @@ EMPRESAS_PRUEBA = [
         'estado': Empresa.Estado.FINALIZADO,
         'parcela': 6,
         'fecha_limite_offset_dias': 90,
-        'avances': [(50, True), (100, True)],
+        'avances': [(50, AVANCE_VALIDADO), (100, AVANCE_VALIDADO)],
         'miembros_estandar': [],
     },
     # empresas "viejas" sin usuario asignado, ya escrituradas
@@ -315,7 +344,7 @@ EMPRESAS_PRUEBA = [
         'estado': Empresa.Estado.ESCRITURADO,
         'parcela': 15,
         'fecha_limite_offset_dias': None,
-        'avances': [(100, True)],
+        'avances': [(100, AVANCE_VALIDADO)],
         'miembros_estandar': [],
     },
     {
@@ -330,7 +359,7 @@ EMPRESAS_PRUEBA = [
         'estado': Empresa.Estado.ESCRITURADO,
         'parcela': 7,
         'fecha_limite_offset_dias': None,
-        'avances': [(100, True)],
+        'avances': [(100, AVANCE_VALIDADO)],
         'miembros_estandar': [],
     },
     # caducada: vencio el plazo de obra, todavia sin baja
@@ -346,7 +375,7 @@ EMPRESAS_PRUEBA = [
         'estado': Empresa.Estado.CADUCADO,
         'parcela': 31,
         'fecha_limite_offset_dias': -45,
-        'avances': [(15, True), (30, False)],
+        'avances': [(15, AVANCE_VALIDADO), (30, AVANCE_PENDIENTE)],
         'miembros_estandar': [],
     },
     # baja historica: lote liberado, registro conservado por trazabilidad
@@ -362,7 +391,7 @@ EMPRESAS_PRUEBA = [
         'estado': Empresa.Estado.HISTORICO_BAJA,
         'parcela': None,
         'fecha_limite_offset_dias': None,
-        'avances': [(20, True)],
+        'avances': [(20, AVANCE_VALIDADO)],
         'miembros_estandar': [],
     },
 ]
@@ -831,24 +860,42 @@ def _consumos_para(empresa, meses=6):
 
 def _normalizar_avances(avances):
     normalizados = []
-    for pct, validado in avances:
+    estados_validos = set(AvanceConstructivo.EstadoRevision.values)
+    for pct, estado_revision in avances:
         porcentaje = Decimal(str(pct)).quantize(Decimal('0.01'))
         if porcentaje < 0:
             raise ValueError('Los avances de prueba no pueden ser negativos.')
         if porcentaje > Decimal('100.00'):
             porcentaje = Decimal('100.00')
-        normalizados.append((porcentaje, bool(validado)))
+        if estado_revision not in estados_validos:
+            raise ValueError('El estado de revisión del avance no es válido.')
+        normalizados.append((porcentaje, estado_revision))
     return normalizados
 
 
 def _estado_coherente_con_avances(estado, avances):
     tiene_100_validado = any(
-        validado and porcentaje >= Decimal('100.00')
-        for porcentaje, validado in avances
+        estado_revision == AVANCE_VALIDADO
+        and porcentaje >= Decimal('100.00')
+        for porcentaje, estado_revision in avances
     )
     if estado == Empresa.Estado.EN_CONSTRUCCION and tiene_100_validado:
         return Empresa.Estado.FINALIZADO
     return estado
+
+
+def _generar_pdf_proyecto_demo(empresa):
+    contenido = BytesIO()
+    pdf = canvas.Canvas(contenido)
+    pdf.setTitle(f'Proyecto productivo - {empresa.razon_social}')
+    pdf.setFont('Helvetica-Bold', 16)
+    pdf.drawString(72, 780, 'Proyecto productivo')
+    pdf.setFont('Helvetica', 11)
+    pdf.drawString(72, 750, empresa.razon_social)
+    pdf.drawString(72, 730, f'CUIT: {empresa.cuit}')
+    pdf.drawString(72, 700, 'Documento de prueba para demostrar la adjudicacion de lote.')
+    pdf.save()
+    return contenido.getvalue()
 
 
 class Command(BaseCommand):
@@ -1006,6 +1053,22 @@ class Command(BaseCommand):
             usuario.rol_interno = CustomUser.RolInterno.TITULAR
             usuario.save(update_fields=['empresa', 'rol_interno'])
 
+        empresa.documentos_proyecto.all().delete()
+        for nombre_archivo in spec.get('documentos_proyecto', []):
+            ruta_archivo = f'documentacion_proyecto/{nombre_archivo}'
+            default_storage.delete(ruta_archivo)
+            documento = DocumentoProyecto(
+                empresa=empresa,
+                nombre_original=nombre_archivo,
+                subido_por=usuario,
+            )
+            documento.archivo.save(
+                nombre_archivo,
+                ContentFile(_generar_pdf_proyecto_demo(empresa)),
+                save=False,
+            )
+            documento.save()
+
         # crear y vincular miembros ESTANDAR
         for uname, uemail, unombre in spec.get('miembros_estandar', []):
             miembro, _ = _crear_user(
@@ -1031,14 +1094,24 @@ class Command(BaseCommand):
         admin_user = CustomUser.objects.filter(
             groups__name='ADMIN_ENREPAVI',
         ).first()
-        for pct, validado in avances:
+        for pct, estado_revision in avances:
+            revisado = estado_revision != AVANCE_PENDIENTE
             AvanceConstructivo.objects.create(
                 empresa=empresa,
                 porcentaje_declarado=pct,
                 certificado_pdf='certificados/placeholder.pdf',
-                validado_admin=validado,
-                validado_por=admin_user if validado else None,
-                fecha_validacion=timezone.now() - timedelta(days=30) if validado else None,
+                estado_revision=estado_revision,
+                observacion_revision=(
+                    'El certificado no permite verificar el avance declarado.'
+                    if estado_revision == AVANCE_RECHAZADO
+                    else ''
+                ),
+                revisado_por=admin_user if revisado else None,
+                fecha_revision=(
+                    timezone.now() - timedelta(days=30)
+                    if revisado
+                    else None
+                ),
             )
 
         # limpiar historial y dejar una transicion representativa
@@ -1048,7 +1121,11 @@ class Command(BaseCommand):
             estado_anterior=None,
             estado_nuevo=estado,
             usuario=usuario,
-            justificacion_resolucion='Cargado por cargar_datos_prueba',
+            justificacion_resolucion=(
+                'Cargado por cargar_datos_prueba con documentacion aprobada.'
+                if spec.get('documentos_proyecto')
+                else 'Cargado por cargar_datos_prueba'
+            ),
         )
 
         # recrear consumos coherentes con el estado

@@ -9,13 +9,17 @@ import tempfile
 from datetime import date, timedelta
 from decimal import Decimal
 from io import StringIO
+from pathlib import Path
 from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import Group
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
+from django.template.loader import get_template
 from django.test import TestCase, RequestFactory, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -23,13 +27,16 @@ from simple_history.models import HistoricalRecords
 
 from core.forms import RegistroColaboradorForm, RegistroEmpresaWizardForm
 from core.models import (
-    Empresa, Lote, TransicionEstado, AvanceConstructivo,
+    Empresa, DocumentoProyecto, Lote, TransicionEstado, AvanceConstructivo,
     SolicitudProrroga, ConsumoServicio, Ticket, MensajeTicket,
     ActivoInventario, SolicitudAcceso, AvisoVencimiento,
     CaducidadRegistro, CustomUser,
 )
 from core.services import (
     enviar_aviso_vencimiento,
+    notificar_registro_empresa,
+    notificar_avance_rechazado,
+    notificar_admin_vencimientos,
     ejecutar_caducidad,
     notificar_admin_caducidades,
     tiene_prorroga_vigente,
@@ -39,11 +46,22 @@ from core.services import (
     NoSePuedeDegradarTitularError,
 )
 from core.management.commands.cargar_datos_prueba import (
+    AVANCE_VALIDADO,
     _estado_coherente_con_avances,
     _normalizar_avances,
 )
 
 User = get_user_model()
+
+
+class TemplatesCompilanTests(TestCase):
+    def test_todos_los_templates_compilan(self):
+        template_root = Path(settings.BASE_DIR) / "core" / "templates"
+
+        for template_path in template_root.rglob("*.html"):
+            template_name = template_path.relative_to(template_root).as_posix()
+            with self.subTest(template=template_name):
+                get_template(template_name)
 
 
 def _crear_empresa(**overrides):
@@ -370,11 +388,12 @@ class HistorialModelosComplementariosTest(TestCase):
         )
         self.assertEqual(av.history.count(), 1)
 
-        # edición
-        av.validado_admin = True
-        av.save(update_fields=['validado_admin'])
+        av.validar(self.user)
         self.assertEqual(av.history.count(), 2)
-        self.assertTrue(av.history.first().validado_admin)
+        self.assertEqual(
+            av.history.first().estado_revision,
+            AvanceConstructivo.EstadoRevision.VALIDADO,
+        )
 
     def test_solicitud_prorroga(self):
         sp = SolicitudProrroga.objects.create(
@@ -636,6 +655,79 @@ class AvisoVencimientoServiceTest(TestCase):
     RESEND_API_KEY='test-key-fake',
     SITE_URL='http://localhost:8000',
     DEFAULT_FROM_EMAIL='test@gpiv.local',
+    SUPPORT_INBOX_EMAIL='admin@gpiv.local',
+)
+class NotificacionesFuncionalesTests(TestCase):
+    @patch(MOCK_RESEND_PATH, return_value={'id': 'mock-id'})
+    def test_registro_notifica_a_la_empresa(self, mock_email):
+        empresa_registrada = _crear_empresa(
+            razon_social='Registro Email SA',
+            correo_electronico='empresa@gpiv.local',
+        )
+
+        resultado = notificar_registro_empresa(empresa_registrada)
+
+        self.assertTrue(resultado)
+        mock_email.assert_called_once()
+        self.assertEqual(mock_email.call_args.args[0], 'empresa@gpiv.local')
+
+    @patch(MOCK_RESEND_PATH, return_value={'id': 'mock-id'})
+    def test_rechazo_de_avance_incluye_motivo_en_email(self, mock_email):
+        empresa_obras = _crear_empresa(
+            razon_social='Obra Email SA',
+            correo_electronico='obra@gpiv.local',
+        )
+        avance = AvanceConstructivo.objects.create(
+            empresa=empresa_obras,
+            porcentaje_declarado=Decimal('40.00'),
+            certificado_pdf=SimpleUploadedFile(
+                'avance.pdf', b'%PDF-1.4', content_type='application/pdf',
+            ),
+            estado_revision=AvanceConstructivo.EstadoRevision.RECHAZADO,
+            observacion_revision='Falta la firma del director de obra.',
+        )
+
+        resultado = notificar_avance_rechazado(avance)
+
+        self.assertTrue(resultado)
+        mock_email.assert_called_once()
+        self.assertEqual(mock_email.call_args.args[0], 'obra@gpiv.local')
+        self.assertIn(
+            'Falta la firma del director de obra.',
+            mock_email.call_args.args[2],
+        )
+
+    @patch(MOCK_RESEND_PATH, return_value={'id': 'mock-id'})
+    def test_resumen_admin_envia_un_email_para_varias_empresas(self, mock_email):
+        hoy = timezone.now().date()
+        empresa_urgente = _crear_empresa(
+            razon_social='Urgente Resumen SA',
+            cuit='30-11111111-1',
+            fecha_limite_obra=hoy + timedelta(days=5),
+        )
+        empresa_proxima = _crear_empresa(
+            razon_social='Proxima Resumen SA',
+            cuit='30-22222222-2',
+            fecha_limite_obra=hoy + timedelta(days=20),
+        )
+
+        resultado = notificar_admin_vencimientos([
+            empresa_urgente,
+            empresa_proxima,
+        ])
+
+        self.assertTrue(resultado)
+        mock_email.assert_called_once()
+        self.assertEqual(mock_email.call_args.args[0], 'admin@gpiv.local')
+        html = mock_email.call_args.args[2]
+        self.assertIn('Urgente Resumen SA', html)
+        self.assertIn('Proxima Resumen SA', html)
+
+
+@override_settings(
+    RESEND_API_KEY='test-key-fake',
+    SITE_URL='http://localhost:8000',
+    DEFAULT_FROM_EMAIL='test@gpiv.local',
 )
 class NotificarVencimientosCommandTest(TestCase):
     """tests del management command notificar_vencimientos."""
@@ -659,7 +751,7 @@ class NotificarVencimientosCommandTest(TestCase):
         aviso = AvisoVencimiento.objects.first()
         self.assertEqual(aviso.nivel, AvisoVencimiento.Nivel.URGENTE)
         self.assertIn('Avisos urgentes: 1', out.getvalue())
-        mock_email.assert_called_once()
+        self.assertEqual(mock_email.call_count, 2)
 
     @patch(MOCK_RESEND_PATH, return_value={'id': 'mock-id'})
     def test_proximo_recibe_email(self, mock_email):
@@ -697,7 +789,7 @@ class NotificarVencimientosCommandTest(TestCase):
         call_command('notificar_vencimientos', stdout=out)
 
         self.assertEqual(AvisoVencimiento.objects.count(), 1)
-        mock_email.assert_not_called()
+        mock_email.assert_called_once()
         self.assertIn('Avisos urgentes: 0', out.getvalue())
 
     @patch(MOCK_RESEND_PATH, return_value={'id': 'mock-id'})
@@ -723,7 +815,7 @@ class NotificarVencimientosCommandTest(TestCase):
             AvisoVencimiento.objects.latest('fecha_envio').nivel,
             AvisoVencimiento.Nivel.URGENTE,
         )
-        mock_email.assert_called_once()
+        self.assertEqual(mock_email.call_count, 2)
         self.assertIn('Avisos urgentes: 1', out.getvalue())
 
     @patch(MOCK_RESEND_PATH, return_value={'id': 'mock-id'})
@@ -797,7 +889,7 @@ class NotificarVencimientosCommandTest(TestCase):
         call_command('notificar_vencimientos', stdout=out)
 
         self.assertEqual(AvisoVencimiento.objects.count(), 2)
-        self.assertEqual(mock_email.call_count, 2)
+        self.assertEqual(mock_email.call_count, 3)
 
         niveles = set(
             AvisoVencimiento.objects.values_list('nivel', flat=True)
@@ -1490,7 +1582,11 @@ class TempMediaMixin:
 
 
 class RegistroEmpresaTests(TestCase):
-    def test_registro_crea_usuario_empresa_estado_inicial_y_trazabilidad(self):
+    @patch("core.views.notificar_registro_empresa")
+    def test_registro_crea_usuario_empresa_estado_inicial_y_trazabilidad(
+        self,
+        mock_notificar,
+    ):
         response = self.client.post(reverse("core:registro_empresa"), payload_registro())
 
         self.assertRedirects(response, reverse("core:login"))
@@ -1511,6 +1607,7 @@ class RegistroEmpresaTests(TestCase):
                 justificacion_resolucion__icontains="wizard de registro",
             ).exists()
         )
+        mock_notificar.assert_called_once_with(nueva_empresa)
 
     def test_registro_rechaza_cuit_invalido_y_cuit_repetido(self):
         form_cuit_invalido = RegistroEmpresaWizardForm(
@@ -1543,6 +1640,29 @@ class EvaluacionSolicitudTests(TestCase):
         self.client.force_login(usuario_empresa)
         response_empresa = self.client.get(reverse("core:solicitud_list"))
         self.assertEqual(response_empresa.status_code, 403)
+
+    def test_detalle_reutiliza_una_observacion_para_preaprobar_o_rechazar(self):
+        solicitud = empresa(cuit="30-00000031-1")
+        self.client.force_login(self.admin)
+
+        response = self.client.get(
+            reverse("core:solicitud_detail", args=[solicitud.pk]),
+        )
+
+        self.assertContains(response, 'name="observacion"', count=1)
+        self.assertContains(
+            response,
+            'data-bs-target="#modalEvaluarSolicitud"',
+            count=2,
+        )
+        self.assertContains(
+            response,
+            reverse("core:solicitud_preaprobar", args=[solicitud.pk]),
+        )
+        self.assertContains(
+            response,
+            reverse("core:solicitud_rechazar", args=[solicitud.pk]),
+        )
 
     def test_solicitud_list_oculta_motivo_y_detalle_lo_muestra(self):
         solicitud = empresa(
@@ -1617,9 +1737,11 @@ class EvaluacionSolicitudTests(TestCase):
     def test_preaprobar_cambia_estado_y_registra_transicion(self):
         solicitud = empresa(cuit="30-00000002-2")
         self.client.force_login(self.admin)
+        observacion = "La actividad es compatible con la infraestructura disponible."
 
         response = self.client.post(
-            reverse("core:solicitud_preaprobar", args=[solicitud.pk])
+            reverse("core:solicitud_preaprobar", args=[solicitud.pk]),
+            {"observacion": observacion},
         )
 
         self.assertRedirects(response, reverse("core:solicitud_detail", args=[solicitud.pk]))
@@ -1631,6 +1753,7 @@ class EvaluacionSolicitudTests(TestCase):
                 estado_anterior=Empresa.Estado.EN_EVALUACION,
                 estado_nuevo=Empresa.Estado.PRE_APROBADO,
                 usuario=self.admin,
+                justificacion_resolucion__icontains=observacion,
             ).exists()
         )
 
@@ -1640,17 +1763,24 @@ class EvaluacionSolicitudTests(TestCase):
 
         response_invalida = self.client.post(
             reverse("core:solicitud_rechazar", args=[solicitud.pk]),
-            {"justificacion": "corta"},
+            {"observacion": "corta"},
         )
-        self.assertEqual(response_invalida.status_code, 200)
+        self.assertRedirects(
+            response_invalida,
+            reverse("core:solicitud_detail", args=[solicitud.pk]),
+        )
         solicitud.refresh_from_db()
         self.assertEqual(solicitud.estado, Empresa.Estado.EN_EVALUACION)
 
         response_valida = self.client.post(
             reverse("core:solicitud_rechazar", args=[solicitud.pk]),
-            {"justificacion": "No cumple con la documentacion tecnica minima"},
+            {"observacion": "No cumple con la documentacion tecnica minima"},
+            follow=True,
         )
-        self.assertRedirects(response_valida, reverse("core:solicitud_list"))
+        self.assertRedirects(
+            response_valida,
+            reverse("core:solicitud_detail", args=[solicitud.pk]),
+        )
         solicitud.refresh_from_db()
         self.assertEqual(solicitud.estado, Empresa.Estado.RECHAZADO)
         self.assertTrue(
@@ -1787,7 +1917,10 @@ class AvancesProrrogasYBajaTests(TempMediaMixin, TestCase):
         self.assertRedirects(response, reverse("core:mi_solicitud"))
         avance = AvanceConstructivo.objects.get(empresa=self.empresa)
         self.assertEqual(avance.porcentaje_declarado, Decimal("35.50"))
-        self.assertFalse(avance.validado_admin)
+        self.assertEqual(
+            avance.estado_revision,
+            AvanceConstructivo.EstadoRevision.PENDIENTE,
+        )
         self.empresa.refresh_from_db()
         self.assertEqual(self.empresa.estado, Empresa.Estado.EN_CONSTRUCCION)
         self.assertTrue(
@@ -1827,9 +1960,124 @@ class AvancesProrrogasYBajaTests(TempMediaMixin, TestCase):
 
         self.assertRedirects(response, reverse("core:avances_pendientes"))
         avance.refresh_from_db()
-        self.assertTrue(avance.validado_admin)
-        self.assertEqual(avance.validado_por, self.admin)
-        self.assertIsNotNone(avance.fecha_validacion)
+        self.assertEqual(
+            avance.estado_revision,
+            AvanceConstructivo.EstadoRevision.VALIDADO,
+        )
+        self.assertEqual(avance.revisado_por, self.admin)
+        self.assertIsNotNone(avance.fecha_revision)
+
+    def test_lista_usa_un_unico_modal_para_rechazar_avances(self):
+        for porcentaje in ("20.00", "40.00"):
+            AvanceConstructivo.objects.create(
+                empresa=self.empresa,
+                porcentaje_declarado=Decimal(porcentaje),
+                certificado_pdf=SimpleUploadedFile(
+                    f"avance-{porcentaje}.pdf",
+                    b"%PDF-1.4",
+                    content_type="application/pdf",
+                ),
+            )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("core:avances_pendientes"))
+
+        self.assertContains(response, 'id="modalRechazarAvance"', count=1)
+        self.assertContains(
+            response,
+            'data-bs-target="#modalRechazarAvance"',
+            count=2,
+        )
+        self.assertContains(response, 'name="motivo"', count=1)
+
+    def test_avance_revisado_no_puede_volver_a_revisarse(self):
+        avance = AvanceConstructivo.objects.create(
+            empresa=self.empresa,
+            porcentaje_declarado=Decimal("20.00"),
+            certificado_pdf=SimpleUploadedFile(
+                "avance.pdf", b"%PDF-1.4", content_type="application/pdf"
+            ),
+        )
+        avance.validar(self.admin)
+
+        with self.assertRaisesMessage(ValidationError, "El avance ya fue revisado."):
+            avance.rechazar(
+                self.admin,
+                "El certificado no tiene la firma correspondiente.",
+            )
+
+    def test_modelo_exige_motivo_para_rechazar_avance(self):
+        avance = AvanceConstructivo.objects.create(
+            empresa=self.empresa,
+            porcentaje_declarado=Decimal("20.00"),
+            certificado_pdf=SimpleUploadedFile(
+                "avance.pdf", b"%PDF-1.4", content_type="application/pdf"
+            ),
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "El motivo del rechazo debe tener al menos 10 caracteres.",
+        ):
+            avance.rechazar(self.admin, "corto")
+
+    @patch("core.views.notificar_avance_rechazado")
+    def test_admin_rechaza_avance_con_motivo_y_notifica_empresa(
+        self,
+        mock_notificar,
+    ):
+        avance = AvanceConstructivo.objects.create(
+            empresa=self.empresa,
+            porcentaje_declarado=Decimal("20.00"),
+            certificado_pdf=SimpleUploadedFile(
+                "avance.pdf", b"%PDF-1.4", content_type="application/pdf"
+            ),
+        )
+        motivo = "El certificado no tiene la firma del director de obra."
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("core:avance_rechazar", args=[avance.pk]),
+            {"motivo": motivo},
+        )
+
+        self.assertRedirects(response, reverse("core:avances_pendientes"))
+        avance.refresh_from_db()
+        self.assertEqual(
+            avance.estado_revision,
+            AvanceConstructivo.EstadoRevision.RECHAZADO,
+        )
+        self.assertEqual(avance.observacion_revision, motivo)
+        self.assertEqual(avance.revisado_por, self.admin)
+        self.assertIsNotNone(avance.fecha_revision)
+        mock_notificar.assert_called_once_with(avance)
+
+        self.client.force_login(self.usuario_empresa)
+        response_empresa = self.client.get(reverse("core:mi_solicitud"))
+        self.assertContains(response_empresa, "Rechazado")
+        self.assertContains(response_empresa, motivo)
+
+    def test_rechazo_de_avance_exige_motivo_suficiente(self):
+        avance = AvanceConstructivo.objects.create(
+            empresa=self.empresa,
+            porcentaje_declarado=Decimal("20.00"),
+            certificado_pdf=SimpleUploadedFile(
+                "avance.pdf", b"%PDF-1.4", content_type="application/pdf"
+            ),
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("core:avance_rechazar", args=[avance.pk]),
+            {"motivo": "corto"},
+        )
+
+        self.assertRedirects(response, reverse("core:avances_pendientes"))
+        avance.refresh_from_db()
+        self.assertEqual(
+            avance.estado_revision,
+            AvanceConstructivo.EstadoRevision.PENDIENTE,
+        )
 
     def test_avance_mayor_a_100_se_guarda_como_100(self):
         self.client.force_login(self.usuario_empresa)
@@ -1878,7 +2126,10 @@ class AvancesProrrogasYBajaTests(TempMediaMixin, TestCase):
         self.assertRedirects(response, reverse("core:avances_pendientes"))
         avance.refresh_from_db()
         self.empresa.refresh_from_db()
-        self.assertTrue(avance.validado_admin)
+        self.assertEqual(
+            avance.estado_revision,
+            AvanceConstructivo.EstadoRevision.VALIDADO,
+        )
         self.assertEqual(self.empresa.estado, Empresa.Estado.FINALIZADO)
         self.assertTrue(
             TransicionEstado.objects.filter(
@@ -1906,9 +2157,12 @@ class AvancesProrrogasYBajaTests(TempMediaMixin, TestCase):
 
         avance.refresh_from_db()
         self.empresa.refresh_from_db()
-        self.assertFalse(avance.validado_admin)
-        self.assertIsNone(avance.validado_por)
-        self.assertIsNone(avance.fecha_validacion)
+        self.assertEqual(
+            avance.estado_revision,
+            AvanceConstructivo.EstadoRevision.PENDIENTE,
+        )
+        self.assertIsNone(avance.revisado_por)
+        self.assertIsNone(avance.fecha_revision)
         self.assertEqual(self.empresa.estado, Empresa.Estado.EN_CONSTRUCCION)
         self.assertFalse(
             TransicionEstado.objects.filter(
@@ -1923,8 +2177,8 @@ class AvancesProrrogasYBajaTests(TempMediaMixin, TestCase):
         AvanceConstructivo.objects.create(
             empresa=self.empresa,
             porcentaje_declarado=Decimal("100.00"),
-            validado_admin=True,
-            validado_por=self.admin,
+            estado_revision=AvanceConstructivo.EstadoRevision.VALIDADO,
+            revisado_por=self.admin,
             certificado_pdf=SimpleUploadedFile(
                 "avance.pdf", b"%PDF-1.4", content_type="application/pdf"
             ),
@@ -1935,6 +2189,48 @@ class AvancesProrrogasYBajaTests(TempMediaMixin, TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Finalizar Obra")
+
+    def test_detalle_muestra_bloques_operativos_en_acordeon_y_en_orden(self):
+        lote(
+            nro_parcela=31,
+            estado=Lote.Estado.EN_USO,
+            empresa=self.empresa,
+        )
+        AvanceConstructivo.objects.create(
+            empresa=self.empresa,
+            porcentaje_declarado=Decimal("30.00"),
+            certificado_pdf=SimpleUploadedFile(
+                "avance.pdf", b"%PDF-1.4", content_type="application/pdf"
+            ),
+        )
+        SolicitudProrroga.objects.create(
+            empresa=self.empresa,
+            meses_solicitados=6,
+            justificacion="Demora documentada en la entrega de materiales",
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(
+            reverse("core:solicitud_detail", args=[self.empresa.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        for collapse_id in ("collapseAvances", "collapseProrrogas", "collapseLote"):
+            self.assertIn(f'id="{collapse_id}"', content)
+        self.assertLess(
+            content.index("Avances Constructivos"),
+            content.index("Solicitudes de Prórroga"),
+        )
+        self.assertLess(
+            content.index("Solicitudes de Prórroga"),
+            content.index("Lote Asignado"),
+        )
+        self.assertLess(
+            content.index("Lote Asignado"),
+            content.index("Información Fiscal"),
+        )
+        self.assertNotIn("accordion-collapse collapse show", content)
 
     def test_empresa_solicita_prorroga_y_admin_aprueba_actualizando_fecha_limite(self):
         self.empresa.estado = Empresa.Estado.EN_CONSTRUCCION
@@ -2110,6 +2406,28 @@ class ConsumosConsultaDashboardYReportesTests(TestCase):
         self.assertNotContains(response, "Otra SRL")
         self.assertNotContains(response, "99,99")
 
+    def test_admin_consulta_consumos_en_detalle_de_empresa(self):
+        ConsumoServicio.objects.create(
+            empresa=self.empresa,
+            periodo_mes=5,
+            periodo_anio=2026,
+            consumo_agua_potable_m3=Decimal("12.34"),
+            consumo_luz_kwh=Decimal("88.50"),
+            consumo_gas_m3=Decimal("0.00"),
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(
+            reverse("core:solicitud_detail", args=[self.empresa.pk]),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Consumos de servicios")
+        self.assertContains(response, "05/2026")
+        self.assertContains(response, "12,34")
+        self.assertContains(response, "88,50")
+        self.assertContains(response, "0,00")
+
     def test_organismo_publico_accede_dashboard_de_consulta_y_empresa_no(self):
         organismo = user("organismo", "ORGANISMO_PUBLICO")
         lote(nro_parcela=40, estado=Lote.Estado.EN_USO, empresa=self.empresa)
@@ -2132,7 +2450,7 @@ class ConsumosConsultaDashboardYReportesTests(TestCase):
         AvanceConstructivo.objects.create(
             empresa=self.empresa,
             porcentaje_declarado=Decimal("50.00"),
-            validado_admin=True,
+            estado_revision=AvanceConstructivo.EstadoRevision.VALIDADO,
             certificado_pdf=SimpleUploadedFile(
                 "avance.pdf", b"%PDF-1.4", content_type="application/pdf"
             ),
@@ -2164,6 +2482,77 @@ class ConsumosConsultaDashboardYReportesTests(TestCase):
         self.assertTrue(any(f"estado={Empresa.Estado.PRE_APROBADO}" in href for href in kpi_hrefs))
         self.assertContains(response, "grupo=vencidas")
 
+    def test_dashboard_resume_ultimo_consumo_y_pendientes_por_empresa(self):
+        self.empresa.estado = Empresa.Estado.EN_CONSTRUCCION
+        self.empresa.fecha_limite_obra = date(2026, 12, 31)
+        self.empresa.save(update_fields=["estado", "fecha_limite_obra"])
+        ConsumoServicio.objects.create(
+            empresa=self.empresa,
+            periodo_mes=5,
+            periodo_anio=2026,
+            consumo_luz_kwh=Decimal("100.00"),
+        )
+        ConsumoServicio.objects.create(
+            empresa=self.empresa,
+            periodo_mes=6,
+            periodo_anio=2026,
+            consumo_luz_kwh=Decimal("250.00"),
+            consumo_gas_m3=Decimal("45.00"),
+        )
+        AvanceConstructivo.objects.create(
+            empresa=self.empresa,
+            porcentaje_declarado=Decimal("60.00"),
+            certificado_pdf=SimpleUploadedFile(
+                "pendiente.pdf",
+                b"%PDF-1.4",
+                content_type="application/pdf",
+            ),
+        )
+        AvanceConstructivo.objects.create(
+            empresa=self.empresa,
+            porcentaje_declarado=Decimal("30.00"),
+            estado_revision=AvanceConstructivo.EstadoRevision.VALIDADO,
+            certificado_pdf=SimpleUploadedFile(
+                "validado.pdf",
+                b"%PDF-1.4",
+                content_type="application/pdf",
+            ),
+        )
+        SolicitudProrroga.objects.create(
+            empresa=self.empresa,
+            meses_solicitados=6,
+            justificacion="Demora de materiales",
+        )
+        SolicitudProrroga.objects.create(
+            empresa=self.empresa,
+            meses_solicitados=12,
+            justificacion="Prórroga ya resuelta",
+            estado=SolicitudProrroga.EstadoProrroga.APROBADA,
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("core:consulta_parque"))
+
+        empresa_dashboard = next(
+            item for item in response.context["empresas"]
+            if item.pk == self.empresa.pk
+        )
+        self.assertEqual(empresa_dashboard.ultimo_consumo_dashboard.periodo_mes, 6)
+        self.assertEqual(
+            empresa_dashboard.ultimo_consumo_dashboard.consumo_luz_kwh,
+            Decimal("250.00"),
+        )
+        self.assertEqual(len(empresa_dashboard.avances_pendientes_dashboard), 1)
+        self.assertEqual(len(empresa_dashboard.prorrogas_pendientes_dashboard), 1)
+        self.assertContains(response, "Avance de 60,00% pendiente de validación")
+        self.assertContains(response, "Prórroga de 6 meses pendiente")
+        self.assertContains(response, "Electricidad")
+        self.assertContains(response, "250,00 kWh")
+        self.assertContains(
+            response,
+            f'data-bs-target="#resumenEmpresa-{self.empresa.pk}"',
+        )
+
     def test_solicitud_list_filtra_grupos_operativos_del_dashboard(self):
         self.empresa.estado = Empresa.Estado.EN_CONSTRUCCION
         self.empresa.fecha_limite_obra = timezone.now().date() - timedelta(days=1)
@@ -2177,7 +2566,7 @@ class ConsumosConsultaDashboardYReportesTests(TestCase):
         AvanceConstructivo.objects.create(
             empresa=vigente,
             porcentaje_declarado=Decimal("30.00"),
-            validado_admin=True,
+            estado_revision=AvanceConstructivo.EstadoRevision.VALIDADO,
             certificado_pdf=SimpleUploadedFile(
                 "avance.pdf", b"%PDF-1.4", content_type="application/pdf"
             ),
@@ -2221,9 +2610,105 @@ class ConsumosConsultaDashboardYReportesTests(TestCase):
             self.assertTrue(response.content.startswith(b"%PDF"))
 
 
+class DescargasProtegidasTests(TempMediaMixin, TestCase):
+    def setUp(self):
+        self.admin = user("admin-descargas", "ADMIN_ENREPAVI")
+        self.titular = user("titular-descargas", "EMPRESA")
+        self.otro_usuario = user("otro-descargas", "EMPRESA")
+        self.empresa = empresa(
+            razon_social="Documentos SRL",
+            cuit="30-00000041-1",
+            usuario=self.titular,
+            escritura_pdf=SimpleUploadedFile(
+                "escritura.pdf",
+                b"%PDF-escritura",
+                content_type="application/pdf",
+            ),
+        )
+        self.otra_empresa = empresa(
+            razon_social="Otra Empresa SRL",
+            cuit="30-00000042-1",
+            usuario=self.otro_usuario,
+        )
+        self.documento = DocumentoProyecto.objects.create(
+            empresa=self.empresa,
+            archivo=SimpleUploadedFile(
+                "proyecto.pdf",
+                b"%PDF-proyecto",
+                content_type="application/pdf",
+            ),
+            nombre_original="proyecto.pdf",
+            subido_por=self.titular,
+        )
+        self.avance = AvanceConstructivo.objects.create(
+            empresa=self.empresa,
+            porcentaje_declarado=Decimal("25.00"),
+            certificado_pdf=SimpleUploadedFile(
+                "certificado.pdf",
+                b"%PDF-certificado",
+                content_type="application/pdf",
+            ),
+        )
+        self.solicitud_acceso = SolicitudAcceso.objects.create(
+            tipo=SolicitudAcceso.Tipo.ORGANISMO,
+            nombre_apellido="Ana Auditora",
+            cargo="Directora",
+            organizacion="Organismo de prueba",
+            telefono="2920123456",
+            email_institucional="ana.auditora@example.com",
+            tipo_acceso="MUNICIPAL",
+            motivo="Consulta de indicadores",
+            documentacion_pdf=SimpleUploadedFile(
+                "acreditacion.pdf",
+                b"%PDF-acreditacion",
+                content_type="application/pdf",
+            ),
+        )
+
+    def test_empresa_descarga_sus_archivos(self):
+        self.client.force_login(self.titular)
+
+        for url in (
+            reverse("core:descargar_documento", args=[self.documento.pk]),
+            reverse(
+                "core:descargar_certificado_avance",
+                args=[self.avance.pk],
+            ),
+            reverse("core:descargar_escritura", args=[self.empresa.pk]),
+        ):
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 200)
+
+    def test_empresa_no_descarga_archivos_ajenos(self):
+        self.client.force_login(self.otro_usuario)
+
+        for url in (
+            reverse("core:descargar_documento", args=[self.documento.pk]),
+            reverse(
+                "core:descargar_certificado_avance",
+                args=[self.avance.pk],
+            ),
+            reverse("core:descargar_escritura", args=[self.empresa.pk]),
+        ):
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 403)
+
+    def test_documentacion_de_acceso_es_solo_para_administracion(self):
+        url = reverse(
+            "core:descargar_documentacion_acceso",
+            args=[self.solicitud_acceso.pk],
+        )
+
+        self.client.force_login(self.titular)
+        self.assertEqual(self.client.get(url).status_code, 403)
+
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(url).status_code, 200)
+
+
 class CargarDatosPruebaConsistencyTests(TestCase):
     def test_avances_de_prueba_no_dejan_construccion_con_100_validado(self):
-        avances = _normalizar_avances([(150, True)])
+        avances = _normalizar_avances([(150, AVANCE_VALIDADO)])
 
         self.assertEqual(avances[0][0], Decimal("100.00"))
         self.assertEqual(
@@ -2233,7 +2718,7 @@ class CargarDatosPruebaConsistencyTests(TestCase):
 
     def test_avances_de_prueba_rechazan_porcentaje_negativo(self):
         with self.assertRaises(ValueError):
-            _normalizar_avances([(-1, True)])
+            _normalizar_avances([(-1, AVANCE_VALIDADO)])
 
 
 class AdminGestionUsuariosContactarTests(TestCase):
@@ -2271,6 +2756,32 @@ class AdminGestionUsuariosContactarTests(TestCase):
             f'{reverse("core:admin_ticket_create")}?user={self.usuario.pk}',
         )
         self.assertContains(response, "Contactar")
+
+    def test_detalle_acceso_reutiliza_una_observacion_para_resolver(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(
+            reverse(
+                "core:solicitud_acceso_detail",
+                args=[self.solicitud.pk],
+            ),
+        )
+
+        self.assertContains(response, 'name="observaciones_admin"', count=1)
+        self.assertContains(
+            response,
+            reverse(
+                "core:solicitud_acceso_aprobar",
+                args=[self.solicitud.pk],
+            ),
+        )
+        self.assertContains(
+            response,
+            reverse(
+                "core:solicitud_acceso_rechazar",
+                args=[self.solicitud.pk],
+            ),
+        )
 
     @patch("core.views.notificar_ticket_mensaje")
     def test_admin_crea_ticket_interno_para_usuario(self, mock_notificar):

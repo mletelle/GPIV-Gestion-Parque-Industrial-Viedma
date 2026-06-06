@@ -40,6 +40,7 @@ services:
              gunicorn --bind 0.0.0.0:8000 --workers 3 gpiv.wsgi:application"
     volumes:
       - static_volume:/app/staticfiles
+      - media_volume:/app/media
       - migrations_data:/app/core/migrations
     env_file:
       - .env
@@ -70,4 +71,5 @@ networks:
 volumes:
   postgres_data:
   static_volume:
+  media_volume:
   migrations_data:

@@ -117,66 +117,7 @@
         </div>
 
         {% if 'ADMIN_ENREPAVI' in user_groups or user.is_superuser %}
-        <h3 class="seccion-titulo">Tareas pendientes</h3>
-        <div class="row g-3 mb-3">
-            <div class="col-lg-6">
-                <div class="kpi-card">
-                    <h6>Pendientes de administración</h6>
-                    <table class="mini-table">
-                        <tr>
-                            <td>
-                                <a href="{% url 'core:avances_pendientes' %}"
-                                    style="color:var(--gris-texto);text-decoration:none;">
-                                    Avances constructivos por validar
-                                </a>
-                            </td>
-                            <td>{{ avances_pendientes }}</td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <a href="{% url 'core:prorrogas_pendientes' %}"
-                                    style="color:var(--gris-texto);text-decoration:none;">
-                                    Prórrogas por resolver
-                                </a>
-                            </td>
-                            <td>{{ prorrogas_pendientes }}</td>
-                        </tr>
-                        <tr>
-                            <td>Obras con vencimiento en 30 días</td>
-                            <td>{{ proximos_vencer|length }}</td>
-                        </tr>
-                    </table>
-                    {% if not avances_pendientes and not prorrogas_pendientes %}
-                    <p style="font-size:0.82rem;color:var(--gris-suave);margin-top:0.6rem;margin-bottom:0;">Sin tareas pendientes.</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
 
-        <h3 class="seccion-titulo">Reportes</h3>
-        <div class="row g-3 mb-3">
-            <div class="col-sm-6 col-lg-4">
-                <a href="{% url 'core:reporte_ocupacion' %}" class="dash-card" target="_blank">
-                    <div class="card-icon"><i class="bi bi-file-earmark-pdf"></i></div>
-                    <h5>Ocupación del parque</h5>
-                    <p>PDF con detalle de lotes por estado y totales.</p>
-                </a>
-            </div>
-            <div class="col-sm-6 col-lg-4">
-                <a href="{% url 'core:reporte_empresas' %}" class="dash-card" target="_blank">
-                    <div class="card-icon"><i class="bi bi-file-earmark-pdf"></i></div>
-                    <h5>Empresas activas</h5>
-                    <p>Nómina de empresas con radicación vigente.</p>
-                </a>
-            </div>
-            <div class="col-sm-6 col-lg-4">
-                <a href="{% url 'core:reporte_consumos' %}" class="dash-card" target="_blank">
-                    <div class="card-icon"><i class="bi bi-file-earmark-pdf"></i></div>
-                    <h5>Consumos del último período</h5>
-                    <p>PDF con consumos declarados por empresa.</p>
-                </a>
-            </div>
-        </div>
 
         <h3 class="seccion-titulo">Accesos rápidos</h3>
         <div class="row g-4">
@@ -227,6 +168,30 @@
                     <div class="card-icon"><i class="bi bi-headset"></i></div>
                     <h5>Soporte</h5>
                     <p>Gestionar tickets de soporte del sistema.</p>
+                </a>
+            </div>
+        </div>
+                <h3 class="seccion-titulo">Reportes</h3>
+        <div class="row g-3 mb-3">
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:reporte_ocupacion' %}" class="dash-card" target="_blank">
+                    <div class="card-icon"><i class="bi bi-file-earmark-pdf"></i></div>
+                    <h5>Ocupación del parque</h5>
+                    <p>PDF con detalle de lotes por estado y totales.</p>
+                </a>
+            </div>
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:reporte_empresas' %}" class="dash-card" target="_blank">
+                    <div class="card-icon"><i class="bi bi-file-earmark-pdf"></i></div>
+                    <h5>Empresas activas</h5>
+                    <p>Nómina de empresas con radicación vigente.</p>
+                </a>
+            </div>
+            <div class="col-sm-6 col-lg-4">
+                <a href="{% url 'core:reporte_consumos' %}" class="dash-card" target="_blank">
+                    <div class="card-icon"><i class="bi bi-file-earmark-pdf"></i></div>
+                    <h5>Consumos del último período</h5>
+                    <p>PDF con consumos declarados por empresa.</p>
                 </a>
             </div>
         </div>
