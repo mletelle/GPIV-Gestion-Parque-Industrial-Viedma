@@ -1986,9 +1986,109 @@ class AvancesProrrogasYBajaTests(TempMediaMixin, TestCase):
         self.assertContains(
             response,
             'data-bs-target="#modalRechazarAvance"',
-            count=2,
+            count=1,
         )
+        self.assertContains(response, "40,00%")
+        self.assertNotContains(response, "20,00%")
         self.assertContains(response, 'name="motivo"', count=1)
+
+    def test_lista_oculta_avances_pendientes_cubiertos_por_un_validado_mayor(self):
+        AvanceConstructivo.objects.create(
+            empresa=self.empresa,
+            porcentaje_declarado=Decimal("100.00"),
+            estado_revision=AvanceConstructivo.EstadoRevision.VALIDADO,
+            certificado_pdf=SimpleUploadedFile(
+                "avance-100.pdf",
+                b"%PDF-1.4",
+                content_type="application/pdf",
+            ),
+        )
+        AvanceConstructivo.objects.create(
+            empresa=self.empresa,
+            porcentaje_declarado=Decimal("50.00"),
+            certificado_pdf=SimpleUploadedFile(
+                "avance-50.pdf",
+                b"%PDF-1.4",
+                content_type="application/pdf",
+            ),
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("core:avances_pendientes"))
+
+        self.assertContains(response, "No hay avances pendientes de validación.")
+        self.assertNotContains(response, "50,00%")
+        self.assertNotContains(response, 'data-bs-target="#modalRechazarAvance"')
+
+    def test_admin_no_puede_rechazar_avance_obsoleto_por_post_directo(self):
+        AvanceConstructivo.objects.create(
+            empresa=self.empresa,
+            porcentaje_declarado=Decimal("100.00"),
+            estado_revision=AvanceConstructivo.EstadoRevision.VALIDADO,
+            certificado_pdf=SimpleUploadedFile(
+                "avance-100.pdf",
+                b"%PDF-1.4",
+                content_type="application/pdf",
+            ),
+        )
+        avance_obsoleto = AvanceConstructivo.objects.create(
+            empresa=self.empresa,
+            porcentaje_declarado=Decimal("50.00"),
+            certificado_pdf=SimpleUploadedFile(
+                "avance-50.pdf",
+                b"%PDF-1.4",
+                content_type="application/pdf",
+            ),
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("core:avance_rechazar", args=[avance_obsoleto.pk]),
+            {"motivo": "El avance ya quedo cubierto por uno posterior."},
+        )
+
+        self.assertEqual(response.status_code, 404)
+        avance_obsoleto.refresh_from_db()
+        self.assertEqual(
+            avance_obsoleto.estado_revision,
+            AvanceConstructivo.EstadoRevision.PENDIENTE,
+        )
+
+    def test_lista_filtra_avances_por_empresa_desde_dashboard(self):
+        otra_empresa = empresa(
+            razon_social="Otra Obra SRL",
+            cuit="30-00000019-9",
+            estado=Empresa.Estado.EN_CONSTRUCCION,
+        )
+        AvanceConstructivo.objects.create(
+            empresa=self.empresa,
+            porcentaje_declarado=Decimal("70.00"),
+            certificado_pdf=SimpleUploadedFile(
+                "avance-propio.pdf",
+                b"%PDF-1.4",
+                content_type="application/pdf",
+            ),
+        )
+        AvanceConstructivo.objects.create(
+            empresa=otra_empresa,
+            porcentaje_declarado=Decimal("80.00"),
+            certificado_pdf=SimpleUploadedFile(
+                "avance-otro.pdf",
+                b"%PDF-1.4",
+                content_type="application/pdf",
+            ),
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(
+            reverse("core:avances_pendientes"),
+            {"empresa": self.empresa.pk},
+        )
+
+        self.assertContains(response, self.empresa.razon_social)
+        self.assertContains(response, "70,00%")
+        self.assertNotContains(response, otra_empresa.razon_social)
+        self.assertNotContains(response, "80,00%")
 
     def test_avance_revisado_no_puede_volver_a_revisarse(self):
         avance = AvanceConstructivo.objects.create(
@@ -2510,6 +2610,15 @@ class ConsumosConsultaDashboardYReportesTests(TestCase):
         )
         AvanceConstructivo.objects.create(
             empresa=self.empresa,
+            porcentaje_declarado=Decimal("40.00"),
+            certificado_pdf=SimpleUploadedFile(
+                "pendiente-menor.pdf",
+                b"%PDF-1.4",
+                content_type="application/pdf",
+            ),
+        )
+        AvanceConstructivo.objects.create(
+            empresa=self.empresa,
             porcentaje_declarado=Decimal("30.00"),
             estado_revision=AvanceConstructivo.EstadoRevision.VALIDADO,
             certificado_pdf=SimpleUploadedFile(
@@ -2543,11 +2652,20 @@ class ConsumosConsultaDashboardYReportesTests(TestCase):
             Decimal("250.00"),
         )
         self.assertEqual(len(empresa_dashboard.avances_pendientes_dashboard), 1)
+        self.assertEqual(
+            empresa_dashboard.avances_pendientes_dashboard[0].porcentaje_declarado,
+            Decimal("60.00"),
+        )
         self.assertEqual(len(empresa_dashboard.prorrogas_pendientes_dashboard), 1)
         self.assertContains(response, "Avance de 60,00% pendiente de validación")
+        self.assertNotContains(response, "Avance de 40,00% pendiente de validación")
         self.assertContains(response, "Prórroga de 6 meses pendiente")
         self.assertContains(response, "Electricidad")
         self.assertContains(response, "250,00 kWh")
+        self.assertContains(
+            response,
+            f'href="{reverse("core:avances_pendientes")}?empresa={self.empresa.pk}"',
+        )
         self.assertContains(
             response,
             f'data-bs-target="#resumenEmpresa-{self.empresa.pk}"',

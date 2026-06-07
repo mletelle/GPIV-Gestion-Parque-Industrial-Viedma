@@ -13,6 +13,7 @@
         width: 100%;
         border-collapse: collapse;
         font-size: 0.9rem;
+        table-layout: fixed;
     }
 
     .tabla-consumos th {
@@ -22,6 +23,10 @@
         font-weight: 600;
         font-size: 0.82rem;
         text-align: left;
+    }
+
+    .tabla-consumos th.valor-num {
+        text-align: right;
     }
 
     .tabla-consumos th:first-child {
@@ -46,6 +51,11 @@
         font-variant-numeric: tabular-nums;
         text-align: right;
     }
+
+    /* anchos de columna */
+    .tabla-consumos .col-periodo { width: 12%; }
+    .tabla-consumos .col-servicio { width: 16%; }
+    .tabla-consumos .col-fecha { width: 18%; }
 
     .empty-state {
         text-align: center;
@@ -83,12 +93,12 @@
                 <table class="tabla-consumos">
                     <thead>
                         <tr>
-                            <th>Periodo</th>
-                            <th class="valor-num">Agua potable (m3)</th>
-                            <th class="valor-num">Agua cruda (m3)</th>
-                            <th class="valor-num">Electricidad (kWh)</th>
-                            <th class="valor-num">Gas (m3)</th>
-                            <th>Fecha de carga</th>
+                            <th class="col-periodo">Periodo</th>
+                            <th class="valor-num col-servicio">Agua potable (m3)</th>
+                            <th class="valor-num col-servicio">Agua cruda (m3)</th>
+                            <th class="valor-num col-servicio">Electricidad (kWh)</th>
+                            <th class="valor-num col-servicio">Gas (m3)</th>
+                            <th class="col-fecha">Fecha de carga</th>
                         </tr>
                     </thead>
                     <tbody>

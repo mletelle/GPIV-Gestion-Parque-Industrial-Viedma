@@ -82,6 +82,12 @@
 <div class="avances-wrap">
     <div class="container">
         <h2 class="sec-title mb-1">Avances Pendientes de Validación</h2>
+        {% if empresa_filtro %}
+        <p class="text-muted mb-3">
+            Mostrando avances pendientes de {{ empresa_filtro.razon_social }}.
+            <a href="{% url 'core:avances_pendientes' %}">Ver todos</a>
+        </p>
+        {% endif %}
 
         <div style="overflow-x:auto;">
             <table class="tabla-avances">
@@ -142,17 +148,20 @@
             <ul class="pagination justify-content-center">
                 {% if page_obj.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a>
+                    <a class="page-link"
+                        href="?{% if filtro_querystring %}{{ filtro_querystring }}&{% endif %}page={{ page_obj.previous_page_number }}">&laquo;</a>
                 </li>
                 {% endif %}
                 {% for num in page_obj.paginator.page_range %}
                 <li class="page-item {% if page_obj.number == num %}active{% endif %}">
-                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                    <a class="page-link"
+                        href="?{% if filtro_querystring %}{{ filtro_querystring }}&{% endif %}page={{ num }}">{{ num }}</a>
                 </li>
                 {% endfor %}
                 {% if page_obj.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a>
+                    <a class="page-link"
+                        href="?{% if filtro_querystring %}{{ filtro_querystring }}&{% endif %}page={{ page_obj.next_page_number }}">&raquo;</a>
                 </li>
                 {% endif %}
             </ul>

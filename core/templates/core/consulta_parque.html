@@ -1042,7 +1042,7 @@
                             {% if puede_gestionar_dashboard %}
                             <div class="empresa-resumen-acciones">
                                 {% if e.avances_pendientes_dashboard %}
-                                <a href="{% url 'core:avances_pendientes' %}">
+                                <a href="{% url 'core:avances_pendientes' %}?empresa={{ e.pk }}">
                                     Resolver avances
                                 </a>
                                 {% endif %}

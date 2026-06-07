@@ -14,7 +14,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.utils import timezone
-from django.db.models import Max, Prefetch, Q, Sum
+from django.db.models import Exists, Max, OuterRef, Prefetch, Q, Sum
 from django.db import transaction, IntegrityError
 from django.core.exceptions import MultipleObjectsReturned, PermissionDenied
 from django.utils.decorators import method_decorator
@@ -56,6 +56,38 @@ from .forms import (
 from django import forms as django_forms
 
 logger = logging.getLogger(__name__)
+
+
+def avances_pendientes_accionables():
+    pendiente = AvanceConstructivo.EstadoRevision.PENDIENTE
+    validado = AvanceConstructivo.EstadoRevision.VALIDADO
+    avance_mayor_pendiente = AvanceConstructivo.objects.filter(
+        empresa_id=OuterRef('empresa_id'),
+        estado_revision=pendiente,
+    ).filter(
+        Q(porcentaje_declarado__gt=OuterRef('porcentaje_declarado'))
+        | Q(
+            porcentaje_declarado=OuterRef('porcentaje_declarado'),
+            pk__gt=OuterRef('pk'),
+        )
+    )
+    avance_validado_suficiente = AvanceConstructivo.objects.filter(
+        empresa_id=OuterRef('empresa_id'),
+        estado_revision=validado,
+        porcentaje_declarado__gte=OuterRef('porcentaje_declarado'),
+    )
+    return (
+        AvanceConstructivo.objects
+        .filter(estado_revision=pendiente)
+        .annotate(
+            tiene_pendiente_mayor=Exists(avance_mayor_pendiente),
+            tiene_validado_suficiente=Exists(avance_validado_suficiente),
+        )
+        .filter(
+            tiene_pendiente_mayor=False,
+            tiene_validado_suficiente=False,
+        )
+    )
 
 
  # landing publica
@@ -1476,9 +1508,21 @@ class AvancesPendientesView(AdminEnrepaviMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        return AvanceConstructivo.objects.filter(
-            estado_revision=AvanceConstructivo.EstadoRevision.PENDIENTE,
-        ).select_related('empresa').order_by('-fecha_presentacion')
+        queryset = avances_pendientes_accionables().select_related('empresa')
+        empresa_id = self.request.GET.get('empresa')
+        if empresa_id and empresa_id.isdigit():
+            queryset = queryset.filter(empresa_id=empresa_id)
+        return queryset.order_by('-porcentaje_declarado', '-fecha_presentacion', '-pk')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        empresa_id = self.request.GET.get('empresa')
+        ctx['empresa_filtro'] = None
+        ctx['filtro_querystring'] = ''
+        if empresa_id and empresa_id.isdigit():
+            ctx['empresa_filtro'] = Empresa.objects.filter(pk=empresa_id).first()
+            ctx['filtro_querystring'] = urlencode({'empresa': empresa_id})
+        return ctx
 
 
 class AvanceValidarView(AdminEnrepaviMixin, View):
@@ -1486,9 +1530,8 @@ class AvanceValidarView(AdminEnrepaviMixin, View):
     def post(self, request, pk):
         with transaction.atomic():
             avance = get_object_or_404(
-                AvanceConstructivo.objects.select_for_update(),
+                avances_pendientes_accionables().select_for_update(),
                 pk=pk,
-                estado_revision=AvanceConstructivo.EstadoRevision.PENDIENTE,
             )
             empresa = Empresa.objects.select_for_update().get(pk=avance.empresa_id)
             avance.validar(request.user)
@@ -1528,9 +1571,8 @@ class AvanceRechazarView(AdminEnrepaviMixin, View):
 
         with transaction.atomic():
             avance = get_object_or_404(
-                AvanceConstructivo.objects.select_for_update().select_related('empresa'),
+                avances_pendientes_accionables().select_for_update().select_related('empresa'),
                 pk=pk,
-                estado_revision=AvanceConstructivo.EstadoRevision.PENDIENTE,
             )
             avance.rechazar(request.user, form.cleaned_data['motivo'])
 
@@ -1880,9 +1922,9 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
         ultimos_consumos = ConsumoServicio.objects.order_by(
             'empresa_id', '-periodo_anio', '-periodo_mes',
         ).distinct('empresa_id')
-        avances_pendientes_empresa = AvanceConstructivo.objects.filter(
-            estado_revision=AvanceConstructivo.EstadoRevision.PENDIENTE,
-        ).order_by('-fecha_presentacion')
+        avances_pendientes_empresa = avances_pendientes_accionables().order_by(
+            '-porcentaje_declarado', '-fecha_presentacion', '-pk',
+        )
         prorrogas_pendientes_empresa = SolicitudProrroga.objects.filter(
             estado=SolicitudProrroga.EstadoProrroga.PENDIENTE,
         ).order_by('-fecha_solicitud')
@@ -2074,9 +2116,7 @@ class ConsultaParqueView(OrganismoPublicoMixin, TemplateView):
                 })
 
         # tareas pendientes y kpis operativos
-        avances_pendientes = AvanceConstructivo.objects.filter(
-            estado_revision=AvanceConstructivo.EstadoRevision.PENDIENTE,
-        ).count()
+        avances_pendientes = avances_pendientes_accionables().count()
         prorrogas_pendientes = SolicitudProrroga.objects.filter(
             estado=SolicitudProrroga.EstadoProrroga.PENDIENTE,
         ).count()
