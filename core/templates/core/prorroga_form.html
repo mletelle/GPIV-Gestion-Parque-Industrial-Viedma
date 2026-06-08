@@ -49,7 +49,7 @@
 <div class="prorroga-wrap">
     <div class="container">
         <div class="prorroga-card">
-            <h3><i class="bi bi-calendar-plus"></i> Solicitar Extensión de Plazo</h3>
+            <h3>Solicitar Extensión de Plazo</h3>
             <p style="color:var(--gris-suave);font-size:0.92rem;margin-bottom:1.5rem;">
                 {{ empresa.razon_social }}
             </p>
@@ -86,8 +86,7 @@
                     {% endif %}
                 </div>
                 <div class="d-flex justify-content-end gap-2">
-                    <a href="{% url 'core:mi_solicitud' %}" class="btn-sm-gpiv"
-                        style="padding:0.5rem 1.2rem;">Cancelar</a>
+                    <a href="{% url 'core:mi_solicitud' %}" class="btn btn-light border">Cancelar</a>
                     <button type="submit" class="btn-verde">
                         <i class="bi bi-send"></i> Enviar Solicitud
                     </button>

@@ -63,11 +63,11 @@
 <div class="crear-wrap container-fluid px-4">
 
     <div class="d-flex align-items-center gap-3 mb-3">
-        <a href="{% url 'core:solicitud_acceso_list' %}" class="btn-sm-gpiv" style="background:#fff;color:var(--verde);border:1px solid var(--borde);">
-            <i class="bi bi-arrow-left"></i> Volver
+        <a href="{% url 'core:admin_gestion_usuarios' %}" class="btn-sm-gpiv d-flex align-items-center" style="background:#fff;color:var(--verde);border:1px solid var(--borde); padding:0.4rem 0.8rem; border-radius:7px; text-decoration:none;">
+            <i class="bi bi-arrow-left me-1"></i> Volver
         </a>
         <h1 class="sec-title mb-0" style="font-size:1.5rem;">
-            <i class="bi bi-person-plus"></i> Crear usuario
+            Crear usuario
         </h1>
     </div>
 
@@ -151,7 +151,7 @@
                     <button type="submit" class="btn-verde">
                         <i class="bi bi-check-lg"></i> Crear usuario
                     </button>
-                    <a href="{% url 'core:solicitud_acceso_list' %}" class="btn-sm-gpiv" style="background:#fff;color:var(--gris-texto);border:1px solid var(--borde);">
+                    <a href="{% url 'core:admin_gestion_usuarios' %}" class="btn btn-light border">
                         Cancelar
                     </a>
                 </div>

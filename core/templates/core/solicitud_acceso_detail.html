@@ -56,20 +56,22 @@
 {% block content %}
 <div class="detail-wrap container" style="max-width:860px;">
 
-    <div class="d-flex align-items-center gap-2 mb-3">
-        <a href="{% url 'core:admin_gestion_usuarios' %}" class="btn btn-sm btn-outline-secondary">
+    <div class="mb-3">
+        <a href="{% url 'core:admin_gestion_usuarios' %}" class="btn btn-sm btn-outline-secondary mb-3">
             <i class="bi bi-arrow-left"></i> Volver a Gestión de usuarios
         </a>
-        <h1 class="sec-title mb-0 ms-1" style="font-size:1.3rem;">
-            Solicitud #{{ solicitud.pk }}
-        </h1>
-        {% if solicitud.estado == 'PENDIENTE' %}
-        <span class="badge-pendiente">Pendiente</span>
-        {% elif solicitud.estado == 'APROBADA' %}
-        <span class="badge-aprobada">Aprobada</span>
-        {% else %}
-        <span class="badge-rechazada">Rechazada</span>
-        {% endif %}
+        <div class="d-flex align-items-center gap-2">
+            <h1 class="sec-title mb-0" style="font-size:1.3rem;">
+                Solicitud #{{ solicitud.pk }}
+            </h1>
+            {% if solicitud.estado == 'PENDIENTE' %}
+            <span class="badge-pendiente">Pendiente</span>
+            {% elif solicitud.estado == 'APROBADA' %}
+            <span class="badge-aprobada">Aprobada</span>
+            {% else %}
+            <span class="badge-rechazada">Rechazada</span>
+            {% endif %}
+        </div>
     </div>
 
     {% if messages %}
