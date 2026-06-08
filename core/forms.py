@@ -842,7 +842,7 @@ class ActivoInventarioForm(forms.ModelForm):
             .filter(is_active=True)
             .order_by('last_name', 'first_name', 'username')
         )
-        self.fields['responsable'].empty_label = '— Sin responsable asignado —'
+        self.fields['responsable'].empty_label = '— Sin responsable —'
 
 
 class BajaActivoForm(forms.Form):

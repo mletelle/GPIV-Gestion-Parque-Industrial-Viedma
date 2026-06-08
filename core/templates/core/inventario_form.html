@@ -72,9 +72,9 @@
         <div class="form-card mt-2">
             <h2>
                 {% if es_nuevo %}
-                <i class="bi bi-plus-circle"></i> Registrar Activo
+                Registrar Activo
                 {% else %}
-                <i class="bi bi-pencil-square"></i> {{ titulo }}
+                {{ titulo }}
                 {% endif %}
             </h2>
 
@@ -164,7 +164,6 @@
 
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn-verde" id="btn-guardar-activo">
-                        <i class="bi bi-check-lg"></i>
                         {% if es_nuevo %}Registrar{% else %}Guardar cambios{% endif %}
                     </button>
                     <a href="{% url 'core:inventario_list' %}"
