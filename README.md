@@ -2,57 +2,7 @@
 
 Sistema web para la administracion integral del Parque Industrial de Viedma. 
 
-Proyecto académico **Tivena** para la materia *Ingenieria de Software* — UNRN, cursada 2026.
-
-<div align="center">
-  <img src="assets/tivena.png" alt="Tivena" width="160">
-</div>
-
----
-
-## Contexto 
-
-El Parque Industrial de Viedma se ubica sobre la Ruta Provincial Nº 1, camino a El Condor (Viedma, Rio Negro). Administrado por **ENREPAVI**, cuenta con 65 parcelas sobre una superficie administrable de 184.047 m2. Actualmente alberga 52 empresas activas en rubros como construccion, frigorifico, secaderos de fruta, talleres mecánicos y logistica.
-
-El sistema reemplaza el seguimiento manual por planillas y comunicacion informal, centralizando todas las operaciones del parque en una única plataforma web.
-
----
-
-## Stack tecnologico
-
-| Componente | Tecnologia | Componente | Tecnologia |
-| :--- | :--- | :--- | :--- |
-| Backend | Django + Python  | Base de datos | PostgreSQL  |
-| Frontend | Bootstrap  | Servidor | Gunicorn + Whitenoise |
-| Infraestructura | Docker | Despliegue | Oracle Cloud Free Tier  |
-
-
----
-
-## Funcionalidades
-
-- Portal público sin login: info del parque, catálogo de lotes, formulario de solicitud de radicacion
-- Flujo de radicacion:
-  - Pre evaluacion y aprobacion de solicitudes por la administracion
-  - Adjudicacion de lote y alerta de compatibilidad industrial entre parcelas vecinas
-  - Seguimiento de avance constructivo (carga por empresa, validacion por administracion)
-  - Solicitudes de prorroga
-  - finalizacion de obra y registro de escrituracion
-  - baja administrativa con liberacion del lote asignado
-- lista de espera para empresas pre-aprobadas sin lote disponible
-- paneles condicionales por rol: cada grupo ve solo lo que le corresponde
-- notificaciones automaticas de vencimiento de plazos por mail
-- caducidad automatica de proyectos con plazo vencido
-
-
-### Roles del sistema
-
-| Grupo | Acceso |
-| :--- | :--- |
-| `ADMIN_ENREPAVI` | Gestion completa: evaluar solicitudes, adjudicar lotes, validar avances, aprobar prorrogas, emitir bajas, escriturar |
-| `EMPRESA` | Panel propio: estado de solicitud, lote asignado, carga de avances, solicitud de prorrogas. Usuarios pueden ser **Titular** (gestiona equipo) o **Estándar** (operación sin gestión de equipo) |
-| `PROVEEDOR_AGUA`, `PROVEEDOR_LUZ`, `PROVEEDOR_GAS` | Carga mensual de consumos del servicio asignado por empresa |
-| `ORGANISMO_PUBLICO` | Solo lectura: nomina de empresas radicadas e indicadores generales del parque |
+Proyecto académico de **Tivena** para la materia *Ingenieria de Software* — UNRN, cursada 2026.
 
 ---
 

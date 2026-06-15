@@ -208,8 +208,3 @@ __marimo__/
 .context/*
 core/migrations/*
 !core/migrations/__init__.py
-.agents/rules/gpiv.md
-CLAUDE.md
-.claudignore
-.context/
-media/
